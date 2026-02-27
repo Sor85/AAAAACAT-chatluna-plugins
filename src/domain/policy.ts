@@ -26,6 +26,20 @@ export interface AutoFillResult {
   selectedTextSource?: EmptyTextAutoFillRule["source"] | "group-nickname";
 }
 
+function isSameImage(
+  left?: GenerateImageInput,
+  right?: GenerateImageInput,
+): boolean {
+  if (!left || !right) return false;
+  if (left === right) return true;
+  if (left.mimeType !== right.mimeType) return false;
+  if (left.data.length !== right.data.length) return false;
+  for (let index = 0; index < left.data.length; index += 1) {
+    if (left.data[index] !== right.data[index]) return false;
+  }
+  return true;
+}
+
 function getRuleWeight(rule: EmptyTextAutoFillRule): number {
   if (!rule.enabled) return 0;
   if (!Number.isFinite(rule.weight)) return 0;
@@ -210,6 +224,14 @@ export function applyAutoFillPolicy(input: AutoFillInput): AutoFillResult {
     }
 
     if (input.senderAvatarImage) {
+      if (
+        input.botAvatarImage &&
+        isSameImage(input.senderAvatarImage, input.targetAvatarImage)
+      ) {
+        images.push(input.senderAvatarImage, input.botAvatarImage);
+        return { texts, images, selectedTextSource };
+      }
+
       images.push(input.senderAvatarImage, input.targetAvatarImage);
       return { texts, images, selectedTextSource };
     }

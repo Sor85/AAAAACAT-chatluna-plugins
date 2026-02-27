@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-chatluna-meme-generator",
-  "version": "0.0.3",
-  "description": "仅支持 python 的 meme-generator，并为 chatluna 提供 xml 形式的工具调用",
+  "version": "0.0.4",
+  "description": "为 chatluna 提供 meme-generator（python）能力，支持 XML 工具调用、随机模板、1图/2图模板筛选与双图头像自动补全策略",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "files": [

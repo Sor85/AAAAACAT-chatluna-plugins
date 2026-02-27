@@ -129,7 +129,8 @@ function createBaseConfig(): Config {
     initLoadRetryTimes: 3,
     disableErrorReplyToPlatform: false,
     excludeTextOnlyMemes: false,
-    excludeImageOnlyMemes: false,
+    excludeSingleImageOnlyMemes: false,
+    excludeTwoImageOnlyMemes: false,
     excludeImageAndTextMemes: false,
     excludedMemeKeys: [],
   };

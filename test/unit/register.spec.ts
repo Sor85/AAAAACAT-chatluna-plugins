@@ -54,7 +54,12 @@ const generateMock = vi.fn(async () => ({
   mimeType: "image/png",
 }));
 
-const getInfoMock = vi.fn(async () => ({
+const getPreviewMock = vi.fn(async () => ({
+  buffer: new Uint8Array([1, 2, 3]).buffer,
+  mimeType: "image/png",
+}));
+
+const getInfoMock = vi.fn<(key: string) => Promise<any>>(async () => ({
   key: "qizhu",
   params_type: {
     min_images: 0,
@@ -70,7 +75,7 @@ const getInfoMock = vi.fn(async () => ({
   date_modified: "2026-01-01T00:00:00",
 }));
 
-const getKeysMock = vi.fn(async () => []);
+const getKeysMock = vi.fn<() => Promise<string[]>>(async () => []);
 
 const imageDownloadMocks = vi.hoisted(() => ({
   downloadImage: vi.fn(async () => ({
@@ -94,7 +99,7 @@ vi.mock("../../src/infra/client", () => ({
   MemeBackendClient: vi.fn().mockImplementation(() => ({
     getKeys: getKeysMock,
     getInfo: getInfoMock,
-    getPreview: vi.fn(),
+    getPreview: getPreviewMock,
     generate: generateMock,
   })),
 }));
@@ -232,7 +237,8 @@ function createBaseConfig(overrides: Partial<Config> = {}): Config {
     initLoadRetryTimes: 3,
     disableErrorReplyToPlatform: false,
     excludeTextOnlyMemes: false,
-    excludeImageOnlyMemes: false,
+    excludeSingleImageOnlyMemes: false,
+    excludeTwoImageOnlyMemes: false,
     excludeImageAndTextMemes: false,
     excludedMemeKeys: [],
     ...overrides,
@@ -282,6 +288,12 @@ function resetCommonMocks() {
 
   generateMock.mockReset();
   generateMock.mockResolvedValue({
+    buffer: new Uint8Array([1, 2, 3]).buffer,
+    mimeType: "image/png",
+  });
+
+  getPreviewMock.mockReset();
+  getPreviewMock.mockResolvedValue({
     buffer: new Uint8Array([1, 2, 3]).buffer,
     mimeType: "image/png",
   });
@@ -1444,7 +1456,54 @@ describe("registerCommands", () => {
     expect(session.send).not.toHaveBeenCalled();
   });
 
-  it("meme.random 开启关键词提示时应保留 @ 目标与文本参数", async () => {
+  it("excludedMemeKeys 应拦截 meme.info/meme.preview/meme 并过滤直连别名", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers, matchHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu", "other"]);
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        excludedMemeKeys: [" qizhu "],
+        enableDirectAliasWithoutPrefix: true,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const infoAction = commandActions.get("meme.info <key:string>");
+    const previewAction = commandActions.get("meme.preview <key:string>");
+    const generateAction = commandActions.get("meme <key:string> [...texts]");
+
+    expect(infoAction).toBeDefined();
+    expect(previewAction).toBeDefined();
+    expect(generateAction).toBeDefined();
+
+    await expect(infoAction!({}, "qizhu")).resolves.toContain("该模板已被排除");
+    await expect(previewAction!({}, "qizhu")).resolves.toContain(
+      "该模板已被排除",
+    );
+
+    const generateSession = createSession("meme qizhu");
+    await expect(
+      generateAction!({ session: generateSession }, "qizhu"),
+    ).resolves.toContain("该模板已被排除");
+
+    expect(matchHandlers).toHaveLength(0);
+    expect(generateMock).not.toHaveBeenCalled();
+    expect(getPreviewMock).not.toHaveBeenCalled();
+  });
+
+  it("排除仅需 1 张图片模板时应过滤 meme.list 并拦截 meme.random", async () => {
     const commandActions = new Map<
       string,
       (...args: any[]) => Promise<unknown>
@@ -1457,17 +1516,17 @@ describe("registerCommands", () => {
       }),
     }));
 
-    getKeysMock.mockResolvedValue(["same"]);
+    getKeysMock.mockResolvedValue(["single_image_only"]);
     getInfoMock.mockResolvedValue({
-      key: "same",
+      key: "single_image_only",
       params_type: {
-        min_images: 0,
-        max_images: 0,
+        min_images: 1,
+        max_images: 1,
         min_texts: 0,
-        max_texts: 3,
+        max_texts: 0,
         default_texts: [],
       },
-      keywords: ["看看你的"],
+      keywords: ["单图模板"],
       shortcuts: [],
       tags: [],
       date_created: "2026-01-01T00:00:00",
@@ -1477,23 +1536,82 @@ describe("registerCommands", () => {
     registerCommands(
       ctx,
       createBaseConfig({
-        enableRandomKeywordNotice: true,
+        enableDirectAliasWithoutPrefix: false,
+        excludeSingleImageOnlyMemes: true,
       }),
     );
     await flushReadyHandlers(readyHandlers);
 
+    const listAction = commandActions.get("meme.list");
     const randomAction = commandActions.get("meme.random [...texts]");
+
+    expect(listAction).toBeDefined();
     expect(randomAction).toBeDefined();
 
-    const session = createSession("meme.random", [
-      { type: "at", attrs: { id: "10001" }, children: [] },
-      { type: "at", attrs: { id: "10002", name: "user2" }, children: [] },
-    ]);
-    const result = await randomAction!({ session }, "你好");
+    await expect(
+      listAction!({ session: createSession("meme.list") }),
+    ).resolves.toContain("当前后端没有可用模板");
 
-    expect(typeof result).toBe("string");
-    expect(String(result)).toContain("看看你的");
-    expect(String(result)).toContain("<img");
-    expect(session.send).not.toHaveBeenCalled();
+    await expect(
+      randomAction!({ session: createSession("meme.random") }),
+    ).resolves.toContain("当前后端没有可用模板");
+
+    expect(generateMock).not.toHaveBeenCalled();
+  });
+
+  it("排除需要 2 张图片模板时应过滤 meme.list 并拦截 meme.random", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["double_image_only"]);
+    getInfoMock.mockResolvedValue({
+      key: "double_image_only",
+      params_type: {
+        min_images: 2,
+        max_images: 2,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: ["双图模板"],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+        excludeTwoImageOnlyMemes: true,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const listAction = commandActions.get("meme.list");
+    const randomAction = commandActions.get("meme.random [...texts]");
+
+    expect(listAction).toBeDefined();
+    expect(randomAction).toBeDefined();
+
+    await expect(
+      listAction!({ session: createSession("meme.list") }),
+    ).resolves.toContain("当前后端没有可用模板");
+
+    await expect(
+      randomAction!({ session: createSession("meme.random") }),
+    ).resolves.toContain("当前后端没有可用模板");
+
+    expect(generateMock).not.toHaveBeenCalled();
   });
 });

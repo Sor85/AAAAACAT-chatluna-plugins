@@ -37,13 +37,14 @@ export interface Config {
   initLoadRetryTimes: number;
   disableErrorReplyToPlatform: boolean;
   excludeTextOnlyMemes: boolean;
-  excludeImageOnlyMemes: boolean;
+  excludeSingleImageOnlyMemes: boolean;
+  excludeTwoImageOnlyMemes: boolean;
   excludeImageAndTextMemes: boolean;
   excludedMemeKeys: string[];
 }
 
 export const defaultConfig: Config = {
-  baseUrl: "http://192.168.5.3:2233",
+  baseUrl: "",
   timeoutMs: 10000,
   emptyTextAutoFillRules: [
     {
@@ -66,7 +67,7 @@ export const defaultConfig: Config = {
   allowMentionPrefixDirectAliasTrigger: false,
   enableMemeXmlTool: false,
   memeXmlReferencePrompt:
-    '可用 XML 工具调用格式：<meme key="memekey" text="text1|text2" image"url1|url2" at="userid1|userid2"/>\n支持参数：key、text、image、at\n示例：<meme key="can_can_need" at="123456"/>\n如果缺少参数，会按预设的补全设置自动补全',
+    '可用 XML 工具调用格式：<meme key="memekey" text="text1|text2" image="url1|url2" at="userid1|userid2"/>\n支持参数：key、text、image、at\n示例：<meme key="can_can_need" at="123456"/>\n如果缺少参数，会按预设的补全设置自动补全',
   enableRandomDedupeWithinHours: true,
   randomDedupeWindowHours: 24,
   enableRandomKeywordNotice: true,
@@ -77,7 +78,8 @@ export const defaultConfig: Config = {
   initLoadRetryTimes: 3,
   disableErrorReplyToPlatform: true,
   excludeTextOnlyMemes: false,
-  excludeImageOnlyMemes: false,
+  excludeSingleImageOnlyMemes: false,
+  excludeTwoImageOnlyMemes: false,
   excludeImageAndTextMemes: false,
   excludedMemeKeys: [],
 };
@@ -180,9 +182,12 @@ const filterSchema = Schema.object({
   excludeTextOnlyMemes: Schema.boolean()
     .default(defaultConfig.excludeTextOnlyMemes)
     .description("是否排除仅需文字的模板"),
-  excludeImageOnlyMemes: Schema.boolean()
-    .default(defaultConfig.excludeImageOnlyMemes)
-    .description("是否排除仅需图片的模板"),
+  excludeSingleImageOnlyMemes: Schema.boolean()
+    .default(defaultConfig.excludeSingleImageOnlyMemes)
+    .description("是否排除仅需 1 张图片的模板"),
+  excludeTwoImageOnlyMemes: Schema.boolean()
+    .default(defaultConfig.excludeTwoImageOnlyMemes)
+    .description("是否排除需 2 张图片的模板"),
   excludeImageAndTextMemes: Schema.boolean()
     .default(defaultConfig.excludeImageAndTextMemes)
     .description("是否排除需图片+文字的模板"),

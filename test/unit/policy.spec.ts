@@ -41,14 +41,17 @@ const baseConfig: Config = {
   initLoadRetryTimes: 3,
   disableErrorReplyToPlatform: false,
   excludeTextOnlyMemes: false,
-  excludeImageOnlyMemes: false,
+  excludeSingleImageOnlyMemes: false,
+  excludeTwoImageOnlyMemes: false,
   excludeImageAndTextMemes: false,
   excludedMemeKeys: [],
 };
 
 function makeImage(name: string): GenerateImageInput {
+  const seed =
+    name.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0) % 256;
   return {
-    data: new Uint8Array([1, 2, 3]),
+    data: new Uint8Array([seed, (seed + 1) % 256, (seed + 2) % 256]),
     filename: `${name}.png`,
     mimeType: "image/png",
   };
@@ -610,9 +613,14 @@ describe("applyAutoFillPolicy", () => {
     expect(result.images[1]).toBe(secondaryTargetAvatar);
   });
 
-  it("min_images=2 且仅有一个被@头像时补发送者与被@头像", () => {
+  it("min_images=2 且被@头像与发送者头像相同且存在 bot 时应补发送者与 bot", () => {
     const senderAvatar = makeImage("sender-avatar");
-    const targetAvatar = makeImage("target-avatar");
+    const targetAvatar: GenerateImageInput = {
+      data: new Uint8Array(senderAvatar.data),
+      filename: "target-avatar.png",
+      mimeType: senderAvatar.mimeType,
+    };
+    const botAvatar = makeImage("bot-avatar");
 
     const result = applyAutoFillPolicy({
       texts: ["a"],
@@ -624,11 +632,12 @@ describe("applyAutoFillPolicy", () => {
       },
       senderAvatarImage: senderAvatar,
       targetAvatarImage: targetAvatar,
+      botAvatarImage: botAvatar,
     });
 
     expect(result.images).toHaveLength(2);
     expect(result.images[0]).toBe(senderAvatar);
-    expect(result.images[1]).toBe(targetAvatar);
+    expect(result.images[1]).toBe(botAvatar);
   });
 
   it("min_images=2 且无图时可自动补发送者与 bot 头像", () => {
