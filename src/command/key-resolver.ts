@@ -23,7 +23,6 @@ export interface DirectAliasListResult {
 }
 
 export interface KeyResolverOptions {
-  enableInfoFetchConcurrencyLimit?: boolean;
   infoFetchConcurrency?: number;
 }
 
@@ -70,20 +69,15 @@ function resolveInfoFetchConcurrency(
   keyCount: number,
 ): number {
   if (keyCount <= 0) return 0;
-  if (!options.enableInfoFetchConcurrencyLimit) return keyCount;
 
   const normalizedConcurrency =
     typeof options.infoFetchConcurrency === "number" &&
     Number.isFinite(options.infoFetchConcurrency)
       ? Math.floor(options.infoFetchConcurrency)
-      : INFO_FETCH_CONCURRENCY;
+      : 0;
 
-  const clampedConcurrency = Math.min(
-    keyCount,
-    Math.max(1, normalizedConcurrency),
-  );
-
-  return clampedConcurrency;
+  if (normalizedConcurrency <= 0) return keyCount;
+  return Math.min(keyCount, Math.max(1, normalizedConcurrency));
 }
 
 interface KeyInfoResult {

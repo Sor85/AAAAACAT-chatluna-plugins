@@ -44,7 +44,10 @@ function removeFirstOccurrence(source: string, target: string): string {
   return `${source.slice(0, index)} ${source.slice(index + target.length)}`;
 }
 
-function normalizeDirectAliasRestText(rest: string, session: Session): string[] {
+function normalizeDirectAliasRestText(
+  rest: string,
+  session: Session,
+): string[] {
   let normalizedRest = rest
     .replace(/^\s+/, "")
     .replace(/<at\b[^>]*>(?:<\/at>)?/gi, " ");
@@ -106,7 +109,9 @@ export function resolveFirstDirectAlias(
     .filter(Boolean)
     .filter((alias) => shouldRegisterDirectAlias(alias));
 
-  return aliases.find((alias) => /[^\x00-\x7F]/.test(alias) && alias.length >= 2);
+  return aliases.find(
+    (alias) => /[^\x00-\x7F]/.test(alias) && alias.length >= 2,
+  );
 }
 
 interface InstallDirectAliasRuntimeOptions {
@@ -151,7 +156,6 @@ export function installDirectAliasRuntime(
   const registerDirectAliases = async (): Promise<boolean> => {
     if (aliasRetryDisposed) return true;
     const result = await listDirectAliases(client, {
-      enableInfoFetchConcurrencyLimit: config.enableInfoFetchConcurrencyLimit,
       infoFetchConcurrency: config.infoFetchConcurrency,
     });
     await ensureCategoryExcludedMemeKeySet();
@@ -240,7 +244,9 @@ export function installDirectAliasRuntime(
               ? aliasKeys[0]
               : aliasKeys[Math.floor(Math.random() * aliasKeys.length)];
 
-          return (await handleGenerate(session, pickedKey, directAliasTexts)) ?? "";
+          return (
+            (await handleGenerate(session, pickedKey, directAliasTexts)) ?? ""
+          );
         },
         {
           appel: false,

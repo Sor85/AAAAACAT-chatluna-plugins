@@ -84,7 +84,7 @@ describe("listDirectAliases", () => {
     expect(result.totalKeys).toBe(2);
   });
 
-  it("开启并发限制后应按配置限制并发数", async () => {
+  it("设置 infoFetchConcurrency 后应按配置限制并发数", async () => {
     const running = new Set<string>();
     let maxRunning = 0;
 
@@ -101,7 +101,6 @@ describe("listDirectAliases", () => {
         },
       },
       {
-        enableInfoFetchConcurrencyLimit: true,
         infoFetchConcurrency: 2,
       },
     );
@@ -214,7 +213,7 @@ describe("createMemeKeyResolver", () => {
     await expect(resolver("骑猪")).resolves.toBe("qizhu");
   });
 
-  it("解析器开启并发限制时应按配置限制并发数", async () => {
+  it("解析器设置 infoFetchConcurrency 后应按配置限制并发数", async () => {
     const running = new Set<string>();
     let maxRunning = 0;
 
@@ -231,12 +230,36 @@ describe("createMemeKeyResolver", () => {
         },
       },
       {
-        enableInfoFetchConcurrencyLimit: true,
         infoFetchConcurrency: 2,
       },
     );
 
     await expect(resolver("别名")).resolves.toBeDefined();
     expect(maxRunning).toBeLessThanOrEqual(2);
+  });
+
+  it("infoFetchConcurrency=0 时不限制并发", async () => {
+    const running = new Set<string>();
+    let maxRunning = 0;
+
+    const resolver = createMemeKeyResolver(
+      {
+        getKeys: async () => ["k1", "k2", "k3", "k4"],
+        getInfo: async (key: string) => {
+          running.add(key);
+          maxRunning = Math.max(maxRunning, running.size);
+          await Promise.resolve();
+          await Promise.resolve();
+          running.delete(key);
+          return createInfoResponse(key, ["别名"]);
+        },
+      },
+      {
+        infoFetchConcurrency: 0,
+      },
+    );
+
+    await expect(resolver("别名")).resolves.toBeDefined();
+    expect(maxRunning).toBe(4);
   });
 });

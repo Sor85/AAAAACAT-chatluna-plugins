@@ -31,9 +31,6 @@ export interface Config {
   enableRandomDedupeWithinHours: boolean;
   randomDedupeWindowHours: number;
   enableRandomKeywordNotice: boolean;
-  enablePokeTriggerRandom: boolean;
-  pokeTriggerCooldownSeconds: number;
-  enableInfoFetchConcurrencyLimit: boolean;
   infoFetchConcurrency: number;
   initLoadRetryTimes: number;
   disableErrorReplyToPlatform: boolean;
@@ -73,10 +70,7 @@ export const defaultConfig: Config = {
   enableRandomDedupeWithinHours: true,
   randomDedupeWindowHours: 24,
   enableRandomKeywordNotice: true,
-  enablePokeTriggerRandom: false,
-  pokeTriggerCooldownSeconds: 0,
-  enableInfoFetchConcurrencyLimit: false,
-  infoFetchConcurrency: 10,
+  infoFetchConcurrency: 0,
   initLoadRetryTimes: 3,
   disableErrorReplyToPlatform: true,
   excludeTextOnlyMemes: false,
@@ -153,15 +147,6 @@ const randomSchema = Schema.object({
   enableRandomKeywordNotice: Schema.boolean()
     .default(defaultConfig.enableRandomKeywordNotice)
     .description("meme.random 是否附带模板关键词提示"),
-  enablePokeTriggerRandom: Schema.boolean()
-    .default(defaultConfig.enablePokeTriggerRandom)
-    .description("是否启用戳一戳触发 meme.random"),
-  pokeTriggerCooldownSeconds: Schema.number()
-    .min(0)
-    .max(86400)
-    .step(1)
-    .default(defaultConfig.pokeTriggerCooldownSeconds)
-    .description("戳一戳触发冷却（秒），0 为禁用"),
 }).description("随机触发设置");
 
 const triggerSchema = Schema.object({
@@ -203,15 +188,12 @@ const filterSchema = Schema.object({
 }).description("模板筛选设置");
 
 const runtimeSchema = Schema.object({
-  enableInfoFetchConcurrencyLimit: Schema.boolean()
-    .default(defaultConfig.enableInfoFetchConcurrencyLimit)
-    .description("是否开启模板信息拉取并发限制"),
   infoFetchConcurrency: Schema.number()
-    .min(1)
+    .min(0)
     .max(100)
     .step(1)
     .default(defaultConfig.infoFetchConcurrency)
-    .description("模板信息拉取并发上限"),
+    .description("模板信息拉取并发上限（0 为不限制）"),
   initLoadRetryTimes: Schema.number()
     .min(0)
     .max(20)

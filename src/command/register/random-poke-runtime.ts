@@ -1,6 +1,6 @@
 /**
- * random 与 poke 运行时
- * 负责随机模板筛选、去重与 poke 触发逻辑
+ * random 运行时
+ * 负责随机模板筛选与去重逻辑
  */
 
 import { h, type Context, type Session } from "koishi";
@@ -24,11 +24,34 @@ import {
   resolveAvatarImageByUserId,
   resolveDisplayNameByUserId,
 } from "../../utils/avatar";
+import type { OneBotLikeInternalEvent } from "./types";
 import { buildRandomConfig, type PreparedAvatarImage } from "./generate";
 import { mapRuntimeErrorMessage, replyOrSilent } from "./errors";
 import { stringifyImageSegment } from "./meme-list";
-import type { OneBotLikeInternalEvent } from "./types";
 import { resolveFirstDirectAlias } from "./direct-alias-runtime";
+
+interface InstallRandomRuntimeOptions {
+  ctx: Context;
+  config: Config;
+  client: MemeBackendClient;
+  logger: ReturnType<Context["logger"]>;
+  ensureCategoryExcludedMemeKeySet: () => Promise<void>;
+  filterExcludedMemeKeys: (keys: string[]) => string[];
+  handleGenerateWithPreparedInput: (
+    key: string,
+    texts: string[],
+    images: Awaited<ReturnType<typeof parseCommandInput>>["images"],
+    senderAvatarImage?: PreparedAvatarImage,
+    targetAvatarImage?: PreparedAvatarImage,
+    secondaryTargetAvatarImage?: PreparedAvatarImage,
+    botAvatarImage?: PreparedAvatarImage,
+    senderName?: string,
+    groupNicknameText?: string,
+    preferredTextSource?: "template-default" | "user-nickname",
+  ) => Promise<ReturnType<typeof h.image>>;
+  handleErrorReply: (scope: string, message: string) => string;
+  handleRuntimeError: (scope: string, error: unknown) => string;
+}
 
 function isPokeTargetingCurrentBot(session: Session): boolean {
   const sessionLike = session as unknown as { onebot?: unknown };
@@ -66,10 +89,7 @@ function isPokeTargetingCurrentBot(session: Session): boolean {
 }
 
 function isPokeTriggerSession(session: Session): boolean {
-  if (isPokeTargetingCurrentBot(session)) return true;
-  const type = session.type?.toLowerCase() || "";
-  const subtype = session.subtype?.toLowerCase() || "";
-  return type === "notice" && subtype === "poke";
+  return isPokeTargetingCurrentBot(session);
 }
 
 function resolvePokeOperatorId(session: Session): string | undefined {
@@ -184,13 +204,15 @@ async function resolvePokeAvatarHints(
   ctx: Context,
   session: Session,
   timeoutMs: number,
+  pokeRuntimeHints?: Awaited<ReturnType<typeof resolvePokeRuntimeHints>>,
 ): Promise<{
   senderAvatarImage?: PreparedAvatarImage;
   targetAvatarImage?: PreparedAvatarImage;
   secondaryTargetAvatarImage?: PreparedAvatarImage;
   botAvatarImage?: PreparedAvatarImage;
 }> {
-  const pokeRuntimeHints = await resolvePokeRuntimeHints(session);
+  const resolvedPokeRuntimeHints =
+    pokeRuntimeHints ?? (await resolvePokeRuntimeHints(session));
   const senderAvatarImage = await getSenderAvatarImage(ctx, session, timeoutMs);
   const targetAvatarImage = await getMentionedTargetAvatarImage(
     ctx,
@@ -213,8 +235,8 @@ async function resolvePokeAvatarHints(
     };
   }
 
-  const actorUserId = pokeRuntimeHints.actorUserId;
-  const preferredGuildId = pokeRuntimeHints.preferredGuildId;
+  const actorUserId = resolvedPokeRuntimeHints.actorUserId;
+  const preferredGuildId = resolvedPokeRuntimeHints.preferredGuildId;
 
   const actorAvatarImage = actorUserId
     ? await resolveAvatarImageByUserId(
@@ -235,47 +257,8 @@ async function resolvePokeAvatarHints(
   };
 }
 
-function resolvePokeCooldownScopeKey(session: Session): string {
-  const channelId = session.channelId?.trim();
-  if (channelId) return `channel:${channelId}`;
-
-  const guildId = session.guildId?.trim();
-  if (guildId) return `guild:${guildId}`;
-
-  const operatorId = resolvePokeOperatorId(session);
-  if (operatorId) return `user:${operatorId}`;
-
-  const userId = session.userId?.trim();
-  if (userId) return `user:${userId}`;
-
-  return "global";
-}
-
-interface InstallRandomAndPokeRuntimeOptions {
-  ctx: Context;
-  config: Config;
-  client: MemeBackendClient;
-  logger: ReturnType<Context["logger"]>;
-  ensureCategoryExcludedMemeKeySet: () => Promise<void>;
-  filterExcludedMemeKeys: (keys: string[]) => string[];
-  handleGenerateWithPreparedInput: (
-    key: string,
-    texts: string[],
-    images: Awaited<ReturnType<typeof parseCommandInput>>["images"],
-    senderAvatarImage?: PreparedAvatarImage,
-    targetAvatarImage?: PreparedAvatarImage,
-    secondaryTargetAvatarImage?: PreparedAvatarImage,
-    botAvatarImage?: PreparedAvatarImage,
-    senderName?: string,
-    groupNicknameText?: string,
-    preferredTextSource?: "template-default" | "user-nickname",
-  ) => Promise<ReturnType<typeof h.image>>;
-  handleErrorReply: (scope: string, message: string) => string;
-  handleRuntimeError: (scope: string, error: unknown) => string;
-}
-
-export function installRandomAndPokeRuntime(
-  options: InstallRandomAndPokeRuntimeOptions,
+export function installRandomRuntime(
+  options: InstallRandomRuntimeOptions,
 ): void {
   const {
     ctx,
@@ -291,7 +274,6 @@ export function installRandomAndPokeRuntime(
 
   let randomSelectionHistory = new Map<string, number>();
   let randomSelectionQueue: Promise<void> = Promise.resolve();
-  const pokeCooldownHistory = new Map<string, number>();
 
   const withRandomSelectionLock = async <T>(
     task: () => Promise<T>,
@@ -353,7 +335,12 @@ export function installRandomAndPokeRuntime(
           targetAvatarImage,
           secondaryTargetAvatarImage,
           botAvatarImage,
-        } = await resolvePokeAvatarHints(ctx, session, config.timeoutMs);
+        } = await resolvePokeAvatarHints(
+          ctx,
+          session,
+          config.timeoutMs,
+          pokeRuntimeHints,
+        );
         const randomConfig = buildRandomConfig(config);
         const randomDedupeConfig = {
           enabled: config.enableRandomDedupeWithinHours,
@@ -502,27 +489,4 @@ export function installRandomAndPokeRuntime(
         return handleErrorReply("meme.random", "当前上下文不可用。");
       return await runRandomMeme(session, texts);
     });
-
-  if (config.enablePokeTriggerRandom) {
-    ctx.on("internal/session", async (session) => {
-      if (session.type !== "notice") return;
-      if (!isPokeTriggerSession(session)) return;
-
-      const cooldownSeconds = Math.max(
-        0,
-        config.pokeTriggerCooldownSeconds || 0,
-      );
-      if (cooldownSeconds > 0) {
-        const scopeKey = resolvePokeCooldownScopeKey(session);
-        const now = Date.now();
-        const lastTriggerAt = pokeCooldownHistory.get(scopeKey) || 0;
-        if (now - lastTriggerAt < cooldownSeconds * 1000) return;
-        pokeCooldownHistory.set(scopeKey, now);
-      }
-
-      const randomResult = await runRandomMeme(session, []);
-      if (!randomResult) return;
-      await session.send(randomResult);
-    });
-  }
 }

@@ -107,12 +107,11 @@ function resolveMemeListInfoConcurrency(
   keyCount: number,
 ): number {
   if (keyCount <= 0) return 0;
-  if (!config.enableInfoFetchConcurrencyLimit) return keyCount;
-
   const normalized = Number.isFinite(config.infoFetchConcurrency)
     ? Math.floor(config.infoFetchConcurrency)
-    : 10;
+    : 0;
 
+  if (normalized <= 0) return keyCount;
   return Math.min(keyCount, Math.max(1, normalized));
 }
 

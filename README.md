@@ -48,6 +48,11 @@ meme.random
 
 ## 更新日志
 
+### 0.0.7
+
+- 移除 `enableInfoFetchConcurrencyLimit` 配置项，改为 `infoFetchConcurrency=0` 表示不限制并发（默认值为 `0`）。
+- 补齐三方戳一戳触发 `meme.random` 的兼容链路：昵称优先使用可读群昵称回退，需图模板可回退操作者头像参与补图。
+
 ### 0.0.6
 
 - 新增 `disallowLeadingAtBeforeCommand` 开关（默认开启），用于禁止前置@参数格式（如 `@用户 meme`）。

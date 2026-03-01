@@ -31,7 +31,7 @@ import {
 import type { ContextWithOptionalServices } from "./register/types";
 import { installDirectAliasRuntime } from "./register/direct-alias-runtime";
 import { installXmlRuntime } from "./register/xml-runtime";
-import { installRandomAndPokeRuntime } from "./register/random-poke-runtime";
+import { installRandomRuntime } from "./register/random-poke-runtime";
 
 interface StrippedLike {
   content?: string;
@@ -74,7 +74,6 @@ export function registerCommands(ctx: Context, config: Config): void {
   };
 
   const resolveMemeKey = createMemeKeyResolver(client, {
-    enableInfoFetchConcurrencyLimit: config.enableInfoFetchConcurrencyLimit,
     infoFetchConcurrency: config.infoFetchConcurrency,
   });
   const logger = ctx.logger("chatluna-meme-generator");
@@ -370,7 +369,7 @@ export function registerCommands(ctx: Context, config: Config): void {
       }
     });
 
-  installRandomAndPokeRuntime({
+  installRandomRuntime({
     ctx,
     config,
     client,

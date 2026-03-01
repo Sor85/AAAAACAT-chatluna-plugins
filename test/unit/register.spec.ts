@@ -231,10 +231,7 @@ function createBaseConfig(overrides: Partial<Config> = {}): Config {
     enableRandomDedupeWithinHours: false,
     randomDedupeWindowHours: 24,
     enableRandomKeywordNotice: false,
-    enablePokeTriggerRandom: false,
-    pokeTriggerCooldownSeconds: 0,
-    enableInfoFetchConcurrencyLimit: false,
-    infoFetchConcurrency: 10,
+    infoFetchConcurrency: 0,
     initLoadRetryTimes: 3,
     disableErrorReplyToPlatform: false,
     excludeTextOnlyMemes: false,
@@ -1119,7 +1116,7 @@ describe("registerCommands", () => {
     }
   });
 
-  it("meme.random 默认关闭去重时可连续命中同一模板", async () => {
+  it("meme.random 在戳一戳会话中可用操作者头像补单图模板", async () => {
     const commandActions = new Map<
       string,
       (...args: any[]) => Promise<unknown>
@@ -1132,14 +1129,79 @@ describe("registerCommands", () => {
       }),
     }));
 
-    getKeysMock.mockResolvedValue(["same"]);
+    const actorAvatar = {
+      data: new Uint8Array([7, 8, 9]),
+      filename: "poke-actor-avatar.png",
+      mimeType: "image/png",
+    };
+
+    avatarMocks.resolveAvatarImageByUserId.mockResolvedValueOnce(actorAvatar);
+
+    getKeysMock.mockResolvedValue(["single"]);
     getInfoMock.mockResolvedValue({
-      key: "same",
+      key: "single",
+      params_type: {
+        min_images: 1,
+        max_images: 1,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: [],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    registerCommands(ctx, createBaseConfig());
+    await flushReadyHandlers(readyHandlers);
+
+    const randomAction = commandActions.get("meme.random [...texts]");
+    expect(randomAction).toBeDefined();
+
+    const session = createSession("meme.random") as any;
+    session.userId = "123456789";
+    session.onebot = {
+      post_type: "notice",
+      notice_type: "notify",
+      sub_type: "poke",
+      target_id: "99999",
+      self_id: "99999",
+      operator_id: "123456789",
+      group_id: "20001",
+      sender: { card: "操作者群昵称" },
+    };
+
+    await randomAction!({ session });
+
+    expect(avatarMocks.resolveAvatarImageByUserId).toHaveBeenCalled();
+    expect(generateMock).toHaveBeenCalledWith("single", [actorAvatar], [], {});
+  });
+
+  it("meme.random 在戳一戳会话中昵称解析失败时应回退群昵称而非 QQ 号", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    avatarMocks.resolveDisplayNameByUserId.mockResolvedValueOnce("123456789");
+
+    getKeysMock.mockResolvedValue(["textOnly"]);
+    getInfoMock.mockResolvedValue({
+      key: "textOnly",
       params_type: {
         min_images: 0,
         max_images: 0,
-        min_texts: 0,
-        max_texts: 0,
+        min_texts: 1,
+        max_texts: 1,
         default_texts: [],
       },
       keywords: [],
@@ -1152,7 +1214,7 @@ describe("registerCommands", () => {
     registerCommands(
       ctx,
       createBaseConfig({
-        enableRandomDedupeWithinHours: false,
+        autoUseGroupNicknameWhenNoDefaultText: true,
       }),
     );
     await flushReadyHandlers(readyHandlers);
@@ -1160,11 +1222,27 @@ describe("registerCommands", () => {
     const randomAction = commandActions.get("meme.random [...texts]");
     expect(randomAction).toBeDefined();
 
-    await randomAction!({ session: createSession("meme.random") });
-    await randomAction!({ session: createSession("meme.random") });
+    const session = createSession("meme.random") as any;
+    session.userId = "123456789";
+    session.onebot = {
+      post_type: "notice",
+      notice_type: "notify",
+      sub_type: "poke",
+      target_id: "99999",
+      self_id: "99999",
+      operator_id: "123456789",
+      group_id: "20001",
+      sender: { card: "操作者群昵称" },
+    };
 
-    expect(generateMock).toHaveBeenNthCalledWith(1, "same", [], [], {});
-    expect(generateMock).toHaveBeenNthCalledWith(2, "same", [], [], {});
+    await randomAction!({ session });
+
+    expect(generateMock).toHaveBeenCalledWith(
+      "textOnly",
+      [],
+      ["操作者群昵称"],
+      {},
+    );
   });
 
   it("meme.random 开启去重后在耗尽时应重置历史并重新轮回", async () => {
