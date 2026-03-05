@@ -3,52 +3,44 @@
  * 定义命令注册所需的依赖和上下文类型
  */
 
-import type { Context, Session } from 'koishi'
-import type { Config, LogFn, MemberInfo } from '../types'
-import type { AffinityStore } from '../services/affinity/store'
-import type { AffinityCache } from '../types'
-import type { RenderService } from '../renders'
+import type { Context, Session } from "koishi";
+import type { Config, LogFn, MemberInfo } from "../types";
+import type { AffinityStore } from "../services/affinity/store";
+import type { AffinityCache } from "../types";
+import type { RenderService } from "../renders";
 
 export interface CommandDependencies {
-    ctx: Context
-    config: Config
-    log: LogFn
-    store: AffinityStore
-    cache: AffinityCache
-    renders: RenderService
-    fetchMember: (session: Session, userId: string) => Promise<MemberInfo | null>
-    resolveUserIdentity: (session: Session, input: string) => Promise<{ userId: string; nickname: string } | null>
-    findMemberByName: (session: Session, name: string) => Promise<{ userId: string; nickname: string } | null>
-    fetchGroupMemberIds: (session: Session) => Promise<Set<string> | null>
-    fetchGroupList: (session: Session) => Promise<GroupListItem[] | null>
-    resolveGroupId: (session: Session) => string
-    stripAtPrefix: (text: string) => string
-}
-
-export interface GroupListItem {
-    group_id?: string
-    groupId?: string
-    id?: string
-    group_name?: string
-    groupName?: string
-    name?: string
-    member_count?: number
-    memberCount?: number
-    create_time?: number | string
-    createTime?: number | string
+  ctx: Context;
+  config: Config;
+  log: LogFn;
+  store: AffinityStore;
+  cache: AffinityCache;
+  renders: RenderService;
+  fetchMember: (session: Session, userId: string) => Promise<MemberInfo | null>;
+  resolveUserIdentity: (
+    session: Session,
+    input: string,
+  ) => Promise<{ userId: string; nickname: string } | null>;
+  findMemberByName: (
+    session: Session,
+    name: string,
+  ) => Promise<{ userId: string; nickname: string } | null>;
+  fetchGroupMemberIds: (session: Session) => Promise<Set<string> | null>;
+  resolveGroupId: (session: Session) => string;
+  stripAtPrefix: (text: string) => string;
 }
 
 export interface RankLineItem {
-    name: string
-    relation: string
-    affinity: number
-    userId: string
+  name: string;
+  relation: string;
+  affinity: number;
+  userId: string;
 }
 
 export interface BlacklistEnrichedItem {
-    userId: string
-    nickname: string
-    blockedAt?: string
-    note?: string
-    platform?: string
+  userId: string;
+  nickname: string;
+  blockedAt?: string;
+  note?: string;
+  platform?: string;
 }

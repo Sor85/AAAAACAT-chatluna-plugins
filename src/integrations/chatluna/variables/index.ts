@@ -3,14 +3,7 @@
  * 汇集所有变量提供者并提供注册入口
  */
 
-export * from './affinity'
-export * from './relationship'
-export * from './relationship-level'
-export * from './context-affinity'
-export * from './user-info'
-export * from './bot-info'
-export * from './group-info'
-export * from './random'
-export * from './schedule'
-export * from './outfit'
-export * from './weather'
+export * from "./affinity";
+export * from "./relationship-level";
+export * from "./blacklist-list";
+export * from "./user-alias";

@@ -5,11 +5,10 @@
 ## 特性速览
 
 1. **好感度模型**：采用「系数 × 长期好感」的复合结果，短期情绪仅作为分析输入。
-2. **延迟分析**：在 `chatluna-character` 输出完成后收集 Bot 的多段回复，再启动模型分析，确保上下文与回复一致。
-3. **互动系数**：记录每日 increase/decrease，满足"连续互动且 increase > decrease"或"长时间未互动/负向占优"时，按天数累积提升或衰减系数。
-4. **自定义关系链**：提供好感度区间→关系映射、特殊关系配置、自动调整工具，便于角色扮演差异化。
-5. **多工具联动**：支持手动调整好感、切换关系、管理黑名单、NapCat/OneBot Poke、自定义随机变量等实用工具。
-6. **查看状态**：
+2. **互动系数**：记录每日 increase/decrease，满足"连续互动且 increase > decrease"或"长时间未互动/负向占优"时，按天数累积提升或衰减系数。
+3. **自定义关系链**：提供好感度区间→关系映射、特殊关系配置、自动调整工具，便于角色扮演差异化。
+4. **多工具联动**：支持手动调整好感、切换关系、管理黑名单等实用工具。
+5. **查看状态**：
    - `affinity.inspect`：查看好感度、长期好感、短期好感、系数、连续互动天数。
    - `affinity.rank`：查看排行榜，支持文本/图片输出。
 
@@ -51,11 +50,6 @@
 | --- | --- |
 | `{affinity}` / `affinity()` | 好感度（系数 × 长期好感）。 |
 | `{relationship}` / `relationship()` | 当前好感度区间对应的关系。 |
-| `{userInfo}` / `userInfo()` | 当前用户信息（可配置显示项）。 |
-| `{botInfo}` / `botInfo()` | 机器人信息（可配置显示项）。 |
-| `{groupInfo}` / `groupInfo()` | 当前群信息（NapCat/OneBot）。 |
-| `{contextAffinity}` / `contextAffinity()` | 近期消息用户的好感度概览。 |
-| `{random}` / `random()` | 随机数变量。 |
 | `{{currentAffinity}}` | 渲染提示词时的好感度。 |
 | `{{historyText}}` | 上下文。 |
 | `{{userMessage}}` / `{{botReply}}` | 当前轮消息与聚合后的 Bot 回复。 |
@@ -73,7 +67,6 @@
 | `affinity.tempBlock <userId> [hours] [platform]` | 临时拉黑用户。 |
 | `affinity.tempUnblock <userId> [platform]` | 解除临时黑名单。 |
 | `affinity.adjust <userId> <delta> [platform]` | 手动调整用户好感度。 |
-| `affinity.groupList` | 列出 Bot 所在群（NapCat/OneBot）。 |
 
 ## 工具
 
@@ -82,8 +75,6 @@
 | `adjust_affinity` | 将综合好感度设置为指定值，并重新计算关系。 |
 | `adjust_relationship` | 强制切换关系到指定称谓，同时把好感调整到区间下限。 |
 | `adjust_blacklist` | 管理自动黑名单，支持新增或解除。 |
-| `poke_user` | （可选）NapCat/OneBot「戳一戳」工具。 |
-| `set_self_profile` | （可选）NapCat/OneBot 修改机器人资料。 |
 
 ## 数据存储
 
@@ -109,6 +100,25 @@
 MIT © 2024-present chatluna-affinity contributors
 
 ## 更新日志
+
+> 以下为历史版本记录，当前可用能力请以本文上方「变量与模板占位符 / 指令 / 工具」章节为准。
+
+0.2.6
+- 新增
+  - 新增黑名单、关系调整 XML 工具调用
+  - 新增黑名单临时拉黑能力（XML/原生工具）
+  - 新增 blacklistList 变量（当前群黑名单信息）
+  - 新增用户自定义昵称能力：userAlias XML 工具 + userAlias 变量，数据持久化到数据库
+- 调整
+  - 黑名单能力改为由 Bot 通过 XML/工具自主决策（含永久/临时与解除）
+  - 黑名单相关数据由配置存储迁移为数据库存储
+  - 独立 contextAffinity 变量能力并入 affinity 变量
+  - 日程、天气能力拆分至 koishi-plugin-chatluna-schedule
+  - 更多变量与 XML 工具能力拆分至 koishi-plugin-chatluna-toolbox
+- 移除
+  - 移除天气、日程、冗余变量与冗余工具（由拆分插件承接）
+  - 移除设置好感度工具
+  - 移除自动拉黑逻辑，改为由 Bot 决策触发
 
 0.2.5
 - 将 puppeteer 从可选依赖改为可选服务

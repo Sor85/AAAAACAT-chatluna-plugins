@@ -1,6 +1,6 @@
 node_modules
 dist
 lib
-AGENTS.md
-STYLE_GUIDE.md
 .DS_Store
+/.claude/开发文档
+/.claude/koishi-dev

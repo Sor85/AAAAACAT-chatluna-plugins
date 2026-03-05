@@ -4,72 +4,69 @@
  */
 
 export interface NavSection {
-    title: string
-    key: string
+  title: string;
+  key: string;
 }
 
 export interface ToolItem {
-    name: string
-    enableKey: string
-    enabled: boolean
+  name: string;
+  enableKey: string;
+  enabled: boolean;
 }
 
 export interface VariableItem {
-    name: string
-    key: string
-    enabled: boolean
+  name: string;
+  key: string;
+  enabled: boolean;
 }
 
 export const NAV_SECTIONS: NavSection[] = [
-    { title: '好感度设置', key: 'affinity' },
-    { title: '黑名单设置', key: 'blacklist' },
-    { title: '关系设置', key: 'relationship' },
-    { title: '日程设置', key: 'schedule' },
-    { title: '天气设置', key: 'weather' },
-    { title: '原生工具', key: 'nativeTools' },
-    { title: 'XML 工具', key: 'xmlTools' },
-    { title: '其他变量', key: 'otherVariables' },
-    { title: '其他指令', key: 'otherCommands' },
-    { title: '其他设置', key: 'otherSettings' }
-]
+  { title: "好感度设置", key: "affinity" },
+  { title: "黑名单设置", key: "blacklist" },
+  { title: "关系设置", key: "relationship" },
+  { title: "变量设置", key: "variables" },
+  { title: "原生工具设置", key: "nativeTools" },
+  { title: "XML 工具设置", key: "xmlTools" },
+  { title: "其他设置", key: "otherSettings" },
+];
 
 export const TITLE_TO_KEY: Record<string, string> = {
-    '好感度设置': 'affinity',
-    '黑名单设置': 'blacklist',
-    '关系设置': 'relationship',
-    '日程设置': 'schedule',
-    '天气设置': 'weather',
-    原生工具: 'nativeTools',
-    'XML 工具': 'xmlTools',
-    '其他变量': 'otherVariables',
-    '其他指令': 'otherCommands',
-    '其他设置': 'otherSettings'
-}
+  好感度设置: "affinity",
+  黑名单设置: "blacklist",
+  关系设置: "relationship",
+  变量设置: "variables",
+  原生工具设置: "nativeTools",
+  "XML 工具设置": "xmlTools",
+  其他设置: "otherSettings",
+};
 
 export const KEY_TO_TITLE: Record<string, string> = {
-    affinity: '好感度设置',
-    blacklist: '黑名单设置',
-    relationship: '关系设置',
-    schedule: '日程设置',
-    weather: '天气设置',
-    nativeTools: '原生工具',
-    xmlTools: 'XML 工具',
-    otherVariables: '其他变量',
-    otherCommands: '其他指令',
-    otherSettings: '其他设置'
-}
+  affinity: "好感度设置",
+  blacklist: "黑名单设置",
+  relationship: "关系设置",
+  variables: "变量设置",
+  nativeTools: "原生工具设置",
+  xmlTools: "XML 工具设置",
+  otherSettings: "其他设置",
+};
 
-export const VARIABLE_CONFIG: Record<string, { section: string; searchKey: string | string[] }> = {
-    affinity: { section: '好感度设置', searchKey: 'affinityVariableName' },
-    contextAffinity: { section: '好感度设置', searchKey: ['contextAffinityOverview', '上下文好感度变量'] },
-    relationship: { section: '关系设置', searchKey: 'relationshipVariableName' },
-    schedule: { section: '日程设置', searchKey: ['今日日程变量名称', 'variableName'] },
-    currentSchedule: { section: '日程设置', searchKey: ['当前日程变量名称', 'currentVariableName'] },
-    weather: { section: '天气设置', searchKey: ['天气变量名称', 'variableName'] },
-    userInfo: { section: '其他变量', searchKey: 'userInfo' },
-    botInfo: { section: '其他变量', searchKey: 'botInfo' },
-    groupInfo: { section: '其他变量', searchKey: 'groupInfo' },
-    random: { section: '其他变量', searchKey: 'random' }
-}
+export const VARIABLE_CONFIG: Record<
+  string,
+  { section: string; searchKey: string | string[] }
+> = {
+  affinity: { section: "变量设置", searchKey: "affinityVariableName" },
+  relationshipAffinityLevel: {
+    section: "变量设置",
+    searchKey: "relationshipAffinityLevelVariableName",
+  },
+  blacklistList: {
+    section: "变量设置",
+    searchKey: "blacklistListVariableName",
+  },
+  userAlias: {
+    section: "变量设置",
+    searchKey: "userAliasVariableName",
+  },
+};
 
-export const PLUGIN_NAME = 'koishi-plugin-chatluna-affinity'
+export const PLUGIN_NAME = "koishi-plugin-chatluna-affinity";

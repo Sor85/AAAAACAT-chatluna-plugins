@@ -3,28 +3,22 @@
  * 汇集所有模块的类型定义
  */
 
-export * from './common'
-export * from './affinity'
-export * from './blacklist'
-export * from './schedule'
-export * from './schedule-config'
-export * from './member'
-export * from './weather'
+export * from "./common";
+export * from "./affinity";
+export * from "./blacklist";
+export * from "./member";
+export * from "./user-alias";
 export {
-    BaseAffinityConfig,
-    ContextAffinityOverviewConfig,
-    ShortTermConfig,
-    ActionWindowConfig,
-    CoefficientConfig,
-    AffinityDynamicsConfig,
-    RelationshipLevel,
-    ManualRelationship,
-    AffinityGroup,
-    UserInfoConfig,
-    BotInfoConfig,
-    GroupInfoConfig,
-    RandomConfig,
-    PanSouToolConfig,
-    OtherVariablesConfig,
-    Config
-} from './config'
+  BaseAffinityConfig,
+  ShortTermConfig,
+  ActionWindowConfig,
+  CoefficientConfig,
+  AffinityDynamicsConfig,
+  RelationshipLevel,
+  ManualRelationship,
+  AffinityGroup,
+  VariableSettings,
+  NativeToolSettings,
+  XmlToolSettings,
+  Config,
+} from "./config";
