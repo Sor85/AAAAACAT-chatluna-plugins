@@ -1,0 +1,40 @@
+{
+  "name": "koishi-plugin-chatluna-gemini-tools",
+  "version": "0.0.1",
+  "description": "将 Google Search 与 URL Context 注册为 ChatLuna 工具。",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "koishi",
+    "chatluna",
+    "gemini",
+    "tools"
+  ],
+  "homepage": "https://github.com/Sor85/koishi-plugin-chatluna-gemini-tools",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sor85/koishi-plugin-chatluna-gemini-tools"
+  },
+  "license": "MIT",
+  "peerDependencies": {
+    "koishi": "^4.17.0",
+    "koishi-plugin-chatluna": "*"
+  },
+  "dependencies": {
+    "@langchain/core": "^0.3.62",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4",
+    "@types/node": "^24.3.0"
+  }
+}
