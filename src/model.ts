@@ -2,7 +2,7 @@
  * 模型获取模块
  * 统一通过 ChatLuna 服务创建模型实例
  */
-import type { Context } from "koishi";
+import type { Context, Logger } from "koishi";
 import type { Config } from "./config";
 
 type InvokableModel = {
@@ -18,6 +18,21 @@ type ChatLunaContext = Context & {
   };
 };
 
+function getLogger(ctx: Context): Logger | undefined {
+  const logger = Reflect.get(ctx as object, "logger");
+  if (typeof logger === "function") {
+    return logger.call(ctx, "chatluna-gemini-tools") as Logger;
+  }
+  return undefined;
+}
+
+function debugLog(ctx: Context, config: Config, message: string): void {
+  if (!config.debug) {
+    return;
+  }
+  getLogger(ctx)?.info(message);
+}
+
 export async function getChatModel(
   ctx: Context,
   config: Config,
@@ -29,6 +44,7 @@ export async function getChatModel(
   }
 
   try {
+    debugLog(ctx, config, `create model start model=${config.toolModel}`);
     const ref = await (ctx as ChatLunaContext).chatluna.createChatModel(
       config.toolModel,
     );
@@ -42,9 +58,11 @@ export async function getChatModel(
       throw new Error(`模型 ${config.toolModel} 不可用`);
     }
 
+    debugLog(ctx, config, `create model success model=${config.toolModel}`);
     return model as InvokableModel;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    debugLog(ctx, config, `create model failed model=${config.toolModel}`);
     throw new Error(
       `无法通过 ChatLuna 创建模型 ${config.toolModel}: ${message}`,
     );
@@ -52,6 +70,8 @@ export async function getChatModel(
 }
 
 export async function invokeWithTimeout(
+  ctx: Context,
+  config: Config,
   model: InvokableModel,
   prompt: string,
   timeoutMs: number,
@@ -60,14 +80,29 @@ export async function invokeWithTimeout(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    debugLog(ctx, config, `invoke start timeoutMs=${timeoutMs}`);
     const result = await model.invoke(prompt, { signal: controller.signal });
-    if (typeof result === "string") return result;
+    if (typeof result === "string") {
+      debugLog(
+        ctx,
+        config,
+        `invoke success resultType=string resultLength=${result.length}`,
+      );
+      return result;
+    }
 
     if (result && typeof result === "object") {
       const content = Reflect.get(result, "content");
-      if (typeof content === "string") return content;
+      if (typeof content === "string") {
+        debugLog(
+          ctx,
+          config,
+          `invoke success resultType=content-string resultLength=${content.length}`,
+        );
+        return content;
+      }
       if (Array.isArray(content)) {
-        return content
+        const text = content
           .map((item) => {
             if (typeof item === "string") return item;
             if (
@@ -80,14 +115,28 @@ export async function invokeWithTimeout(
             return "";
           })
           .join("\n");
+        debugLog(
+          ctx,
+          config,
+          `invoke success resultType=content-array resultLength=${text.length}`,
+        );
+        return text;
       }
     }
 
-    return JSON.stringify(result);
+    const fallback = JSON.stringify(result);
+    debugLog(
+      ctx,
+      config,
+      `invoke success resultType=json-fallback resultLength=${fallback.length}`,
+    );
+    return fallback;
   } catch (error) {
     if (controller.signal.aborted) {
+      debugLog(ctx, config, `invoke timeout timeoutMs=${timeoutMs}`);
       throw new Error(`模型调用超时（${timeoutMs}ms）`);
     }
+    debugLog(ctx, config, "invoke failed");
     throw error;
   } finally {
     clearTimeout(timer);

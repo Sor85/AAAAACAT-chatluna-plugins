@@ -34,6 +34,7 @@ vi.mock("koishi", () => {
   return {
     Schema: {
       object: () => createChain(),
+      intersect: () => createChain(),
       dynamic: () => createChain(),
       boolean: () => createChain(),
       string: () => createChain(),
@@ -54,11 +55,18 @@ vi.mock("koishi-plugin-chatluna/utils/schema", () => ({
   modelSchema,
 }));
 
-import { apply, isToolRegistrationEnabled } from "../../src/index";
+import {
+  apply,
+  isGoogleSearchToolEnabled,
+  isToolRegistrationEnabled,
+  isUrlContextToolEnabled,
+} from "../../src/index";
 
 const config = {
   toolModel: "google/gemini-2.5-pro",
-  registerTools: true,
+  enableGoogleSearchTool: true,
+  enableUrlContextTool: true,
+  debug: false,
   googleSearchToolName: "google_search",
   googleSearchDescription:
     "调用配置好的 Gemini 工具模型执行 Google Search，并以稳定结构返回搜索结果。输入为查询字符串。",
@@ -135,12 +143,20 @@ beforeEach(() => {
 });
 
 describe("plugin integration", () => {
-  it("应根据 registerTools 与 toolModel 判断是否启用注册", () => {
+  it("应根据模型和单工具开关判断注册状态", () => {
     expect(isToolRegistrationEnabled(config as any)).toBe(true);
+    expect(isGoogleSearchToolEnabled(config as any)).toBe(true);
+    expect(isUrlContextToolEnabled(config as any)).toBe(true);
     expect(
-      isToolRegistrationEnabled({
+      isGoogleSearchToolEnabled({
         ...config,
-        registerTools: false,
+        enableGoogleSearchTool: false,
+      } as any),
+    ).toBe(false);
+    expect(
+      isUrlContextToolEnabled({
+        ...config,
+        enableUrlContextTool: false,
       } as any),
     ).toBe(false);
     expect(
@@ -181,16 +197,48 @@ describe("plugin integration", () => {
     );
   });
 
-  it("关闭注册时不应向 ChatLuna 注册工具", async () => {
+  it("仅启用 Google Search 时应只注册一个工具", async () => {
     const { context, triggerReady } = createMockContext();
 
     apply(context, {
       ...config,
-      registerTools: false,
+      enableUrlContextTool: false,
     } as any);
     await triggerReady();
 
-    expect(modelSchema).toHaveBeenCalledWith(context);
+    expect(registerTool).toHaveBeenCalledTimes(1);
+    expect(registerTool).toHaveBeenCalledWith(
+      "google_search",
+      expect.any(Object),
+    );
+  });
+
+  it("仅启用 URL Context 时应只注册一个工具", async () => {
+    const { context, triggerReady } = createMockContext();
+
+    apply(context, {
+      ...config,
+      enableGoogleSearchTool: false,
+    } as any);
+    await triggerReady();
+
+    expect(registerTool).toHaveBeenCalledTimes(1);
+    expect(registerTool).toHaveBeenCalledWith(
+      "url_context",
+      expect.any(Object),
+    );
+  });
+
+  it("两个工具都关闭时不应注册任何工具", async () => {
+    const { context, triggerReady } = createMockContext();
+
+    apply(context, {
+      ...config,
+      enableGoogleSearchTool: false,
+      enableUrlContextTool: false,
+    } as any);
+    await triggerReady();
+
     expect(registerTool).not.toHaveBeenCalled();
   });
 
@@ -226,5 +274,30 @@ describe("plugin integration", () => {
     expect(urlRegistration.selector()).toBe(true);
     expect(googleTool.description).toBe("自定义搜索描述");
     expect(urlTool.description).toBe("自定义网页描述");
+  });
+
+  it("selector 应与单工具开关保持一致", async () => {
+    const googleCase = createMockContext();
+
+    apply(googleCase.context, {
+      ...config,
+      enableUrlContextTool: false,
+    } as any);
+    await googleCase.triggerReady();
+
+    const googleRegistration = registerTool.mock.calls[0][1];
+    expect(googleRegistration.selector()).toBe(true);
+
+    registerTool.mockReset();
+
+    const urlCase = createMockContext();
+    apply(urlCase.context, {
+      ...config,
+      enableGoogleSearchTool: false,
+    } as any);
+    await urlCase.triggerReady();
+
+    const urlRegistration = registerTool.mock.calls[0][1];
+    expect(urlRegistration.selector()).toBe(true);
   });
 });

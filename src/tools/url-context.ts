@@ -3,7 +3,7 @@
  * 将网页上下文提取封装为 ChatLuna 可调用工具
  */
 import { Tool } from "@langchain/core/tools";
-import type { Context } from "koishi";
+import type { Context, Logger } from "koishi";
 import type { Config } from "../config";
 import { getChatModel, invokeWithTimeout } from "../model";
 import { validateQuery, validateUrl } from "../security/validate";
@@ -12,6 +12,21 @@ type UrlContextInput = {
   url: string;
   question?: string;
 };
+
+function getLogger(ctx: Context): Logger | undefined {
+  const logger = Reflect.get(ctx as object, "logger");
+  if (typeof logger === "function") {
+    return logger.call(ctx, "chatluna-gemini-tools") as Logger;
+  }
+  return undefined;
+}
+
+function debugLog(ctx: Context, config: Config, message: string): void {
+  if (!config.debug) {
+    return;
+  }
+  getLogger(ctx)?.info(message);
+}
 
 function parseInput(input: string): UrlContextInput {
   try {
@@ -81,6 +96,23 @@ export class GeminiUrlContextTool extends Tool {
     const safeQuestion = parsed.question
       ? validateQuery(parsed.question, this.config.maxQueryLength)
       : "请总结该页面的核心内容。";
+    const urlObject = new URL(safeUrl);
+    const parseMode = input.trim().startsWith("{") ? "json" : "raw-url";
+    debugLog(
+      this.ctx,
+      this.config,
+      [
+        `url_context start tool=${this.name}`,
+        `model=${this.config.toolModel}`,
+        `parseMode=${parseMode}`,
+        `protocol=${urlObject.protocol}`,
+        `host=${urlObject.host}`,
+        `urlLength=${safeUrl.length}`,
+        `hasQuestion=${parsed.question !== undefined}`,
+        `questionLength=${safeQuestion.length}`,
+        `usedDefaultQuestion=${parsed.question === undefined}`,
+      ].join(" "),
+    );
 
     const model = await getChatModel(this.ctx, this.config);
     const prompt = renderUrlContextPrompt(
@@ -88,8 +120,19 @@ export class GeminiUrlContextTool extends Tool {
       safeUrl,
       safeQuestion,
     );
-
-    return invokeWithTimeout(model, prompt, this.config.requestTimeoutMs);
+    const result = await invokeWithTimeout(
+      this.ctx,
+      this.config,
+      model,
+      prompt,
+      this.config.requestTimeoutMs,
+    );
+    debugLog(
+      this.ctx,
+      this.config,
+      `url_context success tool=${this.name} resultLength=${result.length}`,
+    );
+    return result;
   }
 }
 

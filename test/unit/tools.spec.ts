@@ -2,12 +2,13 @@
  * 工具模块单元测试
  * 验证工具调用路径走 ChatLuna 模型能力
  */
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createGoogleSearchTool } from "../../src/tools/google-search";
 import { createUrlContextTool } from "../../src/tools/url-context";
 
 function createMockContext(responseText: string) {
   const invoke = vi.fn(async () => ({ content: responseText }));
+  const info = vi.fn();
 
   return {
     context: {
@@ -16,14 +17,18 @@ function createMockContext(responseText: string) {
           value: { invoke },
         })),
       },
+      logger: vi.fn(() => ({ info })),
     } as any,
     invoke,
+    info,
   };
 }
 
 const baseConfig = {
   toolModel: "google/gemini-2.5-pro",
-  registerTools: true,
+  enableGoogleSearchTool: true,
+  enableUrlContextTool: true,
+  debug: false,
   googleSearchToolName: "google_search",
   googleSearchDescription:
     "调用配置好的 Gemini 工具模型执行 Google Search，并以稳定结构返回搜索结果。输入为查询字符串。",
@@ -67,6 +72,10 @@ const baseConfig = {
   maxQueryLength: 512,
   maxUrlLength: 2048,
 } as const;
+
+beforeEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("createGoogleSearchTool", () => {
   it("未配置工具模型时应拒绝调用", async () => {
@@ -117,6 +126,61 @@ describe("createGoogleSearchTool", () => {
     expect(invoke.mock.calls[0][0]).toContain("搜索模板");
     expect(invoke.mock.calls[0][0]).toContain("query=koishi");
     expect(invoke.mock.calls[0][0]).not.toContain("{{query}}");
+  });
+
+  it("debug 开启时应输出脱敏日志", async () => {
+    const { context, info } = createMockContext("search-result");
+    const tool = createGoogleSearchTool(context, {
+      ...baseConfig,
+      debug: true,
+    } as any);
+
+    await tool.invoke("koishi secret query");
+
+    const messages = info.mock.calls.map(([message]) => String(message));
+    expect(
+      messages.some((message) => message.includes("google_search start")),
+    ).toBe(true);
+    expect(messages.some((message) => message.includes("queryLength="))).toBe(
+      true,
+    );
+    expect(messages.some((message) => message.includes("resultLength="))).toBe(
+      true,
+    );
+    expect(
+      messages.some((message) => message.includes("koishi secret query")),
+    ).toBe(false);
+  });
+
+  it("失败日志不应泄露 query 或 prompt 内容", async () => {
+    const { context, info } = createMockContext("unused");
+    context.chatluna.createChatModel = vi.fn(async () => ({
+      value: {
+        invoke: vi.fn(async () => {
+          throw new Error("prompt leak: 搜索模板\\nquery=koishi secret query");
+        }),
+      },
+    }));
+    const tool = createGoogleSearchTool(context, {
+      ...baseConfig,
+      debug: true,
+      googleSearchPrompt: "搜索模板\\nquery={{query}}",
+    } as any);
+
+    await expect(tool.invoke("koishi secret query")).rejects.toThrow(
+      "prompt leak",
+    );
+
+    const messages = info.mock.calls.map(([message]) => String(message));
+    expect(messages.some((message) => message.includes("invoke failed"))).toBe(
+      true,
+    );
+    expect(
+      messages.some((message) => message.includes("koishi secret query")),
+    ).toBe(false);
+    expect(messages.some((message) => message.includes("搜索模板"))).toBe(
+      false,
+    );
   });
 });
 
@@ -184,5 +248,72 @@ describe("createUrlContextTool", () => {
     expect(invoke.mock.calls[0][0]).toContain(
       "question=请总结该页面的核心内容。",
     );
+  });
+
+  it("debug 开启时应输出脱敏的 url_context 日志", async () => {
+    const { context, info } = createMockContext("url-context-result");
+    const tool = createUrlContextTool(context, {
+      ...baseConfig,
+      debug: true,
+    } as any);
+
+    await tool.invoke(
+      '{"url":"https://example.com/private/path?token=secret","question":"总结 secret 内容"}',
+    );
+
+    const messages = info.mock.calls.map(([message]) => String(message));
+    expect(
+      messages.some((message) => message.includes("url_context start")),
+    ).toBe(true);
+    expect(
+      messages.some((message) => message.includes("host=example.com")),
+    ).toBe(true);
+    expect(
+      messages.some((message) => message.includes("usedDefaultQuestion=false")),
+    ).toBe(true);
+    expect(
+      messages.some((message) =>
+        message.includes("https://example.com/private/path?token=secret"),
+      ),
+    ).toBe(false);
+    expect(
+      messages.some((message) => message.includes("总结 secret 内容")),
+    ).toBe(false);
+  });
+
+  it("失败日志不应泄露完整 URL 或问题内容", async () => {
+    const { context, info } = createMockContext("unused");
+    context.chatluna.createChatModel = vi.fn(async () => ({
+      value: {
+        invoke: vi.fn(async () => {
+          throw new Error(
+            "url leak: https://example.com/private/path?token=secret question=总结 secret 内容",
+          );
+        }),
+      },
+    }));
+    const tool = createUrlContextTool(context, {
+      ...baseConfig,
+      debug: true,
+    } as any);
+
+    await expect(
+      tool.invoke(
+        '{"url":"https://example.com/private/path?token=secret","question":"总结 secret 内容"}',
+      ),
+    ).rejects.toThrow("url leak");
+
+    const messages = info.mock.calls.map(([message]) => String(message));
+    expect(messages.some((message) => message.includes("invoke failed"))).toBe(
+      true,
+    );
+    expect(
+      messages.some((message) =>
+        message.includes("https://example.com/private/path?token=secret"),
+      ),
+    ).toBe(false);
+    expect(
+      messages.some((message) => message.includes("总结 secret 内容")),
+    ).toBe(false);
   });
 });

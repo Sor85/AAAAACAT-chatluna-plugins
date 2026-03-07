@@ -1,6 +1,6 @@
 /**
  * 插件配置定义
- * 展示工具模型、注册开关、工具元信息与提示词模板
+ * 按基础设置、Google Search、URL Context 分组组织工具配置
  */
 import { Schema } from "koishi";
 
@@ -47,63 +47,77 @@ export const DEFAULT_URL_CONTEXT_PROMPT = [
 
 export interface Config {
   toolModel: string;
-  registerTools: boolean;
+  debug: boolean;
+  enableGoogleSearchTool: boolean;
   googleSearchToolName: string;
   googleSearchDescription: string;
   googleSearchPrompt: string;
+  maxQueryLength: number;
+  enableUrlContextTool: boolean;
   urlContextToolName: string;
   urlContextDescription: string;
   urlContextPrompt: string;
-  requestTimeoutMs: number;
-  maxQueryLength: number;
   maxUrlLength: number;
+  requestTimeoutMs: number;
 }
 
-export const Config: Schema<Config> = Schema.object({
-  toolModel: Schema.dynamic("model")
-    .default("无")
-    .description("选择支持 Google Search 和 URL Context 的 ChatLuna 模型"),
-  registerTools: Schema.boolean()
-    .default(true)
-    .description("是否将本插件注册为 ChatLuna 工具提供者"),
-  googleSearchToolName: Schema.string()
-    .default(DEFAULT_GOOGLE_SEARCH_NAME)
-    .description("Google Search 工具名称"),
-  googleSearchDescription: Schema.string()
-    .default(DEFAULT_GOOGLE_SEARCH_DESCRIPTION)
-    .role("textarea")
-    .description("Google Search 工具描述"),
-  googleSearchPrompt: Schema.string()
-    .default(DEFAULT_GOOGLE_SEARCH_PROMPT)
-    .role("textarea")
-    .description("Google Search 提示词模板，支持 {{query}} 占位符"),
-  urlContextToolName: Schema.string()
-    .default(DEFAULT_URL_CONTEXT_NAME)
-    .description("URL Context 工具名称"),
-  urlContextDescription: Schema.string()
-    .default(DEFAULT_URL_CONTEXT_DESCRIPTION)
-    .role("textarea")
-    .description("URL Context 工具描述"),
-  urlContextPrompt: Schema.string()
-    .default(DEFAULT_URL_CONTEXT_PROMPT)
-    .role("textarea")
-    .description("URL Context 提示词模板，支持 {{url}} 和 {{question}} 占位符"),
-  requestTimeoutMs: Schema.number()
-    .min(1000)
-    .max(120000)
-    .step(1000)
-    .default(20000)
-    .description("工具模型调用超时时间（毫秒）"),
-  maxQueryLength: Schema.number()
-    .min(1)
-    .max(4000)
-    .step(1)
-    .default(512)
-    .description("搜索查询最大长度"),
-  maxUrlLength: Schema.number()
-    .min(1)
-    .max(8192)
-    .step(1)
-    .default(2048)
-    .description("URL 最大长度"),
-});
+export const Config: Schema<Config> = Schema.intersect([
+  Schema.object({
+    toolModel: Schema.dynamic("model")
+      .default("无")
+      .description("选择支持 Google Search 和 URL Context 的 ChatLuna 模型"),
+    debug: Schema.boolean().default(false).description("是否输出调试日志"),
+    requestTimeoutMs: Schema.number()
+      .min(1000)
+      .max(120000)
+      .step(1000)
+      .default(20000)
+      .description("工具模型调用超时时间（毫秒）"),
+  }).description("基础设置"),
+  Schema.object({
+    enableGoogleSearchTool: Schema.boolean()
+      .default(true)
+      .description("是否注册 Google Search 工具"),
+    googleSearchToolName: Schema.string()
+      .default(DEFAULT_GOOGLE_SEARCH_NAME)
+      .description("Google Search 工具名称"),
+    googleSearchDescription: Schema.string()
+      .default(DEFAULT_GOOGLE_SEARCH_DESCRIPTION)
+      .role("textarea")
+      .description("Google Search 工具描述"),
+    googleSearchPrompt: Schema.string()
+      .default(DEFAULT_GOOGLE_SEARCH_PROMPT)
+      .role("textarea")
+      .description("Google Search 提示词模板，支持 {{query}} 占位符"),
+    maxQueryLength: Schema.number()
+      .min(1)
+      .max(4000)
+      .step(1)
+      .default(512)
+      .description("搜索查询最大长度"),
+  }).description("Google Search"),
+  Schema.object({
+    enableUrlContextTool: Schema.boolean()
+      .default(true)
+      .description("是否注册 URL Context 工具"),
+    urlContextToolName: Schema.string()
+      .default(DEFAULT_URL_CONTEXT_NAME)
+      .description("URL Context 工具名称"),
+    urlContextDescription: Schema.string()
+      .default(DEFAULT_URL_CONTEXT_DESCRIPTION)
+      .role("textarea")
+      .description("URL Context 工具描述"),
+    urlContextPrompt: Schema.string()
+      .default(DEFAULT_URL_CONTEXT_PROMPT)
+      .role("textarea")
+      .description(
+        "URL Context 提示词模板，支持 {{url}} 和 {{question}} 占位符",
+      ),
+    maxUrlLength: Schema.number()
+      .min(1)
+      .max(8192)
+      .step(1)
+      .default(2048)
+      .description("URL 最大长度"),
+  }).description("URL Context"),
+]);
