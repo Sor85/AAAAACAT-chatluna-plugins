@@ -58,7 +58,6 @@ export interface VariableSettings {
   affinityVariableName: string;
   relationshipLevelVariableName: string;
   blacklistListVariableName: string;
-  userAliasVariableName: string;
 }
 
 export interface XmlToolSettings {

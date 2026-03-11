@@ -32,7 +32,6 @@ import {
   createAffinityProvider,
   createRelationshipLevelProvider,
   createBlacklistListProvider,
-  createUserAliasProvider,
 } from "./integrations/chatluna/variables";
 import {
   registerRankCommand,
@@ -160,11 +159,6 @@ function normalizeToolSettings(config: Config): void {
       (config as unknown as { blacklistListVariableName?: string })
         .blacklistListVariableName ||
       "blacklistList",
-    userAliasVariableName:
-      config.variableSettings?.userAliasVariableName ||
-      (config as unknown as { userAliasVariableName?: string })
-        .userAliasVariableName ||
-      "userAlias",
   };
 
   config.xmlToolSettings = xmlToolSettings;
@@ -784,6 +778,10 @@ export function apply(ctx: Context, config: Config): void {
       cache,
       store,
       fetchEntries: history.fetchEntries.bind(history),
+      getUserAlias: async (scopeId, platform, userId) => {
+        if (scopeId !== config.scopeId) return null;
+        return userAlias.getAlias(platform, userId);
+      },
     });
     promptRenderer?.registerFunctionProvider?.(
       config.variableSettings.affinityVariableName,
@@ -824,21 +822,6 @@ export function apply(ctx: Context, config: Config): void {
         blacklistListProvider,
       );
       log("info", `黑名单列表变量已注册: ${blacklistListName}`);
-    }
-
-    const userAliasName = String(
-      config.variableSettings.userAliasVariableName || "userAlias",
-    ).trim();
-    if (userAliasName) {
-      const userAliasProvider = createUserAliasProvider({
-        scopeId: config.scopeId,
-        userAlias,
-      });
-      promptRenderer?.registerFunctionProvider?.(
-        userAliasName,
-        userAliasProvider,
-      );
-      log("info", `用户自定义昵称变量已注册: ${userAliasName}`);
     }
 
     log("info", "准备启动模型响应拦截 runtime");

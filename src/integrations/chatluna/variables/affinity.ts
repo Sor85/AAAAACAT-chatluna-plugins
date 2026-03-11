@@ -7,7 +7,15 @@ import type { Session } from "koishi";
 import type { Config, AffinityCache } from "../../../types";
 import type { AffinityStore } from "../../../services/affinity/store";
 import type { HistoryEntry } from "../../../services/message/history";
-import { resolveScopedVariableArgs } from "../../../helpers";
+import { isValidScopeId, resolveScopedVariableArgs } from "../../../helpers";
+
+interface AffinityVariableRow {
+  userId: string;
+  name: string;
+  nickname: string;
+  affinity: number;
+  relationship: string;
+}
 
 interface ProviderConfigurable {
   session?: Session;
@@ -18,16 +26,41 @@ export interface AffinityProviderDeps {
   cache: AffinityCache;
   store: AffinityStore;
   fetchEntries?: (session: Session, count: number) => Promise<HistoryEntry[]>;
+  getUserAlias?: (
+    scopeId: string,
+    platform: string,
+    userId: string,
+  ) => Promise<string | null>;
 }
 
 export function createAffinityProvider(deps: AffinityProviderDeps) {
-  const { config, cache, store, fetchEntries } = deps;
+  const { config, cache, store, fetchEntries, getUserAlias } = deps;
 
   const resolveRelationByAffinity = (affinity: number): string => {
     const level = (config.relationshipAffinityLevels || []).find(
       (item) => affinity >= item.min && affinity <= item.max,
     );
     return level?.relation || "未知";
+  };
+
+  const resolveNickname = async (
+    scopeId: string,
+    platform: string,
+    userId: string,
+  ): Promise<string> => {
+    const nickname = await getUserAlias?.(scopeId, platform, userId);
+    return String(nickname || "").trim();
+  };
+
+  const formatRow = (row: AffinityVariableRow): string => {
+    const parts = [
+      `id:${row.userId}`,
+      `name:${row.name}`,
+      row.nickname ? `nickname:${row.nickname}` : "",
+      `affinity:${row.affinity}`,
+      `relationship:${row.relationship}`,
+    ].filter(Boolean);
+    return parts.join(" ");
   };
 
   return async (
@@ -42,12 +75,24 @@ export function createAffinityProvider(deps: AffinityProviderDeps) {
 
     const resolved = resolveScopedVariableArgs(args);
     const scopeId = resolved?.scopeId;
-    if (!scopeId || scopeId !== config.scopeId) return "";
+    if (!scopeId || !isValidScopeId(scopeId)) return "";
 
+    const platform = session.platform;
     const targetUserId = resolved?.targetUserId || session.userId;
     const cached = cache.get(scopeId, targetUserId);
     if (cached !== null && (config.affinityDisplayRange ?? 1) <= 1) {
-      return cached;
+      const cachedNickname = await resolveNickname(
+        scopeId,
+        platform,
+        targetUserId,
+      );
+      return formatRow({
+        userId: targetUserId,
+        name: targetUserId,
+        nickname: cachedNickname,
+        affinity: cached,
+        relationship: resolveRelationByAffinity(cached),
+      });
     }
 
     const currentRecord = await store.load(scopeId, targetUserId);
@@ -57,14 +102,35 @@ export function createAffinityProvider(deps: AffinityProviderDeps) {
       currentRecord?.relation ||
       resolveRelationByAffinity(currentAffinity);
     const currentName = currentRecord?.nickname || targetUserId;
+    const currentNickname = await resolveNickname(
+      scopeId,
+      platform,
+      targetUserId,
+    );
     cache.set(scopeId, targetUserId, currentAffinity);
 
     const displayRange = Math.max(
       1,
       Math.floor(config.affinityDisplayRange ?? 1),
     );
-    if (displayRange <= 1) return currentAffinity;
-    if (typeof fetchEntries !== "function") return currentAffinity;
+    if (displayRange <= 1) {
+      return formatRow({
+        userId: targetUserId,
+        name: currentName,
+        nickname: currentNickname,
+        affinity: currentAffinity,
+        relationship: currentRelation,
+      });
+    }
+    if (typeof fetchEntries !== "function") {
+      return formatRow({
+        userId: targetUserId,
+        name: currentName,
+        nickname: currentNickname,
+        affinity: currentAffinity,
+        relationship: currentRelation,
+      });
+    }
 
     const entries = await fetchEntries(session, Math.max(1, displayRange * 10));
     const orderedUsers: { userId: string; username: string }[] = [];
@@ -84,7 +150,13 @@ export function createAffinityProvider(deps: AffinityProviderDeps) {
 
     const rows: string[] = [];
     rows.push(
-      `id:${targetUserId} name:${currentName} affinity:${currentAffinity} relationship:${currentRelation}`,
+      formatRow({
+        userId: targetUserId,
+        name: currentName,
+        nickname: currentNickname,
+        affinity: currentAffinity,
+        relationship: currentRelation,
+      }),
     );
 
     if (!orderedUsers.length) return rows.join("\n");
@@ -98,7 +170,14 @@ export function createAffinityProvider(deps: AffinityProviderDeps) {
           record?.relation ||
           resolveRelationByAffinity(affinity);
         const name = username || record?.nickname || userId;
-        return `id:${userId} name:${name} affinity:${affinity} relationship:${relation}`;
+        const nickname = await resolveNickname(scopeId, platform, userId);
+        return formatRow({
+          userId,
+          name,
+          nickname,
+          affinity,
+          relationship: relation,
+        });
       }),
     );
 

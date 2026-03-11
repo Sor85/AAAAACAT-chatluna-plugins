@@ -102,7 +102,7 @@ export const AffinitySchema = Schema.object({
     .default(1)
     .min(1)
     .step(1)
-    .description("上下文中用户好感度变量显示范围"),
+    .description("显示当前上下文中多少位用户的好感度信息"),
   baseAffinityConfig: Schema.object({
     initialAffinity: Schema.number()
       .default(BASE_AFFINITY_DEFAULTS.initialAffinity)

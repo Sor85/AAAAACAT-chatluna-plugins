@@ -31,60 +31,56 @@ export const XmlToolSettingsSchema = Schema.object({
       `## 动作指令
 你可以根据需要创建一个独立的 <actions> 元素。它用于执行非语言的系统指令。如果不需要执行任何动作，请省略此元素。
 1. 好感度更新: \`<affinity scopeId="" userId="" action="" delta=""/>\`
-  - scopeId: 必须显式填写当前实例的 scopeId，不允许猜测、改写或省略
+  - scopeId: {scopeId}
   - userId: 目标用户 ID
   - action: increase 或 decrease
   - delta: 必须填写正整数
 2. 黑名单管理: \`<blacklist scopeId="" userId="" action="" mode="" durationHours="" note=""/>\`
-  - scopeId: 必须显式填写当前实例的 scopeId
+  - scopeId: {scopeId}
   - userId: 目标用户 ID
   - action: add 或 remove
   - mode: permanent 或 temporary
   - durationHours: 仅在 action=add 且 mode=temporary 时填写
   - note: 可选备注
 3. 关系调整: \`<relationship scopeId="" userId="" action="" relation=""/>\`
-  - scopeId: 必须显式填写当前实例的 scopeId
+  - scopeId: {scopeId}
   - userId: 目标用户 ID
   - action: set 或 clear
   - relation: 仅在 action=set 时填写
 4. 自定义昵称设置: \`<userAlias scopeId="" userId="" name=""/>\`
-  - scopeId: 必须显式填写当前实例的 scopeId
+  - scopeId: {scopeId}
   - userId: 目标用户 ID
   - name: 用户自定义昵称
-
-## 变量调用约定
-- 所有变量都必须显式传入 scopeId，未传时会返回空字符串
-- 默认变量名：\`affinity(scopeId[, userId])\`、\`relationshipLevel(scopeId[, userId])\`、\`blacklistList(scopeId[, userId])\`、\`userAlias(scopeId[, userId])\`
-- scopeId 必须与当前实例一致，不允许猜测、改写或省略
 
 格式示例:
 \`\`\`xml
   <actions>
-    <affinity scopeId="{{scopeId}}" userId="123456" action="increase" delta="5"/>
-    <blacklist scopeId="{{scopeId}}" userId="123456" action="add" mode="permanent" note="violation"/>
-    <blacklist scopeId="{{scopeId}}" userId="123456" action="add" mode="temporary" durationHours="12" note="spam"/>
-    <relationship scopeId="{{scopeId}}" userId="123456" action="set" relation="小祥姐姐"/>
-    <userAlias scopeId="{{scopeId}}" userId="123456" name="小祥"/>
+    <affinity scopeId="{scopeId}" userId="123456" action="increase" delta="5"/>
+    <blacklist scopeId="{scopeId}" userId="123456" action="add" mode="permanent" note="violation"/>
+    <blacklist scopeId="{scopeId}" userId="123456" action="add" mode="temporary" durationHours="12" note="spam"/>
+    <relationship scopeId="{scopeId}" userId="123456" action="set" relation="小祥姐姐"/>
+    <userAlias scopeId="{scopeId}" userId="123456" name="小祥"/>
   </actions>
 \`\`\``,
     )
-    .description("参考提示词")
+    .description("参考提示词，使用前请手动将 {scopeId} 替换为你的实际 scopeId")
     .collapse(),
 }).description("XML 工具设置");
 
 export const VariableSettingsSchema = Schema.object({
   affinityVariableName: Schema.string()
     .default("affinity")
-    .description("好感度变量名称（调用时必须显式传入 scopeId）"),
+    .description('好感度变量名称，调用示例：{affinity("scopeId"[, "userId"])}'),
   relationshipLevelVariableName: Schema.string()
     .default("relationshipLevel")
-    .description("好感度区间变量名称（调用时必须显式传入 scopeId）"),
+    .description(
+      '好感度区间变量名称，调用示例：{relationshipLevel("scopeId"[, "userId"])}',
+    ),
   blacklistListVariableName: Schema.string()
     .default("blacklistList")
-    .description("当前群黑名单列表变量名称（调用时必须显式传入 scopeId）"),
-  userAliasVariableName: Schema.string()
-    .default("userAlias")
-    .description("用户自定义昵称变量名称（调用时必须显式传入 scopeId）"),
+    .description(
+      '当前群黑名单列表变量名称，调用示例：{blacklistList("scopeId"[, "userId"])}',
+    ),
 }).description("变量设置");
 
 export const OtherSettingsSchema = Schema.object({

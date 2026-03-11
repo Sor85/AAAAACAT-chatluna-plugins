@@ -6,4 +6,3 @@
 export * from "./affinity";
 export * from "./relationship-level";
 export * from "./blacklist-list";
-export * from "./user-alias";

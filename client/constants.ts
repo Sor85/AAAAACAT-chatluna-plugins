@@ -60,10 +60,6 @@ export const VARIABLE_CONFIG: Record<
     section: "变量设置",
     searchKey: "blacklistListVariableName",
   },
-  userAlias: {
-    section: "变量设置",
-    searchKey: "userAliasVariableName",
-  },
 };
 
 export const PLUGIN_NAME = "koishi-plugin-chatluna-affinity";
