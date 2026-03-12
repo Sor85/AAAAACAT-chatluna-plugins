@@ -283,6 +283,7 @@ export function apply(ctx: Context, config: Config): void {
       ).chatluna_character,
     processModelResponse,
     log,
+    logActivation: Boolean(config.debugLogging),
   });
   let modelResponseRuntimeMonitor: (() => void) | null = null;
 

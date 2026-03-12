@@ -41,13 +41,46 @@ function createRuntimeHarness() {
   return { runtime, service, temp, messages, calls };
 }
 
-test("createCharacterTempModelResponseRuntime start 成功后激活 getTemp 监听", () => {
-  const { runtime, calls } = createRuntimeHarness();
+test("createCharacterTempModelResponseRuntime 未开启调试时不输出启用 info 日志", () => {
+  const calls = [];
+  const service = {
+    async getTemp() {
+      return { completionMessages: [] };
+    },
+  };
+
+  const runtime = createCharacterTempModelResponseRuntime({
+    getCharacterService: () => service,
+    async processModelResponse() {},
+    log(level, message, detail) {
+      calls.push({ level, message, detail });
+    },
+  });
 
   assert.equal(runtime.start(), true);
-  assert.equal(runtime.isActive(), true);
+  assert.deepEqual(calls, []);
+});
+
+test("createCharacterTempModelResponseRuntime 显式开启激活日志时输出 info", () => {
+  const calls = [];
+  const service = {
+    async getTemp() {
+      return { completionMessages: [] };
+    },
+  };
+
+  const runtime = createCharacterTempModelResponseRuntime({
+    getCharacterService: () => service,
+    async processModelResponse() {},
+    logActivation: true,
+    log(level, message, detail) {
+      calls.push({ level, message, detail });
+    },
+  });
+
+  assert.equal(runtime.start(), true);
   assert.deepEqual(
-    calls.log.map((item) => item.message),
+    calls.map((item) => item.message),
     ["已启用基于 getTemp 的模型响应适配"],
   );
 });
@@ -245,10 +278,10 @@ test("createCharacterTempModelResponseRuntime 在处理器报错时记录 warn �
     '<affinity scopeId="宁宁" userId="1001" action="increase" delta="1" />',
     '<relationship scopeId="宁宁" userId="1001" action="clear" />',
   ]);
-  assert.equal(logCalls[0].message, "已启用基于 getTemp 的模型响应适配");
-  assert.equal(logCalls[1].level, "warn");
-  assert.equal(logCalls[1].message, "处理 completionMessages 模型响应失败");
-  assert.equal(logCalls[1].detail.message, "boom");
+  assert.equal(logCalls.length, 1);
+  assert.equal(logCalls[0].level, "warn");
+  assert.equal(logCalls[0].message, "处理 completionMessages 模型响应失败");
+  assert.equal(logCalls[0].detail.message, "boom");
 });
 
 test("createCharacterTempModelResponseRuntime 在 character 服务实例被替换后会重新挂载到新实例", async () => {

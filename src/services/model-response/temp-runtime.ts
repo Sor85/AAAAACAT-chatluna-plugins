@@ -42,6 +42,7 @@ export interface CharacterTempModelResponseRuntimeParams {
   getCharacterService: () => CharacterServiceLike | null | undefined;
   processModelResponse: (response: string) => Promise<void>;
   log?: LogFn;
+  logActivation?: boolean;
 }
 
 const GET_TEMP_TAG = Symbol("chatlunaAffinityGetTempRuntime");
@@ -240,7 +241,12 @@ function registerGetTempListener(
 export function createCharacterTempModelResponseRuntime(
   params: CharacterTempModelResponseRuntimeParams,
 ): CharacterTempModelResponseRuntime {
-  const { getCharacterService, processModelResponse, log } = params;
+  const {
+    getCharacterService,
+    processModelResponse,
+    log,
+    logActivation = false,
+  } = params;
   const messageSubscriptions = new WeakMap<
     CompletionMessagesArray,
     () => void
@@ -319,7 +325,7 @@ export function createCharacterTempModelResponseRuntime(
         return false;
       }
 
-      if (changed) {
+      if (changed && logActivation) {
         log?.("info", "已启用基于 getTemp 的模型响应适配");
       }
       return true;
