@@ -201,12 +201,12 @@ export function createXmlInterceptor(
       const wrapped = (...args: unknown[]) => {
         raw(...args);
         const message = args[0];
-        if (
-          typeof message !== "string" ||
-          !message.startsWith("model response: ")
-        )
-          return;
-        const response = message.substring("model response: ".length);
+        if (typeof message !== "string") return;
+        const prefix = ["model response: ", "model response:\n"].find((item) =>
+          message.startsWith(item),
+        );
+        if (!prefix) return;
+        const response = message.substring(prefix.length);
         if (!response) return;
         const responseId = `${Date.now()}:${responseSeq++}`;
         const session = resolveSession();
