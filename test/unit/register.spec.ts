@@ -417,6 +417,35 @@ describe("registerCommands", () => {
     );
   });
 
+  it("启用 XML 工具后应兼容 model response 冒号后直接换行", async () => {
+    const { ctx, readyHandlers, rawCollectors, characterLogger } =
+      createMockContext();
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableMemeXmlTool: true,
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+
+    await flushReadyHandlers(readyHandlers);
+    const session = createSession("ignored");
+    await rawCollectors[0](session);
+
+    characterLogger.debug(
+      'model response:\n<meme key="qizhu" text="你好|世界" image"https://a.png|https://b.jpg" at="10001|10002"/>',
+    );
+    await flushAsyncCycles();
+
+    expect(generateMock).toHaveBeenCalledWith(
+      "qizhu",
+      expect.any(Array),
+      ["你好", "世界"],
+      {},
+    );
+  });
+
   it("XML 仅传 key 与 at 时应触发生成", async () => {
     const targetAvatar = {
       data: new Uint8Array([4]),

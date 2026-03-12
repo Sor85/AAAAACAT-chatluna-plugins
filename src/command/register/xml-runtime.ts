@@ -44,7 +44,9 @@ interface InstallXmlRuntimeOptions {
     images: PreparedImages,
     senderAvatarImage?: Awaited<ReturnType<typeof getSenderAvatarImage>>,
     targetAvatarImage?: Awaited<ReturnType<typeof getSenderAvatarImage>>,
-    secondaryTargetAvatarImage?: Awaited<ReturnType<typeof getSenderAvatarImage>>,
+    secondaryTargetAvatarImage?: Awaited<
+      ReturnType<typeof getSenderAvatarImage>
+    >,
     botAvatarImage?: Awaited<ReturnType<typeof getSenderAvatarImage>>,
     senderName?: string,
     groupNicknameText?: string,
@@ -189,15 +191,25 @@ export function installXmlRuntime(options: InstallXmlRuntimeOptions): void {
   let rawInterceptorOriginalDebug: ((...args: unknown[]) => void) | null = null;
 
   const RAW_INTERCEPTOR_TAG = "__chatlunaMemeGeneratorRawInterceptor";
+  const RAW_MODEL_RESPONSE_PREFIXES = [
+    "model response: ",
+    "model response:\n",
+  ] as const;
   const RAW_INTERCEPTOR_MONITOR_INTERVAL = 5 * 1000;
   const RAW_INTERCEPTOR_FAST_INTERVAL = 3 * 1000;
   const RAW_INTERCEPTOR_START_DELAY = 3 * 1000;
 
-  const setManagedInterval = (callback: () => void, delayMs: number): (() => void) => {
+  const setManagedInterval = (
+    callback: () => void,
+    delayMs: number,
+  ): (() => void) => {
     const ctxLike = ctx as unknown as {
       setInterval?:
         | ((handler: () => void, delay: number) => () => void)
-        | ((handler: () => void, delay: number) => ReturnType<typeof setInterval>);
+        | ((
+            handler: () => void,
+            delay: number,
+          ) => ReturnType<typeof setInterval>);
     };
 
     if (typeof ctxLike.setInterval === "function") {
@@ -210,11 +222,17 @@ export function installXmlRuntime(options: InstallXmlRuntimeOptions): void {
     return () => clearInterval(timer);
   };
 
-  const setManagedTimeout = (callback: () => void, delayMs: number): (() => void) => {
+  const setManagedTimeout = (
+    callback: () => void,
+    delayMs: number,
+  ): (() => void) => {
     const ctxLike = ctx as unknown as {
       setTimeout?:
         | ((handler: () => void, delay: number) => () => void)
-        | ((handler: () => void, delay: number) => ReturnType<typeof setTimeout>);
+        | ((
+            handler: () => void,
+            delay: number,
+          ) => ReturnType<typeof setTimeout>);
     };
 
     if (typeof ctxLike.setTimeout === "function") {
@@ -236,13 +254,17 @@ export function installXmlRuntime(options: InstallXmlRuntimeOptions): void {
   };
 
   const isRawInterceptorActive = (): boolean => {
-    const characterService = (ctx as ContextWithChatlunaCharacter).chatluna_character;
-    const debugFn = characterService?.logger?.debug as Record<string, boolean> | undefined;
+    const characterService = (ctx as ContextWithChatlunaCharacter)
+      .chatluna_character;
+    const debugFn = characterService?.logger?.debug as
+      | Record<string, boolean>
+      | undefined;
     return Boolean(debugFn?.[RAW_INTERCEPTOR_TAG]);
   };
 
   const initRawModelInterceptor = (): boolean => {
-    const characterService = (ctx as ContextWithChatlunaCharacter).chatluna_character;
+    const characterService = (ctx as ContextWithChatlunaCharacter)
+      .chatluna_character;
     if (!characterService) return false;
 
     if (rawInterceptorService !== characterService) {
@@ -269,7 +291,10 @@ export function installXmlRuntime(options: InstallXmlRuntimeOptions): void {
       return false;
     }
 
-    const taggedDebug = characterLogger.debug as unknown as Record<string, boolean>;
+    const taggedDebug = characterLogger.debug as unknown as Record<
+      string,
+      boolean
+    >;
     if (taggedDebug[RAW_INTERCEPTOR_TAG]) return true;
 
     restoreRawModelInterceptor();
@@ -277,11 +302,18 @@ export function installXmlRuntime(options: InstallXmlRuntimeOptions): void {
     const wrappedDebug = (...args: unknown[]) => {
       originalDebug(...args);
       const message = args[0];
-      if (typeof message !== "string" || !message.startsWith("model response: ")) {
+      if (typeof message !== "string") {
         return;
       }
 
-      const response = message.substring("model response: ".length);
+      const matchedPrefix = RAW_MODEL_RESPONSE_PREFIXES.find((prefix) =>
+        message.startsWith(prefix),
+      );
+      if (!matchedPrefix) {
+        return;
+      }
+
+      const response = message.substring(matchedPrefix.length);
       if (!response) return;
 
       const session =
@@ -305,7 +337,8 @@ export function installXmlRuntime(options: InstallXmlRuntimeOptions): void {
         });
     };
 
-    (wrappedDebug as unknown as Record<string, boolean>)[RAW_INTERCEPTOR_TAG] = true;
+    (wrappedDebug as unknown as Record<string, boolean>)[RAW_INTERCEPTOR_TAG] =
+      true;
     characterLogger.debug = wrappedDebug;
     rawInterceptorLogger = characterLogger;
     rawInterceptorOriginalDebug = originalDebug;
