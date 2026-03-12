@@ -214,9 +214,6 @@ export function apply(ctx: Context, config: Config): void {
     ctx,
     config,
     log,
-    applyConfigUpdate: () => {
-      ctx.scope.update(config, false);
-    },
   });
   const blacklist = createBlacklistService({
     ctx,

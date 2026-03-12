@@ -70,16 +70,18 @@ export const XmlToolSettingsSchema = Schema.object({
 export const VariableSettingsSchema = Schema.object({
   affinityVariableName: Schema.string()
     .default("affinity")
-    .description('好感度变量名称，调用示例：{affinity("scopeId"[, "userId"])}'),
+    .description(
+      '好感度变量名称，调用示例：{affinity("scopeId")}，请将 scopeId 替换为你设定的实际 scopeId。返回格式为文本行，包含 id、name、nickname、affinity、relationship；当展示范围大于 1 时会返回多行。',
+    ),
   relationshipLevelVariableName: Schema.string()
     .default("relationshipLevel")
     .description(
-      '好感度区间变量名称，调用示例：{relationshipLevel("scopeId"[, "userId"])}',
+      '好感度区间变量名称，调用示例：{relationshipLevel("scopeId")}，请将 scopeId 替换为你设定的实际 scopeId。返回格式为文本行，列出当前配置中的所有区间，包含 min、max、relationship、note。',
     ),
   blacklistListVariableName: Schema.string()
     .default("blacklistList")
     .description(
-      '当前群黑名单列表变量名称，调用示例：{blacklistList("scopeId"[, "userId"])}',
+      '当前群黑名单列表变量名称，调用示例：{blacklistList("scopeId")}，请将 scopeId 替换为你设定的实际 scopeId。返回格式为文本行，列出当前群命中的黑名单记录，包含 id、name、affinity、mode、blockedAt；临时黑名单额外包含 expiresAt。',
     ),
 }).description("变量设置");
 

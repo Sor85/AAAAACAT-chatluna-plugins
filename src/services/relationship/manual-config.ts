@@ -16,11 +16,10 @@ export interface ManualConfigOptions {
   ctx: Context;
   config: Config;
   log: LogFn;
-  applyConfigUpdate: () => void;
 }
 
 export function createManualRelationshipManager(options: ManualConfigOptions) {
-  const { ctx, config, log, applyConfigUpdate } = options;
+  const { ctx, config, log } = options;
 
   const find = (
     _platform: string,
@@ -40,7 +39,6 @@ export function createManualRelationshipManager(options: ManualConfigOptions) {
     } else {
       config.relationships = [...list, { userId, relation: relationName }];
     }
-    applyConfigUpdate();
   };
 
   const remove = async (userId: string): Promise<boolean> => {
@@ -50,7 +48,6 @@ export function createManualRelationshipManager(options: ManualConfigOptions) {
     if (!exists) return false;
 
     config.relationships = list.filter((item) => item.userId !== userId);
-    applyConfigUpdate();
 
     try {
       const records = await ctx.database.get(MODEL_NAME_V2, {
