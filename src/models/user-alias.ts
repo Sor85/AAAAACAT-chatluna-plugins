@@ -37,6 +37,6 @@ export function extendUserAliasModel(ctx: Context): void {
       alias: { type: "string", length: 255 },
       updatedAt: { type: "timestamp" },
     },
-    { primary: ["scopeId", "platform", "userId"] },
+    { primary: ["scopeId", "userId"] },
   );
 }

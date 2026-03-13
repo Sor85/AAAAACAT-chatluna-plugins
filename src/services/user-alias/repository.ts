@@ -17,12 +17,11 @@ export function createUserAliasService(options: UserAliasServiceOptions) {
   const { ctx, scopeId, log } = options;
 
   const getAlias = async (
-    platform: string,
+    _platform: string,
     userId: string,
   ): Promise<string | null> => {
     const rows = (await ctx.database.get(USER_ALIAS_MODEL_NAME_V2, {
       scopeId,
-      platform,
       userId,
     })) as unknown as UserAliasRecord[];
     return rows[0]?.alias || null;
