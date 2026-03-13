@@ -9,7 +9,9 @@ export const ScopeSettingsSchema = Schema.object({
   scopeId: Schema.string()
     .pattern(/^[A-Za-z0-9_\-\u4e00-\u9fff]{1,32}$/)
     .required()
-    .description("作用域标识，只允许中文、英文、数字、_、-，长度 1-32"),
+    .description(
+      "作用域标识，只允许中文、英文、数字、_、-，长度 1-32；不要使用与 bot 名称相同的 scopeId，建议优先使用英文",
+    ),
   botSelfIds: Schema.array(Schema.string())
     .default([])
     .description(
