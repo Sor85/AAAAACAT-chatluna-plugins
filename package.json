@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-chatluna-toolbox",
   "description": "为 ChatLuna 提供更多原生工具、XML 工具与变量。",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
