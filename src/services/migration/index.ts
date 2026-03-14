@@ -25,6 +25,16 @@ import {
 
 const MIGRATION_VERSION = "v2";
 
+type KeyOf<T> = (row: T) => string;
+type LegacyModelName =
+  | typeof MODEL_NAME
+  | typeof BLACKLIST_MODEL_NAME
+  | typeof USER_ALIAS_MODEL_NAME;
+type NextModelName =
+  | typeof MODEL_NAME_V2
+  | typeof BLACKLIST_MODEL_NAME_V2
+  | typeof USER_ALIAS_MODEL_NAME_V2;
+
 export interface MigrationOptions {
   ctx: Context;
   scopeId: string;
@@ -61,47 +71,74 @@ export function createMigrationService(options: MigrationOptions) {
     await markMigration("skipped");
   };
 
-  const migrateAffinity = async (): Promise<number> => {
+  const filterMissingRows = async <LegacyRow, NextRow>(params: {
+    legacyModel: LegacyModelName;
+    nextModel: NextModelName;
+    toNextRow: (row: LegacyRow) => NextRow;
+    getKey: KeyOf<NextRow>;
+  }): Promise<NextRow[]> => {
     const legacyRows = (await ctx.database.get(
-      MODEL_NAME,
+      params.legacyModel,
       {},
-    )) as unknown as LegacyAffinityRecord[];
-    if (legacyRows.length === 0) return 0;
+    )) as unknown as LegacyRow[];
+    if (legacyRows.length === 0) return [];
 
-    const rows: AffinityRecord[] = legacyRows.map((row) => ({
+    const nextRows = legacyRows.map(params.toNextRow);
+    const existingRows = (await ctx.database.get(params.nextModel, {
       scopeId,
-      ...row,
-    }));
+    })) as unknown as NextRow[];
+    const existingKeys = new Set(existingRows.map(params.getKey));
+
+    return nextRows.filter((row) => !existingKeys.has(params.getKey(row)));
+  };
+
+  const migrateAffinity = async (): Promise<number> => {
+    const rows = await filterMissingRows<LegacyAffinityRecord, AffinityRecord>({
+      legacyModel: MODEL_NAME,
+      nextModel: MODEL_NAME_V2,
+      toNextRow: (row) => ({
+        scopeId,
+        ...row,
+      }),
+      getKey: (row) => `${row.scopeId}:${row.userId}`,
+    });
+    if (rows.length === 0) return 0;
     await ctx.database.upsert(MODEL_NAME_V2, rows);
     return rows.length;
   };
 
   const migrateBlacklist = async (): Promise<number> => {
-    const legacyRows = (await ctx.database.get(
-      BLACKLIST_MODEL_NAME,
-      {},
-    )) as unknown as LegacyBlacklistRecord[];
-    if (legacyRows.length === 0) return 0;
-
-    const rows: BlacklistRecord[] = legacyRows.map((row) => ({
-      scopeId,
-      ...row,
-    }));
+    const rows = await filterMissingRows<
+      LegacyBlacklistRecord,
+      BlacklistRecord
+    >({
+      legacyModel: BLACKLIST_MODEL_NAME,
+      nextModel: BLACKLIST_MODEL_NAME_V2,
+      toNextRow: (row) => ({
+        scopeId,
+        ...row,
+      }),
+      getKey: (row) => `${row.scopeId}:${row.userId}:${row.mode}`,
+    });
+    if (rows.length === 0) return 0;
     await ctx.database.upsert(BLACKLIST_MODEL_NAME_V2, rows);
     return rows.length;
   };
 
   const migrateUserAlias = async (): Promise<number> => {
-    const legacyRows = (await ctx.database.get(
-      USER_ALIAS_MODEL_NAME,
-      {},
-    )) as unknown as LegacyUserAliasRecord[];
-    if (legacyRows.length === 0) return 0;
-
-    const rows: UserAliasRecord[] = legacyRows.map((row) => ({
-      scopeId,
-      ...row,
-    }));
+    const rows = await filterMissingRows<
+      LegacyUserAliasRecord,
+      UserAliasRecord
+    >({
+      legacyModel: USER_ALIAS_MODEL_NAME,
+      nextModel: USER_ALIAS_MODEL_NAME_V2,
+      toNextRow: (row) => ({
+        scopeId,
+        ...row,
+      }),
+      getKey: (row) => `${row.scopeId}:${row.userId}`,
+    });
+    if (rows.length === 0) return 0;
     await ctx.database.upsert(USER_ALIAS_MODEL_NAME_V2, rows);
     return rows.length;
   };
