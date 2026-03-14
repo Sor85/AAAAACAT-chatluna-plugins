@@ -41,6 +41,9 @@ interface Dispatcher {
   processedMessages: WeakSet<object>;
 }
 
+const objectIds = new WeakMap<object, number>();
+let nextObjectId = 1;
+
 export interface ModelResponseContext {
   response: string;
   session: SessionLike | null;
@@ -63,6 +66,25 @@ const GET_TEMP_TAG = Symbol("chatlunaAffinityGetTempRuntime");
 const GET_TEMP_ORIGINAL = Symbol("chatlunaAffinityOriginalGetTemp");
 const GET_TEMP_LISTENERS = Symbol("chatlunaAffinityGetTempListeners");
 const PUSH_DISPATCHER = Symbol("chatlunaAffinityPushDispatcher");
+
+function getObjectId(value: object): number {
+  const existing = objectIds.get(value);
+  if (existing) return existing;
+  const id = nextObjectId;
+  nextObjectId += 1;
+  objectIds.set(value, id);
+  return id;
+}
+
+function logDiagnostic(
+  enabled: boolean,
+  log: LogFn | undefined,
+  message: string,
+  detail: Record<string, unknown>,
+): void {
+  if (!enabled) return;
+  log?.("info", message, detail);
+}
 
 function getMessageType(message: MessageLike | null | undefined): string {
   if (!message) return "";
@@ -190,10 +212,14 @@ function restoreDispatcher(messages: CompletionMessagesArray): void {
 function registerGetTempListener(
   service: CharacterServiceLike,
   listener: (temp: GroupTempLike, session: SessionLike | null) => void,
+  log?: LogFn,
+  diagnosticLogging = false,
 ): (() => void) | null {
   const getTemp = service.getTemp;
   if (typeof getTemp !== "function") return null;
 
+  const serviceId = getObjectId(service as object);
+  const beforePatchGetTemp = service.getTemp;
   const serviceRecord = service as unknown as Record<symbol, unknown>;
   let listeners = serviceRecord[GET_TEMP_LISTENERS] as
     | Set<(temp: GroupTempLike, session: SessionLike | null) => void>
@@ -237,24 +263,78 @@ function registerGetTempListener(
       return temp;
     };
     serviceRecord[GET_TEMP_TAG] = true;
+
+    logDiagnostic(diagnosticLogging, log, "模型响应 runtime 已接管 getTemp", {
+      serviceId,
+      listenerCount: listeners.size,
+      originalEqualsCurrentBeforePatch: getTemp === beforePatchGetTemp,
+      originalEqualsPatchedAfterPatch: getTemp === service.getTemp,
+      repeatedPatch: false,
+    });
+  } else {
+    logDiagnostic(
+      diagnosticLogging,
+      log,
+      "模型响应 runtime 复用既有 getTemp 接管",
+      {
+        serviceId,
+        listenerCount: listeners.size,
+        originalEqualsCurrentBeforePatch: getTemp === beforePatchGetTemp,
+        originalEqualsStoredOriginal:
+          getTemp ===
+          (serviceRecord[GET_TEMP_ORIGINAL] as CharacterServiceLike["getTemp"]),
+        repeatedPatch: true,
+      },
+    );
   }
 
   listeners.add(listener);
+  logDiagnostic(
+    diagnosticLogging,
+    log,
+    "模型响应 runtime 已注册 getTemp 监听器",
+    {
+      serviceId,
+      listenerCount: listeners.size,
+      getTempPatched:
+        service.getTemp !==
+        (serviceRecord[GET_TEMP_ORIGINAL] as CharacterServiceLike["getTemp"]),
+    },
+  );
+
   return () => {
     const currentListeners = serviceRecord[GET_TEMP_LISTENERS] as
       | Set<(temp: GroupTempLike, session: SessionLike | null) => void>
       | undefined;
     currentListeners?.delete(listener);
-    if (currentListeners?.size) return;
+    if (currentListeners?.size) {
+      logDiagnostic(
+        diagnosticLogging,
+        log,
+        "模型响应 runtime 移除 getTemp 监听器后保留接管",
+        {
+          serviceId,
+          listenerCount: currentListeners.size,
+          restored: false,
+        },
+      );
+      return;
+    }
     const originalGetTemp = serviceRecord[
       GET_TEMP_ORIGINAL
     ] as CharacterServiceLike["getTemp"];
     if (typeof originalGetTemp === "function" && service.getTemp) {
       service.getTemp = originalGetTemp;
     }
+    const restored = service.getTemp === originalGetTemp;
     delete serviceRecord[GET_TEMP_TAG];
     delete serviceRecord[GET_TEMP_ORIGINAL];
     delete serviceRecord[GET_TEMP_LISTENERS];
+    logDiagnostic(diagnosticLogging, log, "模型响应 runtime 已恢复 getTemp", {
+      serviceId,
+      listenerCount: 0,
+      restored,
+    });
   };
 }
 
@@ -328,11 +408,32 @@ export function createCharacterTempModelResponseRuntime(
 
     if (restoreGetTemp && activeService === service) {
       active = true;
+      logDiagnostic(
+        logActivation,
+        log,
+        "模型响应 runtime 检测到当前 service 未变化",
+        {
+          serviceId: getObjectId(service as object),
+          changed: false,
+        },
+      );
       return { bound: true, changed: false, missing: false };
     }
 
+    logDiagnostic(logActivation, log, "模型响应 runtime 检测到 service 变化", {
+      previousServiceId: activeService
+        ? getObjectId(activeService as object)
+        : null,
+      nextServiceId: getObjectId(service as object),
+      changed: activeService !== service,
+    });
     restoreGetTemp?.();
-    restoreGetTemp = registerGetTempListener(service, ensureTempPatched);
+    restoreGetTemp = registerGetTempListener(
+      service,
+      ensureTempPatched,
+      log,
+      logActivation,
+    );
     activeService = restoreGetTemp ? service : null;
     active = Boolean(restoreGetTemp);
     return {

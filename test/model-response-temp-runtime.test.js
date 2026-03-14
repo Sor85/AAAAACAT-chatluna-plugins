@@ -81,7 +81,12 @@ test("createCharacterTempModelResponseRuntime 显式开启激活日志时输出 
   assert.equal(runtime.start(), true);
   assert.deepEqual(
     calls.map((item) => item.message),
-    ["已启用基于 getTemp 的模型响应适配"],
+    [
+      "模型响应 runtime 检测到 service 变化",
+      "模型响应 runtime 已接管 getTemp",
+      "模型响应 runtime 已注册 getTemp 监听器",
+      "已启用基于 getTemp 的模型响应适配",
+    ],
   );
 });
 
@@ -192,15 +197,20 @@ test("createCharacterTempModelResponseRuntime 对同一消息对象只处理一�
 
 test("createCharacterTempModelResponseRuntime stop 后恢复原始 push 并停止分发", async () => {
   const { runtime, service, temp, calls } = createRuntimeHarness();
+  const originalGetTemp = service.getTemp;
+  const originalPush = temp.completionMessages.push;
 
   runtime.start();
+  assert.notEqual(service.getTemp, originalGetTemp);
   await service.getTemp("session");
   const patchedPush = temp.completionMessages.push;
 
   runtime.stop();
 
   assert.equal(runtime.isActive(), false);
-  assert.notEqual(temp.completionMessages.push, patchedPush);
+  assert.equal(service.getTemp, originalGetTemp);
+  assert.equal(temp.completionMessages.push, originalPush);
+  assert.notEqual(patchedPush, originalPush);
 
   temp.completionMessages.push({
     role: "assistant",
@@ -220,6 +230,8 @@ test("createCharacterTempModelResponseRuntime 支持多个 runtime 共享同一 
   };
   const seenA = [];
   const seenB = [];
+  const originalGetTemp = service.getTemp;
+  const originalPush = temp.completionMessages.push;
 
   const runtimeA = createCharacterTempModelResponseRuntime({
     getCharacterService: () => service,
@@ -235,8 +247,13 @@ test("createCharacterTempModelResponseRuntime 支持多个 runtime 共享同一 
   });
 
   assert.equal(runtimeA.start(), true);
+  assert.notEqual(service.getTemp, originalGetTemp);
+  const patchedGetTemp = service.getTemp;
   assert.equal(runtimeB.start(), true);
+  assert.equal(service.getTemp, patchedGetTemp);
   await service.getTemp("session");
+  const patchedPush = temp.completionMessages.push;
+  assert.notEqual(patchedPush, originalPush);
 
   temp.completionMessages.push({
     role: "assistant",
@@ -249,6 +266,8 @@ test("createCharacterTempModelResponseRuntime 支持多个 runtime 共享同一 
   assert.equal(seenB.length, 1);
 
   runtimeB.stop();
+  assert.equal(service.getTemp, patchedGetTemp);
+  assert.equal(temp.completionMessages.push, patchedPush);
   temp.completionMessages.push({
     role: "assistant",
     content:
@@ -260,6 +279,23 @@ test("createCharacterTempModelResponseRuntime 支持多个 runtime 共享同一 
   assert.equal(seenB.length, 1);
 
   runtimeA.stop();
+  assert.equal(service.getTemp, originalGetTemp);
+  assert.equal(temp.completionMessages.push, originalPush);
+});
+
+test("createCharacterTempModelResponseRuntime 重复 start 不会对同一 service 重复 patch getTemp", () => {
+  const { runtime, service } = createRuntimeHarness();
+  const originalGetTemp = service.getTemp;
+
+  assert.equal(runtime.start(), true);
+  const patchedGetTemp = service.getTemp;
+  assert.notEqual(patchedGetTemp, originalGetTemp);
+
+  assert.equal(runtime.start(), true);
+  assert.equal(service.getTemp, patchedGetTemp);
+
+  runtime.stop();
+  assert.equal(service.getTemp, originalGetTemp);
 });
 
 test("createCharacterTempModelResponseRuntime 在处理器报错时记录 warn 且继续处理后续消息", async () => {
@@ -314,10 +350,15 @@ test("createCharacterTempModelResponseRuntime 在处理器报错时记录 warn �
       session,
     },
   ]);
-  assert.equal(logCalls.length, 1);
-  assert.equal(logCalls[0].level, "warn");
-  assert.equal(logCalls[0].message, "处理 completionMessages 模型响应失败");
-  assert.equal(logCalls[0].detail.message, "boom");
+  assert.equal(logCalls.filter((item) => item.level === "warn").length, 1);
+  assert.equal(
+    logCalls.filter((item) => item.level === "warn")[0].message,
+    "处理 completionMessages 模型响应失败",
+  );
+  assert.equal(
+    logCalls.filter((item) => item.level === "warn")[0].detail.message,
+    "boom",
+  );
 });
 
 test("createCharacterTempModelResponseRuntime 在 character 服务实例被替换后会重新挂载到新实例", async () => {
@@ -334,10 +375,13 @@ test("createCharacterTempModelResponseRuntime 在 character 服务实例被替�
     },
   };
 
+  const originalAGetTemp = serviceA.getTemp;
+  const originalBGetTemp = serviceB.getTemp;
   let currentService = serviceA;
   const processCalls = [];
   const beforeSession = { id: "before-reload" };
   const afterSession = { id: "after-reload" };
+  const returnSession = { id: "return-reload" };
   const runtime = createCharacterTempModelResponseRuntime({
     getCharacterService: () => currentService,
     async processModelResponse(context) {
@@ -346,6 +390,7 @@ test("createCharacterTempModelResponseRuntime 在 character 服务实例被替�
   });
 
   assert.equal(runtime.start(), true);
+  assert.notEqual(serviceA.getTemp, originalAGetTemp);
   await serviceA.getTemp(beforeSession);
 
   tempA.completionMessages.push({
@@ -357,12 +402,27 @@ test("createCharacterTempModelResponseRuntime 在 character 服务实例被替�
 
   currentService = serviceB;
   assert.equal(runtime.start(), true);
+  assert.equal(serviceA.getTemp, originalAGetTemp);
+  assert.notEqual(serviceB.getTemp, originalBGetTemp);
   await serviceB.getTemp(afterSession);
 
   tempB.completionMessages.push({
     role: "assistant",
     content:
       '<affinity scopeId="宁宁" userId="1001" action="increase" delta="2" />',
+  });
+  await flush();
+
+  currentService = serviceA;
+  assert.equal(runtime.start(), true);
+  assert.equal(serviceB.getTemp, originalBGetTemp);
+  assert.notEqual(serviceA.getTemp, originalAGetTemp);
+  await serviceA.getTemp(returnSession);
+
+  tempA.completionMessages.push({
+    role: "assistant",
+    content:
+      '<affinity scopeId="宁宁" userId="1001" action="increase" delta="5" />',
   });
   await flush();
 
@@ -377,5 +437,14 @@ test("createCharacterTempModelResponseRuntime 在 character 服务实例被替�
         '<affinity scopeId="宁宁" userId="1001" action="increase" delta="2" />',
       session: afterSession,
     },
+    {
+      response:
+        '<affinity scopeId="宁宁" userId="1001" action="increase" delta="5" />',
+      session: returnSession,
+    },
   ]);
+
+  runtime.stop();
+  assert.equal(serviceA.getTemp, originalAGetTemp);
+  assert.equal(serviceB.getTemp, originalBGetTemp);
 });
