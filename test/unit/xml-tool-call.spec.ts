@@ -47,15 +47,29 @@ describe("extractXmlMemeToolCalls", () => {
     expect(result).toEqual([]);
   });
 
-  it("相同调用去重", () => {
+  it("普通文本包裹 XML 标签时仍可解析", () => {
     const content =
-      '<meme key="qizhu" text="a|b" image"https://a.png" at="10001"/>\n<meme key="qizhu" text="a|b" image"https://a.png" at="10001"/>';
+      '先回复一句话。\n<meme key="qizhu" text="你好|世界" image="https://a.png" at="10001"/>\n结束。';
     const result = extractXmlMemeToolCalls(content);
     expect(result).toEqual([
       {
         key: "qizhu",
-        texts: ["a", "b"],
+        texts: ["你好", "世界"],
         imageSources: ["https://a.png"],
+        atUserIds: ["10001"],
+      },
+    ]);
+  });
+
+  it("换行包裹 XML 标签时仍可解析", () => {
+    const content =
+      '这是 assistant 的最终回复\n\n<meme key="qizhu" text="冲鸭" at="@10001"/>\n';
+    const result = extractXmlMemeToolCalls(content);
+    expect(result).toEqual([
+      {
+        key: "qizhu",
+        texts: ["冲鸭"],
+        imageSources: [],
         atUserIds: ["10001"],
       },
     ]);
