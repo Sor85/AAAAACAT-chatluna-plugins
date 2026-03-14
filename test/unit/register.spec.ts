@@ -119,7 +119,27 @@ type MiddlewareHandler = (
   next: () => Promise<unknown>,
 ) => Promise<unknown>;
 
-function createMockContext() {
+function createMockCharacterService() {
+  const completionMessages: any[] = [];
+  const originalPush = completionMessages.push.bind(completionMessages);
+  completionMessages.push = vi.fn((...items: any[]) => originalPush(...items));
+  const tempStore = {
+    completionMessages,
+  };
+  const getTemp = vi.fn(async () => tempStore);
+
+  return {
+    service: {
+      getTemp,
+    },
+    getTemp,
+    tempStore,
+    completionMessages,
+    originalCompletionMessagesPush: completionMessages.push,
+  };
+}
+
+function createMockContext(options: { withCharacterService?: boolean } = {}) {
   const readyHandlers: Array<() => void> = [];
   const disposeHandlers: Array<() => void> = [];
   const runDisposeHandlers = () => {
@@ -132,12 +152,12 @@ function createMockContext() {
     [];
   const loggerInfo = vi.fn();
   const loggerWarn = vi.fn();
-  const rawCollectors: Array<(session: unknown) => Promise<void>> = [];
-  const characterLogger = {
-    debug: vi.fn(),
-  };
-  const intervalDisposers: Array<ReturnType<typeof vi.fn>> = [];
-  const timeoutDisposers: Array<ReturnType<typeof vi.fn>> = [];
+  const injectHandlers: Array<(ctx: any) => void> = [];
+  const injectDisposers: Array<ReturnType<typeof vi.fn>> = [];
+  let characterService =
+    options.withCharacterService === false
+      ? null
+      : createMockCharacterService();
 
   const ctx: any = {
     command: vi.fn(() => ({
@@ -147,12 +167,16 @@ function createMockContext() {
     $commander: {
       get: vi.fn(() => undefined),
     },
-    chatluna_character: {
-      collect: vi.fn((callback: (session: unknown) => Promise<void>) => {
-        rawCollectors.push(callback);
-      }),
-      logger: characterLogger,
-    },
+    chatluna_character: characterService?.service,
+    inject: vi.fn((deps: string[], handler: (ctx: any) => void) => {
+      injectHandlers.push(handler);
+      if (deps.includes("chatluna_character") && ctx.chatluna_character) {
+        handler(ctx);
+      }
+      const disposer = vi.fn();
+      injectDisposers.push(disposer);
+      return disposer;
+    }),
     $processor: {
       match: vi.fn(
         (
@@ -174,19 +198,28 @@ function createMockContext() {
     }),
     setInterval: vi.fn(() => {
       const disposer = vi.fn();
-      intervalDisposers.push(disposer);
       return disposer;
     }),
     setTimeout: vi.fn((handler: () => void) => {
       handler();
       const disposer = vi.fn();
-      timeoutDisposers.push(disposer);
       return disposer;
     }),
     on: vi.fn((event: string, handler: () => void) => {
       if (event === "ready") readyHandlers.push(handler);
       if (event === "dispose") disposeHandlers.push(handler);
     }),
+  };
+
+  const setCharacterService = (
+    nextCharacterService: ReturnType<typeof createMockCharacterService> | null,
+  ) => {
+    characterService = nextCharacterService;
+    ctx.chatluna_character = nextCharacterService?.service;
+  };
+
+  const triggerInjectHandlers = () => {
+    injectHandlers.forEach((handler) => handler(ctx));
   };
 
   return {
@@ -200,10 +233,16 @@ function createMockContext() {
     matchCalls,
     loggerInfo,
     loggerWarn,
-    rawCollectors,
-    characterLogger,
-    timeoutDisposers,
-    intervalDisposers,
+    getTemp: characterService?.getTemp,
+    tempStore: characterService?.tempStore,
+    completionMessages: characterService?.completionMessages,
+    originalCompletionMessagesPush:
+      characterService?.originalCompletionMessagesPush,
+    injectHandlers,
+    injectDisposers,
+    triggerInjectHandlers,
+    setCharacterService,
+    characterService,
   };
 }
 
@@ -378,9 +417,14 @@ beforeEach(() => {
 });
 
 describe("registerCommands", () => {
-  it("启用 XML 工具后可用 key 触发生成", async () => {
-    const { ctx, readyHandlers, rawCollectors, characterLogger } =
-      createMockContext();
+  it("chatluna_character 延迟可用后仍应挂载 XML runtime", async () => {
+    const {
+      ctx,
+      readyHandlers,
+      setCharacterService,
+      triggerInjectHandlers,
+      loggerWarn,
+    } = createMockContext({ withCharacterService: false });
 
     registerCommands(
       ctx,
@@ -391,22 +435,109 @@ describe("registerCommands", () => {
     );
 
     await flushReadyHandlers(readyHandlers);
-    expect(rawCollectors).toHaveLength(1);
-    expect(
-      (characterLogger.debug as unknown as Record<string, boolean>)[
-        "__chatlunaMemeGeneratorRawInterceptor"
-      ],
-    ).toBe(true);
+    expect(loggerWarn).not.toHaveBeenCalledWith(
+      "chatluna_character.getTemp 不可用，XML 工具不会启用",
+    );
+
+    const delayedCharacterService = createMockCharacterService();
+    setCharacterService(delayedCharacterService);
+    triggerInjectHandlers();
+
+    expect(ctx.chatluna_character.getTemp).not.toBe(
+      delayedCharacterService.getTemp,
+    );
 
     const session = createSession("ignored");
-    await rawCollectors[0](session);
+    const temp = await ctx.chatluna_character.getTemp(session);
 
-    characterLogger.debug(
-      '<meme key="qizhu" text="你好|世界" image"https://a.png|https://b.jpg" at="10001|10002"/>',
+    expect(delayedCharacterService.getTemp).toHaveBeenCalledWith(session);
+    expect(temp.completionMessages.push).not.toBe(
+      delayedCharacterService.originalCompletionMessagesPush,
     );
-    characterLogger.debug(
-      'model response: <meme key="qizhu" text="你好|世界" image"https://a.png|https://b.jpg" at="10001|10002"/>',
+  });
+
+  it("chatluna_character 重挂载后应恢复旧 service 并接管新 service", async () => {
+    const {
+      ctx,
+      readyHandlers,
+      setCharacterService,
+      triggerInjectHandlers,
+      characterService,
+    } = createMockContext();
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableMemeXmlTool: true,
+        enableDirectAliasWithoutPrefix: false,
+      }),
     );
+
+    await flushReadyHandlers(readyHandlers);
+    const originalCharacterService = characterService!;
+    const session = createSession("ignored");
+    await ctx.chatluna_character.getTemp(session);
+
+    expect(ctx.chatluna_character.getTemp).not.toBe(
+      originalCharacterService.getTemp,
+    );
+    expect(originalCharacterService.completionMessages.push).not.toBe(
+      originalCharacterService.originalCompletionMessagesPush,
+    );
+
+    const replacementCharacterService = createMockCharacterService();
+    setCharacterService(replacementCharacterService);
+    triggerInjectHandlers();
+
+    expect(originalCharacterService.service.getTemp).toBe(
+      originalCharacterService.getTemp,
+    );
+    expect(originalCharacterService.completionMessages.push).toBe(
+      originalCharacterService.originalCompletionMessagesPush,
+    );
+    expect(ctx.chatluna_character.getTemp).not.toBe(
+      replacementCharacterService.getTemp,
+    );
+
+    await ctx.chatluna_character.getTemp(session);
+    replacementCharacterService.completionMessages.push({
+      role: "assistant",
+      content: '<meme key="qizhu" text="你好"/>',
+    });
+    await flushAsyncCycles();
+
+    expect(generateMock).toHaveBeenCalledWith("qizhu", [], ["你好"], {});
+
+    generateMock.mockClear();
+    originalCharacterService.completionMessages.push({
+      role: "assistant",
+      content: '<meme key="qizhu" text="旧链路"/>',
+    });
+    await flushAsyncCycles();
+
+    expect(generateMock).not.toHaveBeenCalled();
+  });
+
+  it("启用 XML 工具后可用 key 触发生成", async () => {
+    const { ctx, readyHandlers, completionMessages } = createMockContext();
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableMemeXmlTool: true,
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+
+    await flushReadyHandlers(readyHandlers);
+    const session = createSession("ignored");
+    await ctx.chatluna_character.getTemp(session);
+
+    completionMessages.push({
+      role: "assistant",
+      content:
+        '<meme key="qizhu" text="你好|世界" image"https://a.png|https://b.jpg" at="10001|10002"/>',
+    });
     await flushAsyncCycles();
 
     expect(generateMock).toHaveBeenCalledWith(
@@ -418,7 +549,7 @@ describe("registerCommands", () => {
   });
 
   it("启用 XML 工具后可记录发送成功日志", async () => {
-    const { ctx, readyHandlers, rawCollectors, characterLogger, loggerInfo } =
+    const { ctx, readyHandlers, completionMessages, loggerInfo } =
       createMockContext();
 
     registerCommands(
@@ -433,11 +564,13 @@ describe("registerCommands", () => {
     const session = createSession("ignored") as any;
     session.userId = "1291774425";
     session.guildId = "987654321";
-    await rawCollectors[0](session);
+    await ctx.chatluna_character.getTemp(session);
 
-    characterLogger.debug(
-      'model response: <meme key="qizhu" text="你好|世界" image"https://a.png|https://b.jpg" at="10001|10002"/>',
-    );
+    completionMessages.push({
+      role: "assistant",
+      content:
+        '<meme key="qizhu" text="你好|世界" image"https://a.png|https://b.jpg" at="10001|10002"/>',
+    });
     await flushAsyncCycles();
 
     expect(session.send).toHaveBeenCalledTimes(1);
@@ -449,9 +582,8 @@ describe("registerCommands", () => {
     );
   });
 
-  it("启用 XML 工具后应兼容 model response 冒号后直接换行", async () => {
-    const { ctx, readyHandlers, rawCollectors, characterLogger } =
-      createMockContext();
+  it("启用 XML 工具后应兼容数组型 assistant 内容", async () => {
+    const { ctx, readyHandlers, completionMessages } = createMockContext();
 
     registerCommands(
       ctx,
@@ -463,11 +595,18 @@ describe("registerCommands", () => {
 
     await flushReadyHandlers(readyHandlers);
     const session = createSession("ignored");
-    await rawCollectors[0](session);
+    await ctx.chatluna_character.getTemp(session);
 
-    characterLogger.debug(
-      'model response:\n<meme key="qizhu" text="你好|世界" image"https://a.png|https://b.jpg" at="10001|10002"/>',
-    );
+    completionMessages.push({
+      role: "assistant",
+      content: [
+        { text: "先说点别的：" },
+        {
+          content:
+            '<meme key="qizhu" text="你好|世界" image"https://a.png|https://b.jpg" at="10001|10002"/>',
+        },
+      ],
+    });
     await flushAsyncCycles();
 
     expect(generateMock).toHaveBeenCalledWith(
@@ -476,6 +615,58 @@ describe("registerCommands", () => {
       ["你好", "世界"],
       {},
     );
+  });
+
+  it("普通 assistant 文本不应触发 XML 生成", async () => {
+    const { ctx, readyHandlers, completionMessages } = createMockContext();
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableMemeXmlTool: true,
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+
+    await flushReadyHandlers(readyHandlers);
+    const session = createSession("ignored");
+    await ctx.chatluna_character.getTemp(session);
+
+    completionMessages.push({
+      role: "assistant",
+      content: "这是一段普通回复，没有任何 XML 指令。",
+    });
+    await flushAsyncCycles();
+
+    expect(generateMock).not.toHaveBeenCalled();
+    expect(session.send).not.toHaveBeenCalled();
+    expect(completionMessages).toHaveLength(1);
+  });
+
+  it("非 assistant 消息不应触发 XML 生成", async () => {
+    const { ctx, readyHandlers, completionMessages } = createMockContext();
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableMemeXmlTool: true,
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+
+    await flushReadyHandlers(readyHandlers);
+    const session = createSession("ignored");
+    await ctx.chatluna_character.getTemp(session);
+
+    completionMessages.push({
+      role: "user",
+      content: '<meme key="qizhu" text="你好"/>',
+    });
+    await flushAsyncCycles();
+
+    expect(generateMock).not.toHaveBeenCalled();
+    expect(session.send).not.toHaveBeenCalled();
+    expect(completionMessages).toHaveLength(1);
   });
 
   it("XML 仅传 key 与 at 时应触发生成", async () => {
@@ -510,8 +701,7 @@ describe("registerCommands", () => {
       date_modified: "2026-01-01T00:00:00",
     });
 
-    const { ctx, readyHandlers, rawCollectors, characterLogger } =
-      createMockContext();
+    const { ctx, readyHandlers, completionMessages } = createMockContext();
 
     registerCommands(
       ctx,
@@ -524,11 +714,12 @@ describe("registerCommands", () => {
 
     await flushReadyHandlers(readyHandlers);
     const session = createSession("ignored");
-    await rawCollectors[0](session);
+    await ctx.chatluna_character.getTemp(session);
 
-    characterLogger.debug(
-      'model response: <meme key="can_can_need" at="1291774425|1018193431"/>',
-    );
+    completionMessages.push({
+      role: "assistant",
+      content: '<meme key="can_can_need" at="1291774425|1018193431"/>',
+    });
     await flushAsyncCycles();
 
     expect(generateMock).toHaveBeenCalledWith(
@@ -570,8 +761,7 @@ describe("registerCommands", () => {
       date_modified: "2026-01-01T00:00:00",
     });
 
-    const { ctx, readyHandlers, rawCollectors, characterLogger } =
-      createMockContext();
+    const { ctx, readyHandlers, completionMessages } = createMockContext();
 
     registerCommands(
       ctx,
@@ -584,11 +774,12 @@ describe("registerCommands", () => {
 
     await flushReadyHandlers(readyHandlers);
     const session = createSession("ignored");
-    await rawCollectors[0](session);
+    await ctx.chatluna_character.getTemp(session);
 
-    characterLogger.debug(
-      'model response: <meme key="can_can_need" at="1291774425"/>',
-    );
+    completionMessages.push({
+      role: "assistant",
+      content: '<meme key="can_can_need" at="1291774425"/>',
+    });
     await flushAsyncCycles();
 
     expect(generateMock).toHaveBeenCalledWith(
@@ -597,6 +788,34 @@ describe("registerCommands", () => {
       [],
       {},
     );
+  });
+
+  it("dispose 后应恢复原始 completionMessages.push", async () => {
+    const {
+      ctx,
+      readyHandlers,
+      runDisposeHandlers,
+      completionMessages,
+      originalCompletionMessagesPush,
+    } = createMockContext();
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableMemeXmlTool: true,
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+
+    await flushReadyHandlers(readyHandlers);
+    const session = createSession("ignored");
+    await ctx.chatluna_character.getTemp(session);
+
+    expect(completionMessages.push).not.toBe(originalCompletionMessagesPush);
+
+    runDisposeHandlers();
+
+    expect(completionMessages.push).toBe(originalCompletionMessagesPush);
   });
 
   it("命令映射缺失 meme.preview 时直触发中文别名仍会直接触发 meme 生成", async () => {

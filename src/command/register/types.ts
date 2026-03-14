@@ -1,6 +1,6 @@
 /**
  * register 模块内部类型
- * 收敛命令注册链路中复用的上下文与结构定义
+ * 收敛命令注册链路与 XML runtime 复用的上下文结构
  */
 
 import type { Context } from "koishi";
@@ -40,13 +40,26 @@ export interface ContextWithOptionalServices extends Context {
   puppeteer?: PuppeteerLike;
 }
 
-export interface ChatlunaCharacterLoggerLike {
-  debug: (...args: unknown[]) => void;
+export interface ChatlunaCompletionMessageLike {
+  _getType?: () => string;
+  type?: string;
+  role?: string;
+  content?: unknown;
+  text?: string;
 }
 
+export interface ChatlunaCompletionMessagesLike extends Array<unknown> {
+  push: (...items: unknown[]) => number;
+}
+
+export interface ChatlunaTempLike {
+  completionMessages?: ChatlunaCompletionMessagesLike;
+}
+
+export type MaybePromise<T> = T | Promise<T>;
+
 export interface ChatlunaCharacterServiceLike {
-  collect?: (callback: (session: import("koishi").Session) => Promise<void>) => void;
-  logger?: ChatlunaCharacterLoggerLike;
+  getTemp?: (...args: unknown[]) => MaybePromise<ChatlunaTempLike | undefined>;
 }
 
 export interface ContextWithChatlunaCharacter extends Context {

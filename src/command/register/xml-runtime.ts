@@ -1,6 +1,6 @@
 /**
  * XML 工具调用运行时
- * 负责 XML 输入构建、raw 拦截器挂载与生命周期管理
+ * 负责 XML 输入构建、temp 消息拦截与生命周期管理
  */
 
 import { h, type Context, type Session } from "koishi";
@@ -15,9 +15,12 @@ import {
 } from "../../utils/avatar";
 import { extractXmlMemeToolCalls } from "../xml-tool-call";
 import type {
-  ChatlunaCharacterLoggerLike,
   ChatlunaCharacterServiceLike,
+  ChatlunaCompletionMessageLike,
+  ChatlunaCompletionMessagesLike,
+  ChatlunaTempLike,
   ContextWithChatlunaCharacter,
+  MaybePromise,
 } from "./types";
 import type { PreparedImages } from "./generate";
 
@@ -57,6 +60,95 @@ interface InstallXmlRuntimeOptions {
     groupNicknameText?: string,
   ) => Promise<ReturnType<typeof h.image>>;
   handleRuntimeError: (scope: string, error: unknown) => string;
+}
+
+interface XmlMessageDispatcher {
+  originalPush: ChatlunaCompletionMessagesLike["push"];
+  patchedPush: ChatlunaCompletionMessagesLike["push"];
+  session: Session | null;
+  handledMessages: WeakSet<object>;
+}
+
+const GET_TEMP_PATCH_TAG = Symbol("chatlunaMemeGeneratorXmlGetTempPatched");
+const GET_TEMP_ORIGINAL = Symbol("chatlunaMemeGeneratorXmlOriginalGetTemp");
+const GET_TEMP_DISPATCHERS = Symbol("chatlunaMemeGeneratorXmlDispatchers");
+const MESSAGES_DISPATCHER = Symbol(
+  "chatlunaMemeGeneratorXmlMessagesDispatcher",
+);
+
+function getMessageType(message: ChatlunaCompletionMessageLike | null): string {
+  if (!message) return "";
+  if (typeof message._getType === "function") {
+    return String(message._getType() || "")
+      .trim()
+      .toLowerCase();
+  }
+  return String(message.type || message.role || "")
+    .trim()
+    .toLowerCase();
+}
+
+function isAssistantMessage(
+  message: ChatlunaCompletionMessageLike | null,
+): boolean {
+  const type = getMessageType(message);
+  return type === "assistant" || type === "ai";
+}
+
+function extractTextContent(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value == null) return "";
+  if (Array.isArray(value)) {
+    return value.map((item) => extractTextContent(item)).join("");
+  }
+  if (typeof value !== "object") return "";
+
+  const record = value as Record<string, unknown>;
+  if (typeof record.text === "string") return record.text;
+  if (record.content !== undefined && record.content !== value) {
+    return extractTextContent(record.content);
+  }
+  if (Array.isArray(record.children)) {
+    return extractTextContent(record.children);
+  }
+  if (typeof record.attrs === "object" && record.attrs) {
+    const attrs = record.attrs as Record<string, unknown>;
+    if (typeof attrs.content === "string") return attrs.content;
+    if (typeof attrs.text === "string") return attrs.text;
+  }
+  return "";
+}
+
+function extractAssistantResponse(
+  message: ChatlunaCompletionMessageLike | null,
+): string {
+  if (!isAssistantMessage(message)) return "";
+  return extractTextContent(message?.content ?? message?.text).trim();
+}
+
+function getMessageDispatcher(
+  messages: ChatlunaCompletionMessagesLike,
+): XmlMessageDispatcher | null {
+  return ((messages as unknown as Record<symbol, unknown>)[
+    MESSAGES_DISPATCHER
+  ] ?? null) as XmlMessageDispatcher | null;
+}
+
+function setMessageDispatcher(
+  messages: ChatlunaCompletionMessagesLike,
+  dispatcher: XmlMessageDispatcher | null,
+): void {
+  const record = messages as unknown as Record<symbol, unknown>;
+  if (!dispatcher) {
+    delete record[MESSAGES_DISPATCHER];
+    return;
+  }
+  Object.defineProperty(record, MESSAGES_DISPATCHER, {
+    value: dispatcher,
+    configurable: true,
+    enumerable: false,
+    writable: true,
+  });
 }
 
 export function installXmlRuntime(options: InstallXmlRuntimeOptions): void {
@@ -194,254 +286,201 @@ export function installXmlRuntime(options: InstallXmlRuntimeOptions): void {
     }
   };
 
-  let rawModelResponseSessionKey: string | null = null;
-  const rawModelResponseSessionMap = new Map<string, Session>();
-  let lastCharacterSession: Session | null = null;
-  let rawInterceptorMonitorHandle: (() => void) | null = null;
-  let rawInterceptorFastRetryHandle: (() => void) | null = null;
-  let rawInterceptorStartHandle: (() => void) | null = null;
-  let rawInterceptorReady = false;
-  let rawInterceptorService: ChatlunaCharacterServiceLike | null = null;
-  let rawCollectorBound = false;
-  let rawInterceptorLogger: ChatlunaCharacterLoggerLike | null = null;
-  let rawInterceptorOriginalDebug: ((...args: unknown[]) => void) | null = null;
-
-  const RAW_INTERCEPTOR_TAG = "__chatlunaMemeGeneratorRawInterceptor";
-  const RAW_MODEL_RESPONSE_PREFIXES = [
-    "model response: ",
-    "model response:\n",
-  ] as const;
-  const RAW_INTERCEPTOR_MONITOR_INTERVAL = 5 * 1000;
-  const RAW_INTERCEPTOR_FAST_INTERVAL = 3 * 1000;
-  const RAW_INTERCEPTOR_START_DELAY = 3 * 1000;
-
-  const setManagedInterval = (
-    callback: () => void,
-    delayMs: number,
-  ): (() => void) => {
-    const ctxLike = ctx as unknown as {
-      setInterval?:
-        | ((handler: () => void, delay: number) => () => void)
-        | ((
-            handler: () => void,
-            delay: number,
-          ) => ReturnType<typeof setInterval>);
-    };
-
-    if (typeof ctxLike.setInterval === "function") {
-      const handle = ctxLike.setInterval(callback, delayMs);
-      if (typeof handle === "function") return handle;
-      return () => clearInterval(handle as ReturnType<typeof setInterval>);
-    }
-
-    const timer = setInterval(callback, delayMs);
-    return () => clearInterval(timer);
-  };
-
-  const setManagedTimeout = (
-    callback: () => void,
-    delayMs: number,
-  ): (() => void) => {
-    const ctxLike = ctx as unknown as {
-      setTimeout?:
-        | ((handler: () => void, delay: number) => () => void)
-        | ((
-            handler: () => void,
-            delay: number,
-          ) => ReturnType<typeof setTimeout>);
-    };
-
-    if (typeof ctxLike.setTimeout === "function") {
-      const handle = ctxLike.setTimeout(callback, delayMs);
-      if (typeof handle === "function") return handle;
-      return () => clearTimeout(handle as ReturnType<typeof setTimeout>);
-    }
-
-    const timer = setTimeout(callback, delayMs);
-    return () => clearTimeout(timer);
-  };
-
-  const restoreRawModelInterceptor = (): void => {
-    if (rawInterceptorLogger && rawInterceptorOriginalDebug) {
-      rawInterceptorLogger.debug = rawInterceptorOriginalDebug;
-    }
-    rawInterceptorLogger = null;
-    rawInterceptorOriginalDebug = null;
-  };
-
-  const isRawInterceptorActive = (): boolean => {
-    const characterService = (ctx as ContextWithChatlunaCharacter)
-      .chatluna_character;
-    const debugFn = characterService?.logger?.debug as
-      | Record<string, boolean>
-      | undefined;
-    return Boolean(debugFn?.[RAW_INTERCEPTOR_TAG]);
-  };
-
-  const initRawModelInterceptor = (): boolean => {
-    const characterService = (ctx as ContextWithChatlunaCharacter)
-      .chatluna_character;
-    if (!characterService) return false;
-
-    if (rawInterceptorService !== characterService) {
-      rawInterceptorService = characterService;
-      rawCollectorBound = false;
-    }
-
-    if (!rawCollectorBound && typeof characterService.collect === "function") {
-      characterService.collect(async (session: Session) => {
-        const sessionKey =
-          (session as unknown as { guildId?: string }).guildId ||
-          session.channelId ||
-          session.userId ||
-          null;
-        rawModelResponseSessionKey = sessionKey;
-        if (sessionKey) rawModelResponseSessionMap.set(sessionKey, session);
-        lastCharacterSession = session;
-      });
-      rawCollectorBound = true;
-    }
-
-    const characterLogger = characterService.logger;
-    if (!characterLogger || typeof characterLogger.debug !== "function") {
-      return false;
-    }
-
-    const taggedDebug = characterLogger.debug as unknown as Record<
-      string,
-      boolean
-    >;
-    if (taggedDebug[RAW_INTERCEPTOR_TAG]) return true;
-
-    restoreRawModelInterceptor();
-    const originalDebug = characterLogger.debug.bind(characterLogger);
-    const wrappedDebug = (...args: unknown[]) => {
-      originalDebug(...args);
-      const message = args[0];
-      if (typeof message !== "string") {
-        return;
-      }
-
-      const matchedPrefix = RAW_MODEL_RESPONSE_PREFIXES.find((prefix) =>
-        message.startsWith(prefix),
+  const dispatchXmlToolCall = async (
+    session: Session | null,
+    content: string,
+  ): Promise<void> => {
+    if (!session || !content) return;
+    try {
+      const payload = await handleXmlMemeToolCall(session, content);
+      if (!payload) return;
+      await session.send(payload.result);
+      logger.info(
+        "meme=%s, user=%s, guild=%s",
+        payload.memeKey,
+        session.userId,
+        session.guildId,
       );
-      if (!matchedPrefix) {
-        return;
-      }
-
-      const response = message.substring(matchedPrefix.length);
-      if (!response) return;
-
-      const session =
-        (rawModelResponseSessionKey
-          ? rawModelResponseSessionMap.get(rawModelResponseSessionKey)
-          : undefined) ||
-        lastCharacterSession ||
-        null;
-      if (!session) {
-        logger.warn("拦截到原始输出但缺少会话上下文，XML 工具不会执行");
-        return;
-      }
-
-      void handleXmlMemeToolCall(session, response)
-        .then(async (payload) => {
-          if (!payload) return;
-          await session.send(payload.result);
-          logger.info(
-            "meme=%s, user=%s, guild=%s",
-            payload.memeKey,
-            session.userId,
-            session.guildId,
-          );
-        })
-        .catch((error) => {
-          logger.warn("meme.xml raw interceptor failed: %s", String(error));
-        });
-    };
-
-    (wrappedDebug as unknown as Record<string, boolean>)[RAW_INTERCEPTOR_TAG] =
-      true;
-    characterLogger.debug = wrappedDebug;
-    rawInterceptorLogger = characterLogger;
-    rawInterceptorOriginalDebug = originalDebug;
-    return true;
+    } catch (error) {
+      logger.warn("meme.xml temp runtime failed: %s", String(error));
+    }
   };
 
-  const stopRawInterceptorFastRetry = (): void => {
-    if (!rawInterceptorFastRetryHandle) return;
-    rawInterceptorFastRetryHandle();
-    rawInterceptorFastRetryHandle = null;
-  };
-
-  const startRawInterceptorFastRetry = (): void => {
-    if (rawInterceptorFastRetryHandle) return;
-    rawInterceptorFastRetryHandle = setManagedInterval(() => {
-      if (isRawInterceptorActive()) {
-        rawInterceptorReady = true;
-        stopRawInterceptorFastRetry();
-        return;
-      }
-
-      const ready = initRawModelInterceptor();
-      if (ready && !rawInterceptorReady) {
-        logger.info("原始输出拦截已恢复");
-      }
-      rawInterceptorReady = ready;
-      if (ready) stopRawInterceptorFastRetry();
-    }, RAW_INTERCEPTOR_FAST_INTERVAL);
-  };
-
-  const ensureRawInterceptorActive = (): void => {
-    if (isRawInterceptorActive()) {
-      rawInterceptorReady = true;
-      stopRawInterceptorFastRetry();
+  const attachMessageDispatcher = (
+    messages: ChatlunaCompletionMessagesLike,
+    session: Session | null,
+  ): void => {
+    const existingDispatcher = getMessageDispatcher(messages);
+    if (existingDispatcher) {
+      existingDispatcher.session = session;
       return;
     }
 
-    const ready = initRawModelInterceptor();
-    if (ready && !rawInterceptorReady) {
-      logger.info("原始输出拦截已恢复");
+    const originalPush = messages.push;
+    const handledMessages = new WeakSet<object>();
+    const patchedPush: ChatlunaCompletionMessagesLike["push"] =
+      function patchedPush(
+        this: ChatlunaCompletionMessagesLike,
+        ...items: unknown[]
+      ): number {
+        const result = originalPush.apply(this, items);
+
+        for (const item of items) {
+          if (!item || typeof item !== "object") continue;
+          if (handledMessages.has(item)) continue;
+          handledMessages.add(item);
+
+          const response = extractAssistantResponse(
+            item as ChatlunaCompletionMessageLike,
+          );
+          if (!response) continue;
+          void dispatchXmlToolCall(dispatcher.session, response);
+        }
+
+        return result;
+      };
+
+    const dispatcher: XmlMessageDispatcher = {
+      originalPush,
+      patchedPush,
+      session,
+      handledMessages,
+    };
+
+    messages.push = patchedPush;
+    setMessageDispatcher(messages, dispatcher);
+  };
+
+  const restoreMessageDispatcher = (
+    messages: ChatlunaCompletionMessagesLike,
+  ): void => {
+    const dispatcher = getMessageDispatcher(messages);
+    if (!dispatcher) return;
+    if (messages.push === dispatcher.patchedPush) {
+      messages.push = dispatcher.originalPush;
     }
-    rawInterceptorReady = ready;
-    if (!ready) startRawInterceptorFastRetry();
+    setMessageDispatcher(messages, null);
   };
 
-  const startRawInterceptorMonitor = (): void => {
-    if (rawInterceptorMonitorHandle) return;
-    rawInterceptorMonitorHandle = setManagedInterval(() => {
-      const wasReady = rawInterceptorReady;
-      ensureRawInterceptorActive();
-      if (!rawInterceptorReady && wasReady) {
-        logger.warn("原始输出拦截失效，将继续重试");
+  const bindCharacterService = (
+    service: ChatlunaCharacterServiceLike,
+  ): (() => void) | null => {
+    const getTemp = service.getTemp;
+    if (typeof getTemp !== "function") return null;
+
+    const serviceRecord = service as unknown as Record<symbol, unknown>;
+    const trackedDispatchers = new Set<ChatlunaCompletionMessagesLike>();
+
+    if (!(serviceRecord[GET_TEMP_PATCH_TAG] as boolean)) {
+      Object.defineProperty(serviceRecord, GET_TEMP_ORIGINAL, {
+        value: getTemp,
+        configurable: true,
+        enumerable: false,
+        writable: true,
+      });
+      Object.defineProperty(serviceRecord, GET_TEMP_DISPATCHERS, {
+        value: trackedDispatchers,
+        configurable: true,
+        enumerable: false,
+        writable: true,
+      });
+
+      service.getTemp = async (...args: unknown[]) => {
+        const originalGetTemp = serviceRecord[GET_TEMP_ORIGINAL] as
+          | ((
+              ...innerArgs: unknown[]
+            ) => MaybePromise<ChatlunaTempLike | undefined>)
+          | undefined;
+        const temp = originalGetTemp
+          ? await Promise.resolve(originalGetTemp.call(service, ...args))
+          : undefined;
+        const messages = temp?.completionMessages;
+        if (Array.isArray(messages) && typeof messages.push === "function") {
+          trackedDispatchers.add(messages);
+          attachMessageDispatcher(
+            messages,
+            args[0] && typeof args[0] === "object"
+              ? (args[0] as Session)
+              : null,
+          );
+        }
+        return temp;
+      };
+
+      serviceRecord[GET_TEMP_PATCH_TAG] = true;
+    }
+
+    return () => {
+      const originalGetTemp = serviceRecord[
+        GET_TEMP_ORIGINAL
+      ] as ChatlunaCharacterServiceLike["getTemp"];
+      const dispatchers = serviceRecord[GET_TEMP_DISPATCHERS] as
+        | Set<ChatlunaCompletionMessagesLike>
+        | undefined;
+
+      for (const messages of Array.from(dispatchers ?? [])) {
+        restoreMessageDispatcher(messages);
       }
-    }, RAW_INTERCEPTOR_MONITOR_INTERVAL);
+
+      if (typeof originalGetTemp === "function") {
+        service.getTemp = originalGetTemp;
+      }
+      delete serviceRecord[GET_TEMP_PATCH_TAG];
+      delete serviceRecord[GET_TEMP_ORIGINAL];
+      delete serviceRecord[GET_TEMP_DISPATCHERS];
+    };
   };
 
-  ctx.on("ready", () => {
-    rawInterceptorStartHandle = setManagedTimeout(() => {
-      rawInterceptorReady = initRawModelInterceptor();
-      if (rawInterceptorReady) {
-        logger.info("已启用原始输出拦截模式");
-      } else {
-        logger.warn("chatluna_character 服务不可用，将每3秒重试一次");
-        startRawInterceptorFastRetry();
+  let restoreCharacterService: (() => void) | null = null;
+  let activeCharacterService: ChatlunaCharacterServiceLike | null = null;
+  let characterCtx: ContextWithChatlunaCharacter | null = null;
+
+  const activateXmlRuntime = (
+    runtimeCtx: ContextWithChatlunaCharacter = characterCtx ??
+      (ctx as ContextWithChatlunaCharacter),
+  ): void => {
+    const characterService = runtimeCtx.chatluna_character;
+    if (!characterService || typeof characterService.getTemp !== "function") {
+      logger.warn("chatluna_character.getTemp 挂载失败，XML 工具不会启用");
+      return;
+    }
+
+    if (
+      restoreCharacterService &&
+      activeCharacterService === characterService
+    ) {
+      return;
+    }
+
+    restoreCharacterService?.();
+    restoreCharacterService = bindCharacterService(characterService);
+    activeCharacterService = restoreCharacterService ? characterService : null;
+
+    if (restoreCharacterService) {
+      logger.info("已启用基于 temp 的 XML 工具调用模式");
+      return;
+    }
+
+    logger.warn("chatluna_character.getTemp 挂载失败，XML 工具不会启用");
+  };
+
+  ctx.inject(["chatluna_character"], (innerCtx) => {
+    characterCtx = innerCtx as ContextWithChatlunaCharacter;
+    activateXmlRuntime(characterCtx);
+    innerCtx.on("dispose", () => {
+      if (characterCtx === innerCtx) {
+        characterCtx = null;
       }
-      startRawInterceptorMonitor();
-    }, RAW_INTERCEPTOR_START_DELAY);
+      restoreCharacterService?.();
+      restoreCharacterService = null;
+      activeCharacterService = null;
+    });
   });
 
   ctx.on("dispose", () => {
-    restoreRawModelInterceptor();
-    rawInterceptorMonitorHandle?.();
-    rawInterceptorMonitorHandle = null;
-    rawInterceptorFastRetryHandle?.();
-    rawInterceptorFastRetryHandle = null;
-    rawInterceptorStartHandle?.();
-    rawInterceptorStartHandle = null;
-    rawModelResponseSessionMap.clear();
-    lastCharacterSession = null;
-    rawModelResponseSessionKey = null;
-    rawCollectorBound = false;
-    rawInterceptorService = null;
+    characterCtx = null;
+    restoreCharacterService?.();
+    restoreCharacterService = null;
+    activeCharacterService = null;
   });
 }
