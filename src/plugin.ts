@@ -192,10 +192,11 @@ export function apply(ctx: Context, config: Config): void {
     log,
   });
 
+  let characterCtx: Context | null = null;
   const modelResponseRuntime = createCharacterTempModelResponseRuntime({
     getCharacterService: () =>
       (
-        ctx as unknown as {
+        (characterCtx ?? ctx) as unknown as {
           chatluna_character?: {
             getTemp?: (
               ...args: unknown[]
@@ -207,11 +208,29 @@ export function apply(ctx: Context, config: Config): void {
     log,
     logActivation: Boolean(config.debugLogging),
   });
-  let modelResponseRuntimeMonitor: (() => void) | null = null;
+
+  ctx.inject(["chatluna_character"], (innerCtx) => {
+    characterCtx = innerCtx;
+    if (config.debugLogging) {
+      log(
+        "info",
+        "检测到 chatluna_character 依赖可用，开始挂载模型响应 runtime",
+      );
+    }
+    modelResponseRuntime.start();
+    innerCtx.on("dispose", () => {
+      if (config.debugLogging) {
+        log("info", "chatluna_character 依赖已卸载，停止模型响应 runtime");
+      }
+      modelResponseRuntime.stop();
+      if (characterCtx === innerCtx) {
+        characterCtx = null;
+      }
+    });
+  });
 
   ctx.on("dispose", () => {
-    modelResponseRuntimeMonitor?.();
-    modelResponseRuntimeMonitor = null;
+    characterCtx = null;
     modelResponseRuntime.stop();
   });
 
@@ -329,14 +348,6 @@ export function apply(ctx: Context, config: Config): void {
       );
       log("info", `黑名单列表变量已注册: ${blacklistListName}`);
     }
-
-    log("info", "准备启动模型响应拦截 runtime");
-    modelResponseRuntime.start();
-    modelResponseRuntimeMonitor?.();
-    modelResponseRuntimeMonitor = ctx.setInterval(() => {
-      modelResponseRuntime.start();
-    }, 3000);
-    log("info", "模型响应拦截 runtime.start() 调用完成");
 
     log("info", "插件初始化完成");
   };
