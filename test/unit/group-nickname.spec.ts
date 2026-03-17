@@ -134,6 +134,7 @@ function createBaseConfig(): Config {
     excludeSingleImageOnlyMemes: false,
     excludeTwoImageOnlyMemes: false,
     excludeImageAndTextMemes: false,
+    excludeOtherMemes: false,
     excludedMemeKeys: [],
   };
 }

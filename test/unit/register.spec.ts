@@ -284,6 +284,7 @@ function createBaseConfig(overrides: Partial<Config> = {}): Config {
     excludeSingleImageOnlyMemes: false,
     excludeTwoImageOnlyMemes: false,
     excludeImageAndTextMemes: false,
+    excludeOtherMemes: false,
     excludedMemeKeys: [],
     ...overrides,
   };
@@ -2208,5 +2209,155 @@ describe("registerCommands", () => {
     ).resolves.toContain("当前后端没有可用模板");
 
     expect(generateMock).not.toHaveBeenCalled();
+  });
+
+  it("排除其他模板时应过滤 meme.list 并拦截显式访问", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["other"]);
+    getInfoMock.mockImplementation(async (key: string) => ({
+      key,
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: [],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    }));
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+        excludeOtherMemes: true,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const listAction = commandActions.get("meme.list");
+    const infoAction = commandActions.get("meme.info <key:string>");
+    const previewAction = commandActions.get("meme.preview <key:string>");
+    const generateAction = commandActions.get("meme <key:string> [...texts]");
+
+    expect(listAction).toBeDefined();
+    expect(infoAction).toBeDefined();
+    expect(previewAction).toBeDefined();
+    expect(generateAction).toBeDefined();
+
+    await expect(
+      listAction!({ session: createSession("meme.list") }),
+    ).resolves.toContain("当前后端没有可用模板");
+    await expect(infoAction!({}, "other")).resolves.toContain("该模板已被排除");
+    await expect(previewAction!({}, "other")).resolves.toContain(
+      "该模板已被排除",
+    );
+    await expect(
+      generateAction!({ session: createSession("meme other") }, "other"),
+    ).resolves.toContain("该模板已被排除");
+
+    expect(generateMock).not.toHaveBeenCalled();
+    expect(getPreviewMock).not.toHaveBeenCalled();
+  });
+
+  it("排除其他模板时 meme.random 不应选中未命中既有分类的模板", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["single_image_only", "other", "text_only"]);
+    getInfoMock.mockImplementation(async (key: string) => {
+      if (key === "single_image_only") {
+        return {
+          key,
+          params_type: {
+            min_images: 1,
+            max_images: 1,
+            min_texts: 0,
+            max_texts: 0,
+            default_texts: [],
+          },
+          keywords: [],
+          shortcuts: [],
+          tags: [],
+          date_created: "2026-01-01T00:00:00",
+          date_modified: "2026-01-01T00:00:00",
+        };
+      }
+      if (key === "text_only") {
+        return {
+          key,
+          params_type: {
+            min_images: 0,
+            max_images: 0,
+            min_texts: 1,
+            max_texts: 1,
+            default_texts: [],
+          },
+          keywords: [],
+          shortcuts: [],
+          tags: [],
+          date_created: "2026-01-01T00:00:00",
+          date_modified: "2026-01-01T00:00:00",
+        };
+      }
+
+      return {
+        key,
+        params_type: {
+          min_images: 0,
+          max_images: 0,
+          min_texts: 0,
+          max_texts: 0,
+          default_texts: [],
+        },
+        keywords: [],
+        shortcuts: [],
+        tags: [],
+        date_created: "2026-01-01T00:00:00",
+        date_modified: "2026-01-01T00:00:00",
+      };
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+        excludeSingleImageOnlyMemes: true,
+        excludeOtherMemes: true,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const randomAction = commandActions.get("meme.random [...texts]");
+
+    expect(randomAction).toBeDefined();
+
+    await randomAction!({ session: createSession("meme.random") }, "你好");
+
+    expect(generateMock).toHaveBeenCalledWith("text_only", [], ["你好"], {});
   });
 });

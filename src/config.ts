@@ -40,6 +40,7 @@ export interface Config {
   excludeSingleImageOnlyMemes: boolean;
   excludeTwoImageOnlyMemes: boolean;
   excludeImageAndTextMemes: boolean;
+  excludeOtherMemes: boolean;
   excludedMemeKeys: string[];
 }
 
@@ -82,6 +83,7 @@ export const defaultConfig: Config = {
   excludeSingleImageOnlyMemes: false,
   excludeTwoImageOnlyMemes: false,
   excludeImageAndTextMemes: false,
+  excludeOtherMemes: false,
   excludedMemeKeys: [],
 };
 
@@ -188,6 +190,9 @@ const filterSchema = Schema.object({
   excludeImageAndTextMemes: Schema.boolean()
     .default(defaultConfig.excludeImageAndTextMemes)
     .description("是否排除需图片+文字的模板"),
+  excludeOtherMemes: Schema.boolean()
+    .default(defaultConfig.excludeOtherMemes)
+    .description("是否排除未命中现有类别排除项的其他模板"),
   excludedMemeKeys: Schema.array(Schema.string().min(1))
     .role("table")
     .default(defaultConfig.excludedMemeKeys)

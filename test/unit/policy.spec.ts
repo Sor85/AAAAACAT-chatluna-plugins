@@ -45,6 +45,7 @@ const baseConfig: Config = {
   excludeSingleImageOnlyMemes: false,
   excludeTwoImageOnlyMemes: false,
   excludeImageAndTextMemes: false,
+  excludeOtherMemes: false,
   excludedMemeKeys: [],
 };
 

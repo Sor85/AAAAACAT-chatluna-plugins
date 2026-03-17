@@ -38,15 +38,15 @@ function shouldExcludeByMemeCategory(
 ): boolean {
   if (category === "text-only") return config.excludeTextOnlyMemes;
   if (category === "image-only") {
-    if (!params) return false;
+    if (!params) return config.excludeOtherMemes;
     const minImages = params.min_images;
     const maxImages = params.max_images;
     if (maxImages <= 1) return config.excludeSingleImageOnlyMemes;
     if (minImages >= 2) return config.excludeTwoImageOnlyMemes;
-    return false;
+    return config.excludeOtherMemes;
   }
   if (category === "image-and-text") return config.excludeImageAndTextMemes;
-  return false;
+  return config.excludeOtherMemes;
 }
 
 function isParamsTypeExcludedByConfig(
@@ -70,7 +70,8 @@ export async function buildCategoryExcludedMemeKeySet(
     !config.excludeTextOnlyMemes &&
     !config.excludeSingleImageOnlyMemes &&
     !config.excludeTwoImageOnlyMemes &&
-    !config.excludeImageAndTextMemes
+    !config.excludeImageAndTextMemes &&
+    !config.excludeOtherMemes
   ) {
     return new Set<string>();
   }
