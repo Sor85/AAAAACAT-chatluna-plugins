@@ -277,6 +277,13 @@ function createBaseConfig(overrides: Partial<Config> = {}): Config {
     enableRandomDedupeWithinHours: false,
     randomDedupeWindowHours: 24,
     enableRandomKeywordNotice: false,
+    randomMemeBucketWeightRules: [
+      { category: "text-only", enabled: true, weight: 100 },
+      { category: "single-image-only", enabled: true, weight: 100 },
+      { category: "two-image-only", enabled: true, weight: 100 },
+      { category: "image-and-text", enabled: true, weight: 100 },
+      { category: "other", enabled: true, weight: 100 },
+    ],
     infoFetchConcurrency: 0,
     initLoadRetryTimes: 3,
     disableErrorReplyToPlatform: false,
@@ -1890,6 +1897,259 @@ describe("registerCommands", () => {
 
     expect(generateMock).toHaveBeenCalledTimes(3);
     nowSpy.mockRestore();
+  });
+
+  function createRandomMemeInfo(
+    key: string,
+    params: {
+      min_images: number;
+      max_images: number;
+      min_texts: number;
+      max_texts: number;
+      default_texts?: string[];
+    },
+  ) {
+    return {
+      key,
+      params_type: {
+        default_texts: [],
+        ...params,
+      },
+      keywords: [],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    };
+  }
+
+  it("meme.random 会按桶权重优先命中高权重类别", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["text-high", "other-low"]);
+    getInfoMock.mockImplementation(async (key: string) => {
+      if (key === "text-high") {
+        return createRandomMemeInfo(key, {
+          min_images: 0,
+          max_images: 0,
+          min_texts: 0,
+          max_texts: 1,
+          default_texts: [],
+        });
+      }
+      return createRandomMemeInfo(key, {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+      });
+    });
+
+    const randomSpy = vi
+      .spyOn(Math, "random")
+      .mockReturnValueOnce(0.1)
+      .mockReturnValueOnce(0.9)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0);
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        randomMemeBucketWeightRules: [
+          { category: "text-only", enabled: true, weight: 100 },
+          { category: "single-image-only", enabled: true, weight: 0 },
+          { category: "two-image-only", enabled: true, weight: 0 },
+          { category: "image-and-text", enabled: true, weight: 0 },
+          { category: "other", enabled: true, weight: 1 },
+        ],
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const randomAction = commandActions.get("meme.random [...texts]");
+    expect(randomAction).toBeDefined();
+
+    const result = await randomAction!({
+      session: createSession("meme.random"),
+    });
+
+    expect(result).toBeTruthy();
+    expect(generateMock).toHaveBeenCalledWith("text-high", [], [], {});
+    expect(generateMock).not.toHaveBeenCalledWith(
+      "other-low",
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+    );
+    randomSpy.mockRestore();
+  });
+
+  it("meme.random 开启去重时桶耗尽后应直接切换到仍有候选的其他桶", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["text-only", "other-only"]);
+    getInfoMock.mockImplementation(async (key: string) => {
+      if (key === "text-only") {
+        return createRandomMemeInfo(key, {
+          min_images: 0,
+          max_images: 0,
+          min_texts: 0,
+          max_texts: 1,
+          default_texts: [],
+        });
+      }
+      return createRandomMemeInfo(key, {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+      });
+    });
+
+    const randomSpy = vi
+      .spyOn(Math, "random")
+      .mockReturnValueOnce(0.1)
+      .mockReturnValueOnce(0.9)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0.1)
+      .mockReturnValueOnce(0.9)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0);
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_000);
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableRandomDedupeWithinHours: true,
+        randomDedupeWindowHours: 24,
+        randomMemeBucketWeightRules: [
+          { category: "text-only", enabled: true, weight: 100 },
+          { category: "single-image-only", enabled: true, weight: 0 },
+          { category: "two-image-only", enabled: true, weight: 0 },
+          { category: "image-and-text", enabled: true, weight: 0 },
+          { category: "other", enabled: true, weight: 1 },
+        ],
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const randomAction = commandActions.get("meme.random [...texts]");
+    expect(randomAction).toBeDefined();
+
+    const first = await randomAction!({
+      session: createSession("meme.random"),
+    });
+    const second = await randomAction!({
+      session: createSession("meme.random"),
+    });
+
+    expect(first).toBeTruthy();
+    expect(second).toBeTruthy();
+    expect(generateMock).toHaveBeenNthCalledWith(1, "text-only", [], [], {});
+    expect(generateMock).toHaveBeenNthCalledWith(2, "other-only", [], [], {});
+
+    nowSpy.mockRestore();
+    randomSpy.mockRestore();
+  });
+
+  it("meme.random 开启去重时只有所有桶耗尽才会重置历史", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["text-only", "other-only"]);
+    getInfoMock.mockImplementation(async (key: string) => {
+      if (key === "text-only") {
+        return createRandomMemeInfo(key, {
+          min_images: 0,
+          max_images: 0,
+          min_texts: 0,
+          max_texts: 1,
+          default_texts: [],
+        });
+      }
+      return createRandomMemeInfo(key, {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+      });
+    });
+
+    const randomSpy = vi
+      .spyOn(Math, "random")
+      .mockReturnValueOnce(0.1)
+      .mockReturnValueOnce(0.9)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0.1)
+      .mockReturnValueOnce(0.9)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0.1)
+      .mockReturnValueOnce(0.9)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0);
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_000);
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableRandomDedupeWithinHours: true,
+        randomDedupeWindowHours: 24,
+        randomMemeBucketWeightRules: [
+          { category: "text-only", enabled: true, weight: 100 },
+          { category: "single-image-only", enabled: true, weight: 0 },
+          { category: "two-image-only", enabled: true, weight: 0 },
+          { category: "image-and-text", enabled: true, weight: 0 },
+          { category: "other", enabled: true, weight: 1 },
+        ],
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const randomAction = commandActions.get("meme.random [...texts]");
+    expect(randomAction).toBeDefined();
+
+    await randomAction!({ session: createSession("meme.random") });
+    await randomAction!({ session: createSession("meme.random") });
+    await randomAction!({ session: createSession("meme.random") });
+
+    expect(generateMock).toHaveBeenNthCalledWith(1, "text-only", [], [], {});
+    expect(generateMock).toHaveBeenNthCalledWith(2, "other-only", [], [], {});
+    expect(generateMock).toHaveBeenNthCalledWith(3, "text-only", [], [], {});
+
+    nowSpy.mockRestore();
+    randomSpy.mockRestore();
   });
 
   it("meme.random 关键词提示关闭时不应额外发送触发提示", async () => {

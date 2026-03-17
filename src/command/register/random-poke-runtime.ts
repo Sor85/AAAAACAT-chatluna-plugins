@@ -11,8 +11,10 @@ import { parseCommandInput } from "../parse";
 import {
   createShuffledKeys,
   getRandomCandidatesWithDedupe,
+  pickRandomBucketByWeight,
   pickRandomItem,
   recordRandomSelection,
+  resolveRandomMemeBucket,
 } from "../random";
 import {
   getBotAvatarImage,
@@ -348,6 +350,7 @@ export function installRandomRuntime(
         };
         const eligibleCandidates: Array<{
           key: string;
+          bucketCategory: ReturnType<typeof resolveRandomMemeBucket>;
           selectedTextSource?: "template-default" | "user-nickname";
           directAlias?: string;
         }> = [];
@@ -380,6 +383,7 @@ export function installRandomRuntime(
             if (imageMatch && textMatch) {
               eligibleCandidates.push({
                 key,
+                bucketCategory: resolveRandomMemeBucket(info.params_type),
                 selectedTextSource:
                   finalInput.selectedTextSource === "group-nickname"
                     ? undefined
@@ -413,7 +417,11 @@ export function installRandomRuntime(
           candidatesForPick = eligibleCandidates;
         }
 
-        const randomCandidate = pickRandomItem(candidatesForPick);
+        const pickedBucket = pickRandomBucketByWeight(
+          candidatesForPick,
+          config.randomMemeBucketWeightRules,
+        );
+        const randomCandidate = pickRandomItem(pickedBucket?.candidates ?? []);
         if (!randomCandidate) {
           if (infoFailedCount === filteredShuffledKeys.length) {
             return handleErrorReply(

@@ -38,6 +38,13 @@ const baseConfig: Config = {
   enableRandomDedupeWithinHours: false,
   randomDedupeWindowHours: 24,
   enableRandomKeywordNotice: false,
+  randomMemeBucketWeightRules: [
+    { category: "text-only", enabled: true, weight: 100 },
+    { category: "single-image-only", enabled: true, weight: 100 },
+    { category: "two-image-only", enabled: true, weight: 100 },
+    { category: "image-and-text", enabled: true, weight: 100 },
+    { category: "other", enabled: true, weight: 100 },
+  ],
   infoFetchConcurrency: 0,
   initLoadRetryTimes: 3,
   disableErrorReplyToPlatform: false,

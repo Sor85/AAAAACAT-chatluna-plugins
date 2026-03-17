@@ -13,6 +13,19 @@ export interface EmptyTextAutoFillRule {
   weight: number;
 }
 
+export type RandomMemeBucketCategory =
+  | "text-only"
+  | "single-image-only"
+  | "two-image-only"
+  | "image-and-text"
+  | "other";
+
+export interface RandomMemeBucketWeightRule {
+  category: RandomMemeBucketCategory;
+  enabled: boolean;
+  weight: number;
+}
+
 export interface Config {
   baseUrl: string;
   timeoutMs: number;
@@ -33,6 +46,7 @@ export interface Config {
   enableRandomDedupeWithinHours: boolean;
   randomDedupeWindowHours: number;
   enableRandomKeywordNotice: boolean;
+  randomMemeBucketWeightRules: RandomMemeBucketWeightRule[];
   infoFetchConcurrency: number;
   initLoadRetryTimes: number;
   disableErrorReplyToPlatform: boolean;
@@ -76,6 +90,13 @@ export const defaultConfig: Config = {
   enableRandomDedupeWithinHours: true,
   randomDedupeWindowHours: 24,
   enableRandomKeywordNotice: true,
+  randomMemeBucketWeightRules: [
+    { category: "text-only", enabled: true, weight: 100 },
+    { category: "single-image-only", enabled: true, weight: 100 },
+    { category: "two-image-only", enabled: true, weight: 100 },
+    { category: "image-and-text", enabled: true, weight: 100 },
+    { category: "other", enabled: true, weight: 100 },
+  ],
   infoFetchConcurrency: 0,
   initLoadRetryTimes: 3,
   disableErrorReplyToPlatform: true,
@@ -150,6 +171,27 @@ const randomSchema = Schema.object({
   enableRandomKeywordNotice: Schema.boolean()
     .default(defaultConfig.enableRandomKeywordNotice)
     .description("meme.random 是否附带模板关键词提示"),
+  randomMemeBucketWeightRules: Schema.array(
+    Schema.object({
+      category: Schema.union([
+        Schema.const("text-only").description("仅需文字"),
+        Schema.const("single-image-only").description("仅需 1 张图片"),
+        Schema.const("two-image-only").description("需 2 张图片"),
+        Schema.const("image-and-text").description("需图片+文字"),
+        Schema.const("other").description("其他模板"),
+      ]).required(),
+      enabled: Schema.boolean().default(true).description("是否启用"),
+      weight: Schema.number()
+        .min(0)
+        .max(1000)
+        .step(1)
+        .default(100)
+        .description("权重（仅在当前桶有可选模板时生效）"),
+    }),
+  )
+    .role("table")
+    .default(defaultConfig.randomMemeBucketWeightRules)
+    .description("meme.random 按模板类别桶随机时的权重配置"),
 }).description("随机触发设置");
 
 const triggerSchema = Schema.object({
