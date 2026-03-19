@@ -102,7 +102,7 @@ const scheduleSchema = Schema.object({
     .description("注册 ChatLuna 工具：获取今日日程"),
   toolName: Schema.string()
     .default(DEFAULT_SCHEDULE_CONFIG.toolName)
-    .description("ChatLuna 工具名称：获取今日日程"),
+    .description("工具名称"),
 });
 
 const weatherSchema = Schema.object({
@@ -123,7 +123,7 @@ const weatherSchema = Schema.object({
     .description("注册 ChatLuna 工具：获取天气"),
   toolName: Schema.string()
     .default(DEFAULT_WEATHER_CONFIG.toolName || "get_weather")
-    .description("ChatLuna 工具名称：获取天气"),
+    .description("工具名称"),
 });
 
 export const ConfigSchema: Schema<Config> = Schema.object({

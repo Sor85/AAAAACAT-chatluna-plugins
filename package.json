@@ -1,6 +1,6 @@
 {
   "name": "koishi-plugin-chatluna-schedule",
-  "description": "为 ChatLuna Character 提供 bot 的今日日程能力。",
+  "description": "ChatLuna 日程与天气插件，提供今日日程和天气变量。",
   "version": "0.0.1",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
@@ -24,11 +24,6 @@
     "koishi",
     "plugin"
   ],
-  "koishi": {
-    "description": {
-      "zh": "ChatLuna 日程与天气插件"
-    }
-  },
   "peerDependencies": {
     "koishi": "^4.18.7",
     "koishi-plugin-chatluna": "*"
