@@ -6,6 +6,7 @@
 import { StructuredTool } from "@langchain/core/tools";
 import { h, type Context, type Session } from "koishi";
 import { z } from "zod";
+import { resolveVariablesConfig } from "../config";
 import type {
   ChatLunaPlugin,
   Config,
@@ -185,10 +186,6 @@ export function createScheduleService(
 
   const scheduleConfig: ScheduleConfig = config.schedule || {
     enabled: true,
-    variableName: "schedule",
-    currentVariableName: "currentSchedule",
-    outfitVariableName: "outfit",
-    currentOutfitVariableName: "currentOutfit",
     timezone: "Asia/Shanghai",
     registerTool: true,
     renderAsImage: false,
@@ -197,9 +194,11 @@ export function createScheduleService(
     prompt: "",
   };
 
+  const variableConfig = resolveVariablesConfig(config);
+
   const enabled = scheduleConfig.enabled !== false;
   const timezone = scheduleConfig.timezone || "Asia/Shanghai";
-  const cacheKey = `schedule_${scheduleConfig.variableName || "default"}`;
+  const cacheKey = `schedule_${variableConfig.schedule || "default"}`;
 
   const cached = globalScheduleCache.get(cacheKey);
   let cachedSchedule: Schedule | null = cached?.schedule || null;
@@ -534,12 +533,12 @@ export function createScheduleService(
   const registerVariables = (): string[] => {
     if (!enabled) return [];
 
-    const variableName = scheduleConfig.variableName || "schedule";
+    const variableName = variableConfig.schedule || "schedule";
     const currentVariableName =
-      scheduleConfig.currentVariableName || "currentSchedule";
-    const outfitVariableName = scheduleConfig.outfitVariableName || "outfit";
+      variableConfig.currentSchedule || "currentSchedule";
+    const outfitVariableName = variableConfig.outfit || "outfit";
     const currentOutfitVariableName =
-      scheduleConfig.currentOutfitVariableName || "currentOutfit";
+      variableConfig.currentOutfit || "currentOutfit";
 
     const promptRenderer = (
       ctx as unknown as {

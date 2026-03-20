@@ -19,10 +19,6 @@ export interface ScheduleConfig {
   personaSource?: "none" | "chatluna" | "custom";
   personaChatlunaPreset?: string;
   personaCustomPreset?: string;
-  variableName: string;
-  currentVariableName: string;
-  outfitVariableName: string;
-  currentOutfitVariableName: string;
   timezone: string;
   registerTool: boolean;
   renderAsImage: boolean;
@@ -34,17 +30,25 @@ export interface ScheduleConfig {
 
 export interface WeatherConfig {
   enabled: boolean;
-  variableName: string;
   cityName: string;
   hourlyRefresh: boolean;
-  registerTool?: boolean;
-  toolName?: string;
+  registerTool: boolean;
+  toolName: string;
+}
+
+export interface VariablesConfig {
+  schedule: string;
+  currentSchedule: string;
+  outfit: string;
+  currentOutfit: string;
+  weather: string;
 }
 
 export interface Config {
   debugLogging?: boolean;
   schedule: ScheduleConfig;
   weather: WeatherConfig;
+  variables?: VariablesConfig;
 }
 
 export interface ScheduleEntry {

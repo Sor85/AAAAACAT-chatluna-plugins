@@ -5,7 +5,7 @@
 
 import { Schema } from "koishi";
 import { DEFAULT_SCHEDULE_PROMPT } from "./constants";
-import type { Config, WeatherConfig } from "./types";
+import type { Config, VariablesConfig, WeatherConfig } from "./types";
 
 export const name = "chatluna-schedule";
 
@@ -20,10 +20,6 @@ export const DEFAULT_SCHEDULE_CONFIG = {
   personaSource: "none" as const,
   personaChatlunaPreset: "无",
   personaCustomPreset: "",
-  variableName: "schedule",
-  currentVariableName: "currentSchedule",
-  outfitVariableName: "outfit",
-  currentOutfitVariableName: "currentOutfit",
   timezone: "Asia/Shanghai",
   prompt: DEFAULT_SCHEDULE_PROMPT,
   renderAsImage: false,
@@ -34,11 +30,18 @@ export const DEFAULT_SCHEDULE_CONFIG = {
 
 export const DEFAULT_WEATHER_CONFIG: WeatherConfig = {
   enabled: false,
-  variableName: "weather",
   cityName: "",
   hourlyRefresh: false,
   registerTool: false,
   toolName: "get_weather",
+};
+
+export const DEFAULT_VARIABLES_CONFIG: VariablesConfig = {
+  schedule: "schedule",
+  currentSchedule: "currentSchedule",
+  outfit: "outfit",
+  currentOutfit: "currentOutfit",
+  weather: "weather",
 };
 
 const scheduleSchema = Schema.object({
@@ -72,18 +75,6 @@ const scheduleSchema = Schema.object({
         (cfg?.personaSource || "none") !== "custom",
     )
     .description("当选择自定义人设时注入的文本内容"),
-  variableName: Schema.string()
-    .default(DEFAULT_SCHEDULE_CONFIG.variableName)
-    .description("今日日程变量名称"),
-  currentVariableName: Schema.string()
-    .default(DEFAULT_SCHEDULE_CONFIG.currentVariableName)
-    .description("当前日程变量名称"),
-  outfitVariableName: Schema.string()
-    .default(DEFAULT_SCHEDULE_CONFIG.outfitVariableName)
-    .description("今日穿搭变量名称"),
-  currentOutfitVariableName: Schema.string()
-    .default(DEFAULT_SCHEDULE_CONFIG.currentOutfitVariableName)
-    .description("当前穿搭变量名称"),
   timezone: Schema.string()
     .default(DEFAULT_SCHEDULE_CONFIG.timezone)
     .description("用于日程生成的时区"),
@@ -109,9 +100,6 @@ const weatherSchema = Schema.object({
   enabled: Schema.boolean()
     .default(DEFAULT_WEATHER_CONFIG.enabled)
     .description("是否启用天气功能"),
-  variableName: Schema.string()
-    .default(DEFAULT_WEATHER_CONFIG.variableName)
-    .description("天气变量名称"),
   cityName: Schema.string()
     .default(DEFAULT_WEATHER_CONFIG.cityName)
     .description("城市名称（如：长沙）"),
@@ -126,6 +114,24 @@ const weatherSchema = Schema.object({
     .description("工具名称"),
 });
 
+const variablesSchema = Schema.object({
+  schedule: Schema.string()
+    .default(DEFAULT_VARIABLES_CONFIG.schedule)
+    .description("今日日程变量名称"),
+  currentSchedule: Schema.string()
+    .default(DEFAULT_VARIABLES_CONFIG.currentSchedule)
+    .description("当前日程变量名称"),
+  outfit: Schema.string()
+    .default(DEFAULT_VARIABLES_CONFIG.outfit)
+    .description("今日穿搭变量名称"),
+  currentOutfit: Schema.string()
+    .default(DEFAULT_VARIABLES_CONFIG.currentOutfit)
+    .description("当前穿搭变量名称"),
+  weather: Schema.string()
+    .default(DEFAULT_VARIABLES_CONFIG.weather)
+    .description("天气变量名称"),
+}).description("变量设置");
+
 const otherSchema = Schema.object({
   debugLogging: Schema.boolean().default(false).description("是否输出调试日志"),
 }).description("其他设置");
@@ -138,8 +144,7 @@ export const ConfigSchema: Schema<Config> = Schema.intersect([
     weather: weatherSchema
       .default(DEFAULT_WEATHER_CONFIG)
       .description("天气设置"),
+    variables: variablesSchema,
   }),
   otherSchema,
 ]) as Schema<Config>;
-
-export { ConfigSchema as Config };

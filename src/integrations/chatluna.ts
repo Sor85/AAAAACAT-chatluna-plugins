@@ -3,6 +3,7 @@
  * 统一注册日程与天气变量及工具
  */
 
+import { resolveVariablesConfig } from "../config";
 import { StructuredTool } from "@langchain/core/tools";
 import type { Context, Session } from "koishi";
 import { z } from "zod";
@@ -32,6 +33,7 @@ export function registerChatLunaIntegrations(
   deps: RegisterIntegrationDeps,
 ): IntegrationResult {
   const { ctx, plugin, config, scheduleService, weatherService, log } = deps;
+  const variableConfig = resolveVariablesConfig(config);
   const variableNames: string[] = [];
   const toolNames: string[] = [];
 
@@ -50,9 +52,7 @@ export function registerChatLunaIntegrations(
   }
 
   if (config.weather.enabled) {
-    const weatherVariableName = (
-      config.weather.variableName || "weather"
-    ).trim();
+    const weatherVariableName = (variableConfig.weather || "weather").trim();
     const promptRenderer = (
       ctx as unknown as {
         chatluna?: {
