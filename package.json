@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-chatluna-schedule",
   "description": "ChatLuna 日程与天气插件，提供今日日程和天气变量。",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
