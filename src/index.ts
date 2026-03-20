@@ -25,7 +25,7 @@ export {
 export const usage = `
 ## 更新日志
 
-0.3.0-alpha
+0.3.0-beta
 
 ### 重构
 - 引入 \`scopeId\` 作为新的核心作用域语义；数据隔离从旧版按 bot / 旧主键切换为按 \`scopeId\` 隔离。
