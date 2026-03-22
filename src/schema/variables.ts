@@ -72,6 +72,13 @@ export const VariablesSchema = Schema.object({
   })
     .description("群信息变量")
     .collapse(),
+  groupShutList: Schema.object({
+    variableName: Schema.string()
+      .default("groupShutList")
+      .description("变量名称"),
+  })
+    .description("群禁言列表变量")
+    .collapse(),
   random: Schema.object({
     variableName: Schema.string().default("random").description("变量名称"),
     min: Schema.number().default(0).description("默认随机数下限"),
@@ -90,6 +97,7 @@ export const VariablesSchema = Schema.object({
       variableName: "groupInfo",
       items: [...DEFAULT_GROUP_INFO_ITEMS],
     },
+    groupShutList: { variableName: "groupShutList" },
     random: { variableName: "random", min: 0, max: 100 },
   })
   .description("其他变量");

@@ -65,6 +65,10 @@ export interface GroupInfoConfig {
   items: GroupInfoItem[];
 }
 
+export interface GroupShutListConfig {
+  variableName: string;
+}
+
 export interface RandomConfig {
   variableName: string;
   min: number;
@@ -75,6 +79,7 @@ export interface VariablesConfig {
   userInfo: UserInfoConfig;
   botInfo: BotInfoConfig;
   groupInfo: GroupInfoConfig;
+  groupShutList: GroupShutListConfig;
   random: RandomConfig;
 }
 

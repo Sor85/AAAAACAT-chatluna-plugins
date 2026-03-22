@@ -6,6 +6,7 @@
 import type { Config, LogFn } from "../../types";
 import { createBotInfoProvider } from "./providers/bot-info";
 import { createGroupInfoProvider } from "./providers/group-info";
+import { createGroupShutListProvider } from "./providers/group-shut-list";
 import { createRandomProvider } from "./providers/random";
 import { createUserInfoProvider } from "./providers/user-info";
 
@@ -53,6 +54,18 @@ export function registerVariables(deps: RegisterVariablesDeps): void {
   if (groupInfoName) {
     promptRenderer.registerFunctionProvider(groupInfoName, groupInfoProvider);
     log?.("info", `群组信息变量已注册: ${groupInfoName}`);
+  }
+
+  const groupShutListProvider = createGroupShutListProvider({ config, log });
+  const groupShutListName = String(
+    config.groupShutList?.variableName || "groupShutList",
+  ).trim();
+  if (groupShutListName) {
+    promptRenderer.registerFunctionProvider(
+      groupShutListName,
+      groupShutListProvider,
+    );
+    log?.("info", `群禁言列表变量已注册: ${groupShutListName}`);
   }
 
   const randomProvider = createRandomProvider({ config });

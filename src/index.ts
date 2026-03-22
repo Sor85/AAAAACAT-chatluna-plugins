@@ -25,6 +25,7 @@ export * from "./features/variables/register";
 export * from "./features/variables/providers/user-info";
 export * from "./features/variables/providers/bot-info";
 export * from "./features/variables/providers/group-info";
+export * from "./features/variables/providers/group-shut-list";
 export * from "./features/variables/providers/random";
 export * from "./helpers";
 export * from "./constants";

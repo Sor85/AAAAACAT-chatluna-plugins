@@ -4,10 +4,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import {
-  createSetGroupBanTool,
-  sendGroupBan,
-} from "./set-group-ban";
+import { createSetGroupBanTool, sendGroupBan } from "./set-group-ban";
 
 describe("sendGroupBan", () => {
   it("调用 set_group_ban 接口禁言群成员", async () => {
@@ -116,7 +113,7 @@ describe("createSetGroupBanTool", () => {
     expect(tool.name).toBe("set_group_ban");
     expect(tool.description).toBe("desc");
 
-    const result = await tool._call(
+    const result = await (tool as any)._call(
       { userId: "user-1", duration: 60 },
       undefined,
       {
@@ -124,7 +121,9 @@ describe("createSetGroupBanTool", () => {
           session: {
             platform: "onebot",
             guildId: "group-1",
-            bot: { internal: { _request: vi.fn().mockResolvedValue(undefined) } },
+            bot: {
+              internal: { _request: vi.fn().mockResolvedValue(undefined) },
+            },
           },
         },
       },

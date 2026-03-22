@@ -57,6 +57,7 @@ function createConfig(overrides: Partial<Config> = {}): Config {
     userInfo: { variableName: "userInfo", items: [] },
     botInfo: { variableName: "botInfo", items: [] },
     groupInfo: { variableName: "groupInfo", items: [] },
+    groupShutList: { variableName: "groupShutList" },
     random: { variableName: "random", min: 0, max: 100 },
     debugLogging: false,
     ...overrides,
