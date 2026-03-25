@@ -1,0 +1,51 @@
+{
+  "name": "koishi-plugin-chatluna-meme-generator",
+  "version": "0.0.16",
+  "description": "为 chatluna-character 提供 meme-generator（python）能力，支持 XML 工具调用、随机模板、自动补全策略",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
+  "keywords": [
+    "koishi",
+    "meme",
+    "chatluna"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sor85/koishi-plugin-chatluna-meme-generator.git"
+  },
+  "peerDependencies": {
+    "koishi": "^4.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "koishi": "^4.18.0",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.4"
+  },
+  "koishi": {
+    "service": {
+      "required": [
+        "http"
+      ],
+      "optional": [
+        "notifier",
+        "puppeteer",
+        "chatluna_character"
+      ]
+    }
+  }
+}
