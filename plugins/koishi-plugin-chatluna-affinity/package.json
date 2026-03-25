@@ -1,0 +1,62 @@
+{
+  "name": "koishi-plugin-chatluna-affinity",
+  "description": "ChatLuna Character 好感度系统，提供 {好感度}、{关系}、{黑名单} 变量与工具，并支持 XML 工具调用，仅支持 onebot 平台。",
+  "version": "0.3.0-beta.1",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist",
+    "client"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "build": "tsup && vite build",
+    "watch": "tsup --watch",
+    "clean": "rimraf lib dist",
+    "test": "npm run build && node --test test/**/*.test.js"
+  },
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin"
+  ],
+  "homepage": "https://github.com/Sor85/koishi-plugin-chatluna-affinity",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sor85/koishi-plugin-chatluna-affinity.git"
+  },
+  "peerDependencies": {
+    "koishi": "^4.18.7",
+    "koishi-plugin-chatluna": "*",
+    "koishi-plugin-chatluna-character": "*",
+    "@koishijs/plugin-console": "^5.30.0",
+    "koishi-plugin-chatluna-group-analysis": "*"
+  },
+  "peerDependenciesMeta": {
+    "koishi-plugin-chatluna-character": {
+      "optional": true
+    },
+    "@koishijs/plugin-console": {
+      "optional": true
+    },
+    "koishi-plugin-puppeteer": {
+      "optional": true
+    },
+    "koishi-plugin-chatluna-group-analysis": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@koishijs/client": "^5.30.0",
+    "@types/node": "^20.11.0",
+    "@vitejs/plugin-vue": "^6.0.2",
+    "rimraf": "^5.0.5",
+    "sass": "^1.77.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "koishi-plugin-chatluna": "*"
+  }
+}
