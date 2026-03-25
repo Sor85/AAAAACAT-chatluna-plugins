@@ -10,5 +10,7 @@ plugins/*/lib
 plugins/*/coverage
 plugins/*/package-lock.json
 plugins/*/.claude
+.claude/*
+!.claude/AGENTS.md
 *.log
 .vitest
