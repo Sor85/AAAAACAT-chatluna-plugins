@@ -1,0 +1,94 @@
+# 自动构建并发布 Koishi 插件到 npm
+# 触发条件：推送形如 <package-name>@<version> 的 tag
+
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'koishi-plugin-*@*'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Parse tag
+        id: parse
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          PACKAGE_NAME="${TAG%@*}"
+          VERSION="${TAG##*@}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "package_name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Parsed tag: package=$PACKAGE_NAME version=$VERSION"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Find plugin directory
+        id: find
+        run: |
+          PLUGIN_DIR=$(pnpm -r list --json --depth 0 \
+            | jq -r --arg name "${{ steps.parse.outputs.package_name }}" \
+              '.[] | select(.name == $name) | .path')
+
+          if [ -z "$PLUGIN_DIR" ]; then
+            echo "::error::Package '${{ steps.parse.outputs.package_name }}' not found in workspace"
+            exit 1
+          fi
+
+          # 转换为相对路径
+          RELATIVE_DIR="${PLUGIN_DIR#$GITHUB_WORKSPACE/}"
+          echo "dir=$RELATIVE_DIR" >> "$GITHUB_OUTPUT"
+          echo "Found plugin at: $RELATIVE_DIR"
+
+      - name: Verify version matches
+        working-directory: ${{ steps.find.outputs.dir }}
+        run: |
+          PKG_VERSION=$(jq -r '.version' package.json)
+          TAG_VERSION="${{ steps.parse.outputs.version }}"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::Version mismatch: package.json=$PKG_VERSION tag=$TAG_VERSION"
+            exit 1
+          fi
+          echo "Version verified: $PKG_VERSION"
+
+      - name: Build
+        run: pnpm -r run build
+
+      - name: Test
+        run: pnpm -r --if-present run test
+
+      - name: Publish to npm
+        working-directory: ${{ steps.find.outputs.dir }}
+        run: |
+          TAG_VERSION="${{ steps.parse.outputs.version }}"
+
+          # 含预发布标识时使用对应 dist-tag
+          if echo "$TAG_VERSION" | grep -qE '(alpha|beta|rc|next)'; then
+            DIST_TAG=$(echo "$TAG_VERSION" | sed -E 's/.*-(alpha|beta|rc|next).*/\1/')
+            echo "Publishing with dist-tag: $DIST_TAG"
+            pnpm publish --no-git-checks --access public --tag "$DIST_TAG"
+          else
+            pnpm publish --no-git-checks --access public
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
