@@ -52,12 +52,14 @@ export async function sendMsgEmoji(
     const { error, internal } = ensureOneBotSession(session);
     if (error) return error;
 
-    await callOneBotAPI(
-      internal!,
-      "set_msg_emoji_like",
-      { message_id: numericMessageId, emoji_id: emojiIdRaw },
-      ["setMsgEmojiLike"],
-    );
+    const requestPayload =
+      protocol === "napcat"
+        ? { message_id: numericMessageId, emoji_id: emojiIdRaw, set: true }
+        : { message_id: numericMessageId, emoji_id: emojiIdRaw };
+
+    await callOneBotAPI(internal!, "set_msg_emoji_like", requestPayload, [
+      "setMsgEmojiLike",
+    ]);
 
     const success = `Emoji ${emojiIdRaw} sent to message ${messageIdRaw}.`;
     log?.("info", success);
