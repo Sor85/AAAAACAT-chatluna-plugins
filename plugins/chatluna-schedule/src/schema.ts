@@ -74,19 +74,17 @@ const scheduleSchema = Schema.object({
     .description("人设注入来源"),
   personaChatlunaPreset: Schema.dynamic("preset")
     .default(DEFAULT_SCHEDULE_CONFIG.personaChatlunaPreset || "无")
-    // @ts-expect-error Koishi Schema hidden callback is runtime-supported
     .hidden(
-      (_: unknown, cfg: { personaSource?: string } | undefined) =>
-        (cfg?.personaSource || "none") !== "chatluna",
+      (((_: unknown, cfg: { personaSource?: string } | undefined) =>
+        (cfg?.personaSource || "none") !== "chatluna") as unknown) as boolean,
     )
     .description("当选择主插件预设时，指定要注入的 ChatLuna 预设"),
   personaCustomPreset: Schema.string()
     .role("textarea")
     .default(DEFAULT_SCHEDULE_CONFIG.personaCustomPreset || "")
-    // @ts-expect-error Koishi Schema hidden callback is runtime-supported
     .hidden(
-      (_: unknown, cfg: { personaSource?: string } | undefined) =>
-        (cfg?.personaSource || "none") !== "custom",
+      (((_: unknown, cfg: { personaSource?: string } | undefined) =>
+        (cfg?.personaSource || "none") !== "custom") as unknown) as boolean,
     )
     .description("当选择自定义人设时注入的文本内容"),
   timezone: Schema.string()

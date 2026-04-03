@@ -41,6 +41,7 @@ function createConfig(overrides: Partial<Config> = {}): Config {
       toolName: "delete_msg",
       description: "",
     },
+    injectXmlToolAsReplyTool: false,
     enablePokeXmlTool: false,
     enableEmojiXmlTool: false,
     enableDeleteXmlTool: false,

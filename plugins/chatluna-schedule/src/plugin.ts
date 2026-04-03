@@ -30,11 +30,10 @@ function createLogger(ctx: Context, config: Config): LogFn {
   return (level, message, detail) => {
     if (!config.debugLogging && level === "debug") return;
 
+    const baseRecord = base as unknown as Record<string, unknown>;
     const writer =
-      typeof (base as Record<string, unknown>)[level] === "function"
-        ? ((base as Record<string, (...args: unknown[]) => void>)[level] as (
-            ...args: unknown[]
-          ) => void)
+      typeof baseRecord[level] === "function"
+        ? (baseRecord[level] as (...args: unknown[]) => void)
         : (base as { info?: (...args: unknown[]) => void }).info || console.log;
 
     if (detail === undefined) {
