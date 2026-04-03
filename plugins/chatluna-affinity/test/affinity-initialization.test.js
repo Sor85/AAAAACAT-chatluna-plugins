@@ -224,6 +224,71 @@ test("recordInteraction 在已有记录时只增加互动次数并更新时间",
   assert.equal(row.chatCount, 3);
   assert.ok(row.lastInteractionAt instanceof Date);
   assert.notEqual(row.lastInteractionAt.getTime(), before.getTime());
+
+  const coefficientState = JSON.parse(row.coefficientState || "{}");
+  assert.equal(coefficientState.streak, 1);
+});
+
+test("recordInteraction 在连续两天互动时会递增连续天数", async () => {
+  const { store, database } = createStore();
+  const originalDate = Date;
+  const day1 = new originalDate("2026-01-01T12:00:00.000Z").getTime();
+  const day2 = new originalDate("2026-01-02T12:00:00.000Z").getTime();
+
+  class MockDate extends originalDate {
+    constructor(...args) {
+      if (args.length === 0) {
+        super(MockDate.__now);
+      } else {
+        super(...args);
+      }
+    }
+
+    static now() {
+      return MockDate.__now;
+    }
+  }
+
+  MockDate.__now = day1;
+  MockDate.parse = originalDate.parse;
+  MockDate.UTC = originalDate.UTC;
+
+  global.Date = MockDate;
+  try {
+    await store.save(
+      { scopeId: "宁宁", platform: "onebot", userId: "1001" },
+      66,
+      "",
+      {
+        longTermAffinity: 66,
+        shortTermAffinity: 5,
+        chatCount: 2,
+        coefficientState: {
+          streak: 1,
+          coefficient: 1,
+          decayPenalty: 0,
+          streakBoost: 0,
+          inactivityDays: 0,
+          lastInteractionAt: new originalDate(day1),
+        },
+        lastInteractionAt: new originalDate(day1),
+      },
+    );
+
+    MockDate.__now = day2;
+    await store.recordInteraction({
+      scopeId: "宁宁",
+      platform: "onebot",
+      userId: "1001",
+      session: { userId: "1001", selfId: "2000", username: "用户A" },
+    });
+  } finally {
+    global.Date = originalDate;
+  }
+
+  const row = database.rows[0];
+  const coefficientState = JSON.parse(row.coefficientState || "{}");
+  assert.equal(coefficientState.streak, 2);
 });
 
 test("affinity 变量多行输出在无记录时返回默认好感并按需带上 nickname", async () => {

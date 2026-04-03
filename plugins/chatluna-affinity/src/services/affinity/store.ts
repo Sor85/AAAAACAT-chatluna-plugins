@@ -20,6 +20,7 @@ import type {
 import { clamp } from "../../utils";
 import { MODEL_NAME_V2 } from "../../models";
 import { BASE_AFFINITY_DEFAULTS } from "../../constants";
+import { computeDailyStreak } from "./calculator";
 
 export interface AffinityStoreOptions {
   ctx: Context;
@@ -373,6 +374,19 @@ export function createAffinityStore(options: AffinityStoreOptions) {
     const existing = await load(scopeId, normalizedUserId);
     if (!existing) return null;
 
+    const parsedCoefficientState = extractState(existing).coefficientState;
+    const now = new Date();
+    const nextStreak = computeDailyStreak(
+      parsedCoefficientState?.streak,
+      parsedCoefficientState?.lastInteractionAt || existing.lastInteractionAt,
+      now,
+    );
+    const nextCoefficientState: CoefficientState = {
+      ...parsedCoefficientState,
+      streak: nextStreak,
+      lastInteractionAt: now,
+    };
+
     return save(
       { ...seed, scopeId, userId: normalizedUserId },
       Number.NaN,
@@ -381,7 +395,8 @@ export function createAffinityStore(options: AffinityStoreOptions) {
         longTermAffinity: existing.longTermAffinity ?? existing.affinity,
         shortTermAffinity: existing.shortTermAffinity ?? 0,
         chatCount: Math.max(0, Number(existing.chatCount || 0)) + 1,
-        lastInteractionAt: new Date(),
+        coefficientState: nextCoefficientState,
+        lastInteractionAt: now,
       },
     );
   };
