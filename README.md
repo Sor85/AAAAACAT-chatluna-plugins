@@ -1,6 +1,6 @@
 # koishi-plugins
 
-Koishi 插件聚合仓库
+我的 Koishi 插件聚合仓库
 
 ## 当前插件
 
