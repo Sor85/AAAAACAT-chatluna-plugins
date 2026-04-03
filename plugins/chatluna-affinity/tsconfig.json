@@ -1,33 +1,16 @@
 {
+  "extends": "../../packages/tsconfig/base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "CommonJS",
-    "moduleResolution": "Node",
-    "lib": ["ES2022", "DOM"],
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "declaration": true,
-    "declarationMap": false,
-    "sourceMap": false,
     "outDir": "lib",
     "rootDir": "src",
     "incremental": true,
     "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
-    "resolveJsonModule": true,
     "baseUrl": "./",
     "paths": {
       "koishi-plugin-chatluna/services/chat": ["node_modules/koishi-plugin-chatluna/lib/services/chat"],
       "koishi-plugin-chatluna/utils/string": ["node_modules/koishi-plugin-chatluna/lib/utils/string"],
       "koishi-plugin-chatluna/utils/schema": ["node_modules/koishi-plugin-chatluna/lib/utils/schema"]
-    },
-    "noImplicitAny": false,
-    "noImplicitReturns": true,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "strictNullChecks": true,
-    "strictPropertyInitialization": false
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "lib", "dist", "client"]

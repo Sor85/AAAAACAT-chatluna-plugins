@@ -6,11 +6,21 @@
   "workspaces": [
     "plugins/*",
     "plugins/*/packages/*",
-    "plugins/*/external/*"
+    "plugins/*/external/*",
+    "packages/*"
   ],
   "scripts": {
     "build": "pnpm -r --if-present run build",
-    "test": "pnpm -r --if-present run test"
+    "test": "pnpm -r --if-present run test",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "build:changed": "pnpm -r --filter \"...[main]\" --if-present run build",
+    "test:changed": "pnpm -r --filter \"...[main]\" --if-present run test",
+    "typecheck:changed": "pnpm -r --filter \"...[main]\" --if-present run typecheck",
+    "version": "changeset version",
+    "release": "changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.11"
   },
   "license": "MIT"
 }

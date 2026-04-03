@@ -1,26 +1,12 @@
 {
+  "extends": "../../packages/tsconfig/base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "CommonJS",
-    "moduleResolution": "Node",
-    "lib": ["ES2022", "DOM"],
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
     "declaration": false,
-    "sourceMap": false,
     "outDir": "lib",
     "rootDir": "src",
     "incremental": true,
     "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
-    "resolveJsonModule": true,
-    "noImplicitAny": false,
-    "noImplicitReturns": true,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "strictNullChecks": true,
-    "strictPropertyInitialization": false
+    "types": ["node"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "lib", "dist", "client"]

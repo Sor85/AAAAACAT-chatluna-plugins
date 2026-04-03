@@ -2,3 +2,4 @@ packages:
   - 'plugins/*'
   - 'plugins/*/packages/*'
   - 'plugins/*/external/*'
+  - 'packages/*'
