@@ -19,7 +19,12 @@ jobs:
           fetch-depth: 0
 
       - name: Fetch base branch
-        run: git fetch origin main:main
+        run: |
+          if [ "$(git rev-parse --abbrev-ref HEAD)" = "main" ]; then
+            git fetch origin main:refs/remotes/origin/main
+          else
+            git fetch origin main:main
+          fi
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
