@@ -70,9 +70,6 @@ export interface ModelResponseProcessorParams {
       alias: string,
     ) => Promise<unknown>;
   };
-  levelResolver: {
-    resolveLevelByAffinity: (affinity: number) => { relation?: string } | null;
-  };
   shortTermConfig: {
     promoteThreshold: number;
     demoteThreshold: number;
@@ -81,6 +78,15 @@ export interface ModelResponseProcessorParams {
   };
   actionWindowConfig: {
     maxEntries: number;
+  };
+  coefficientConfig?: {
+    base: number;
+    maxDrop: number;
+    maxBoost: number;
+    decayPerDay: number;
+    boostPerDay: number;
+    min: number;
+    max: number;
   };
   log: LogFn;
 }
@@ -199,9 +205,9 @@ export function createModelResponseProcessor(
     blacklist,
     unblockPermanent,
     userAlias,
-    levelResolver,
     shortTermConfig,
     actionWindowConfig,
+    coefficientConfig,
     log,
   } = params;
 
@@ -310,11 +316,9 @@ export function createModelResponseProcessor(
               save: store.save,
               clamp: store.clamp,
             },
-            levelResolver: {
-              resolveLevelByAffinity: levelResolver.resolveLevelByAffinity,
-            },
             maxActionEntries: actionWindowConfig.maxEntries,
             shortTermConfig,
+            coefficientConfig,
             log,
           });
           cache.clear(scopeId, userId);

@@ -16,6 +16,7 @@ import { createAffinityCache } from "./services/affinity/cache";
 import {
   resolveShortTermConfig,
   resolveActionWindowConfig,
+  resolveCoefficientConfig,
 } from "./services/affinity/calculator";
 import { createMessageHistory } from "./services/message/history";
 import {
@@ -26,7 +27,6 @@ import { createBlacklistService } from "./services/blacklist/repository";
 import { createBlacklistGuard } from "./services/blacklist/guard";
 import { createPermanentUnblockHandler } from "./services/blacklist/unblock-permanent";
 import { createUserAliasService } from "./services/user-alias/repository";
-import { createLevelResolver } from "./services/relationship/level-resolver";
 import { createManualRelationshipManager } from "./services/relationship/manual-config";
 import { createMigrationService } from "./services/migration";
 import { createRenderService } from "./renders";
@@ -133,8 +133,9 @@ export function apply(ctx: Context, config: Config): void {
   });
   const shortTermConfig = resolveShortTermConfig(config);
   const actionWindowConfig = resolveActionWindowConfig(config);
+  const coefficientConfig = resolveCoefficientConfig(config);
   const history = createMessageHistory({ ctx, config, log });
-  const levelResolver = createLevelResolver(config);
+
   const manualRelationship = createManualRelationshipManager({
     ctx,
     config,
@@ -186,9 +187,9 @@ export function apply(ctx: Context, config: Config): void {
     blacklist,
     unblockPermanent,
     userAlias,
-    levelResolver,
     shortTermConfig,
     actionWindowConfig,
+    coefficientConfig,
     log,
   });
 

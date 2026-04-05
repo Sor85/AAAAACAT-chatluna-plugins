@@ -137,15 +137,82 @@ test("applyAffinityDelta 不再负责累加互动次数或更新时间", async (
   assert.equal(calls.save[0].extra.lastInteractionAt, undefined);
 });
 
-test("applyAffinityDelta 恰好达到正向阈值时触发长期增长并清空短期", async () => {
-  const { params, calls } = createHarness({
-    params: { delta: 10, action: "increase" },
-  });
 
-  const result = await applyAffinityDelta(params);
+test("applyAffinityDelta 连续三天且当日正向占优时系数提升到 1.10", async () => {
+  const OriginalDate = Date;
+  const nowMs = new OriginalDate("2026-01-03T12:00:00.000Z").getTime();
 
-  assert.equal(result.success, true);
-  assert.equal(result.longTermAffinity, 33);
-  assert.equal(result.shortTermAffinity, 0);
-  assert.equal(calls.save[0].extra.shortTermAffinity, 0);
+  class MockDate extends OriginalDate {
+    constructor(...args) {
+      if (args.length === 0) {
+        super(nowMs);
+      } else {
+        super(...args);
+      }
+    }
+
+    static now() {
+      return nowMs;
+    }
+  }
+
+  MockDate.parse = OriginalDate.parse;
+  MockDate.UTC = OriginalDate.UTC;
+
+  global.Date = MockDate;
+  try {
+    const { params, calls } = createHarness({
+      currentState: {
+        longTermAffinity: 30,
+        shortTermAffinity: 0,
+        lastInteractionAt: new OriginalDate("2026-01-03T08:00:00.000Z"),
+        actionStats: {
+          total: 2,
+          counts: { increase: 2, decrease: 0 },
+          entries: [
+            {
+              action: "increase",
+              timestamp: new OriginalDate("2026-01-01T12:00:00.000Z").getTime(),
+            },
+            {
+              action: "increase",
+              timestamp: new OriginalDate("2026-01-02T12:00:00.000Z").getTime(),
+            },
+          ],
+        },
+        coefficientState: {
+          streak: 3,
+          coefficient: 1.05,
+          decayPenalty: 0,
+          streakBoost: 0.05,
+          inactivityDays: 0,
+          lastInteractionAt: new OriginalDate("2026-01-03T08:00:00.000Z"),
+        },
+      },
+      params: {
+        delta: 1,
+        action: "increase",
+        coefficientConfig: {
+          base: 1,
+          maxDrop: 0.3,
+          maxBoost: 0.3,
+          decayPerDay: 0.05,
+          boostPerDay: 0.05,
+          min: 0.7,
+          max: 1.3,
+        },
+      },
+    });
+
+    const result = await applyAffinityDelta(params);
+
+    assert.equal(result.success, true);
+    assert.equal(result.coefficient, 1.1);
+    assert.equal(calls.save.length, 1);
+    assert.equal(calls.save[0].value, 33);
+    assert.equal(calls.save[0].extra.coefficientState.coefficient, 1.1);
+    assert.equal(calls.save[0].extra.actionStats.counts.increase, 3);
+  } finally {
+    global.Date = OriginalDate;
+  }
 });

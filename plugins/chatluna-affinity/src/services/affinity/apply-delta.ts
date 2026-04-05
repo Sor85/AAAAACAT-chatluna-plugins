@@ -9,7 +9,10 @@ import type {
   LogFn,
   SessionSeed,
 } from "../../types";
-import { appendActionEntry } from "./calculator";
+import {
+  appendActionEntry,
+  computeCoefficientValue,
+} from "./calculator";
 
 export interface ApplyAffinityDeltaParams {
   seed: SessionSeed;
@@ -27,6 +30,7 @@ export interface ApplyAffinityDeltaParams {
       chatCount?: number;
       actionStats?: ActionStats;
       coefficientState?: CoefficientState;
+      lastInteractionAt?: Date | null;
     }>;
     save: (
       seed: SessionSeed,
@@ -36,15 +40,21 @@ export interface ApplyAffinityDeltaParams {
     ) => Promise<unknown>;
     clamp: (value: number) => number;
   };
-  levelResolver: {
-    resolveLevelByAffinity: (affinity: number) => { relation?: string } | null;
-  };
   maxActionEntries: number;
   shortTermConfig: {
     promoteThreshold: number;
     demoteThreshold: number;
     longTermPromoteStep: number;
     longTermDemoteStep: number;
+  };
+  coefficientConfig?: {
+    base: number;
+    maxDrop: number;
+    maxBoost: number;
+    decayPerDay: number;
+    boostPerDay: number;
+    min: number;
+    max: number;
   };
   log?: LogFn;
 }
@@ -69,11 +79,12 @@ export async function applyAffinityDelta(
     delta,
     action,
     store,
-    levelResolver,
     maxActionEntries,
     shortTermConfig,
+    coefficientConfig,
     log,
   } = params;
+
 
   try {
     const platform = seed.platform || "onebot";
@@ -85,8 +96,6 @@ export async function applyAffinityDelta(
     );
     const longTerm = current?.longTermAffinity ?? 0;
     const shortTerm = current?.shortTermAffinity ?? 0;
-    const coefficient = current?.coefficientState?.coefficient ?? 1;
-    const combined = Math.round(longTerm * coefficient);
 
     let actualDelta = Math.abs(delta);
     if (action === "decrease") {
@@ -125,15 +134,55 @@ export async function applyAffinityDelta(
         maxActionEntries,
       ),
     };
-    const newCombined = store.clamp(Math.round(newLongTerm * coefficient));
+    const nextCoefficientState: CoefficientState = {
+      ...(current?.coefficientState || {
+        streak: 0,
+        coefficient: 1,
+        decayPenalty: 0,
+        streakBoost: 0,
+        inactivityDays: 0,
+        lastInteractionAt: null,
+      }),
+    };
+    if (coefficientConfig) {
+      const now = new Date();
+      const nowDay = Math.floor(now.getTime() / 86400000);
+      let todayIncreaseCount = 0;
+      let todayDecreaseCount = 0;
+      for (const entry of newActionStats.entries || []) {
+        const ts = Number(entry?.timestamp);
+        if (!Number.isFinite(ts)) continue;
+        if (Math.floor(ts / 86400000) !== nowDay) continue;
+        if (entry.action === "increase") {
+          todayIncreaseCount += 1;
+        } else if (entry.action === "decrease") {
+          todayDecreaseCount += 1;
+        }
+      }
+      const result = computeCoefficientValue(
+        coefficientConfig,
+        Math.max(1, Number(nextCoefficientState.streak || 0)),
+        current?.lastInteractionAt || current?.coefficientState?.lastInteractionAt,
+        now,
+        todayIncreaseCount,
+        todayDecreaseCount,
+      );
+      nextCoefficientState.coefficient = result.coefficient;
+      nextCoefficientState.decayPenalty = result.decayPenalty;
+      nextCoefficientState.streakBoost = result.streakBoost;
+      nextCoefficientState.inactivityDays = result.inactivityDays;
+    }
+    const effectiveCoefficient =
+      nextCoefficientState.coefficient ?? current?.coefficientState?.coefficient ?? 1;
+    const newCombined = store.clamp(Math.round(newLongTerm * effectiveCoefficient));
     await store.save({ ...seed, platform, userId }, newCombined, "", {
       shortTermAffinity: newShortTerm,
       longTermAffinity: newLongTerm,
       actionStats: newActionStats,
-      coefficientState: current?.coefficientState || undefined,
+      coefficientState: nextCoefficientState,
     });
 
-    const message = `好感度调整: scopeId=${seed.scopeId || ""}, user=${userId}, action=${action}, delta=${Math.abs(actualDelta)}, shortTerm=${newShortTerm}, longTerm=${newLongTerm}, coefficient=${coefficient}, combined=${newCombined}, stats=increase:${newActionStats.counts.increase}/decrease:${newActionStats.counts.decrease}`;
+    const message = `好感度调整: scopeId=${seed.scopeId || ""}, user=${userId}, action=${action}, delta=${Math.abs(actualDelta)}, shortTerm=${newShortTerm}, longTerm=${newLongTerm}, coefficient=${effectiveCoefficient}, combined=${newCombined}, stats=increase:${newActionStats.counts.increase}/decrease:${newActionStats.counts.decrease}`;
     log?.("info", message);
 
     return {
@@ -142,7 +191,7 @@ export async function applyAffinityDelta(
       shortTermAffinity: newShortTerm,
       longTermAffinity: newLongTerm,
       combinedAffinity: newCombined,
-      coefficient,
+      coefficient: effectiveCoefficient,
       delta: actualDelta,
       actionStats: newActionStats,
     };
