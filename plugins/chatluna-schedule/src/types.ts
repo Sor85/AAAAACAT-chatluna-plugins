@@ -145,10 +145,26 @@ export interface ChatLunaPlugin {
   registerTool: (name: string, options: ToolRegistration) => void;
 }
 
+export interface ToolDefaultAvailability {
+  enabled: true;
+  main: true;
+  chatluna: true;
+  characterScope: "all";
+}
+
+export interface ToolMeta {
+  source: "extension";
+  group: string;
+  tags: string[];
+  defaultAvailability: ToolDefaultAvailability;
+}
+
 export interface ToolRegistration {
   selector: () => boolean;
+  description: string;
   createTool: () => unknown;
   authorization?: (session: Session | undefined) => boolean;
+  meta?: ToolMeta;
 }
 
 export interface PromptRendererLike {

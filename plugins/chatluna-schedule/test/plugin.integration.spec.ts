@@ -9,6 +9,13 @@ import { DEFAULT_TOOLS_CONFIG } from "../src/schema";
 import { registerChatLunaIntegrations } from "../src/integrations/chatluna";
 import type { ToolRegistration } from "../src/types";
 
+const TOOL_DEFAULT_AVAILABILITY = {
+  enabled: true,
+  main: true,
+  chatluna: true,
+  characterScope: "all",
+} as const;
+
 describe("chatluna integrations", () => {
   it("registers weather variable and tool from top-level tools config", () => {
     const providers: string[] = [];
@@ -96,6 +103,14 @@ describe("chatluna integrations", () => {
     expect(result.toolNames).toContain("get_weather");
     expect(providers).toContain("weather");
     expect(registrations[0].name).toBe("get_weather");
+    expect(registrations[0].options.description).toBe("自定义天气工具描述");
+    expect(registrations[0].options.meta).toEqual(
+      expect.objectContaining({
+        group: "weather",
+        tags: ["weather"],
+        defaultAvailability: TOOL_DEFAULT_AVAILABILITY,
+      }),
+    );
     expect(weatherTool.name).toBe("get_weather");
     expect(weatherTool.description).toBe("自定义天气工具描述");
   });
@@ -220,6 +235,16 @@ describe("chatluna integrations", () => {
 
     expect(providers).toContain("legacyWeather");
     expect(registrations[0].name).toBe("legacy_weather");
+    expect(registrations[0].options.description).toBe(
+      "legacy weather description",
+    );
+    expect(registrations[0].options.meta).toEqual(
+      expect.objectContaining({
+        group: "weather",
+        tags: ["weather"],
+        defaultAvailability: TOOL_DEFAULT_AVAILABILITY,
+      }),
+    );
     expect(weatherTool.name).toBe("legacy_weather");
     expect(weatherTool.description).toBe("legacy weather description");
   });

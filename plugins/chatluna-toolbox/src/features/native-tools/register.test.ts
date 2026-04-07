@@ -15,6 +15,13 @@ import {
   DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION,
 } from "./defaults";
 
+const TOOL_DEFAULT_AVAILABILITY = {
+  enabled: true,
+  main: true,
+  chatluna: true,
+  characterScope: "all",
+} as const;
+
 function createConfig(overrides: Partial<Config> = {}): Config {
   return {
     enableNapCatProtocol: true,
@@ -120,7 +127,12 @@ describe("registerNativeTools", () => {
       expect.objectContaining({
         selector: expect.any(Function),
         authorization: expect.any(Function),
+        description: "custom poke description",
         createTool: expect.any(Function),
+        meta: expect.objectContaining({
+          tags: ["poke"],
+          defaultAvailability: TOOL_DEFAULT_AVAILABILITY,
+        }),
       }),
     );
     expect(registerTool).toHaveBeenNthCalledWith(
@@ -129,7 +141,12 @@ describe("registerNativeTools", () => {
       expect.objectContaining({
         selector: expect.any(Function),
         authorization: expect.any(Function),
+        description: "custom ban description",
         createTool: expect.any(Function),
+        meta: expect.objectContaining({
+          tags: ["group"],
+          defaultAvailability: TOOL_DEFAULT_AVAILABILITY,
+        }),
       }),
     );
     expect(registerTool).toHaveBeenNthCalledWith(
@@ -138,7 +155,12 @@ describe("registerNativeTools", () => {
       expect.objectContaining({
         selector: expect.any(Function),
         authorization: expect.any(Function),
+        description: "custom emoji description",
         createTool: expect.any(Function),
+        meta: expect.objectContaining({
+          tags: ["message"],
+          defaultAvailability: TOOL_DEFAULT_AVAILABILITY,
+        }),
       }),
     );
   });
@@ -189,7 +211,12 @@ describe("registerNativeTools", () => {
       expect.objectContaining({
         selector: expect.any(Function),
         authorization: expect.any(Function),
+        description: DEFAULT_POKE_TOOL_DESCRIPTION,
         createTool: expect.any(Function),
+        meta: expect.objectContaining({
+          tags: ["poke"],
+          defaultAvailability: TOOL_DEFAULT_AVAILABILITY,
+        }),
       }),
     );
   });
@@ -217,13 +244,39 @@ describe("registerNativeTools", () => {
     expect(tool.description).toBe(DEFAULT_SET_MSG_EMOJI_TOOL_DESCRIPTION);
   });
 
-  it("在禁言工具描述为空白时回退到默认描述", () => {
+
+  it("按约定写入各工具标签", () => {
     const registerTool = vi.fn();
     const config = createConfig({
+      poke: {
+        enabled: true,
+        toolName: "poke_user",
+        description: DEFAULT_POKE_TOOL_DESCRIPTION,
+      },
+      setSelfProfile: {
+        enabled: true,
+        toolName: "set_self_profile",
+        description: DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION,
+      },
+      setGroupCard: {
+        enabled: true,
+        toolName: "set_group_card",
+        description: DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION,
+      },
       setGroupBan: {
         enabled: true,
         toolName: "set_group_ban",
-        description: "   ",
+        description: DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
+      },
+      setMsgEmoji: {
+        enabled: true,
+        toolName: "set_msg_emoji",
+        description: DEFAULT_SET_MSG_EMOJI_TOOL_DESCRIPTION,
+      },
+      deleteMessage: {
+        enabled: true,
+        toolName: "delete_msg",
+        description: DEFAULT_DELETE_MESSAGE_TOOL_DESCRIPTION,
       },
     });
 
@@ -234,10 +287,16 @@ describe("registerNativeTools", () => {
       protocol: "napcat",
     });
 
-    const registration = registerTool.mock.calls[0][1];
-    const tool = registration.createTool();
+    const registrationsByName = new Map(
+      registerTool.mock.calls.map(([name, options]) => [name, options]),
+    );
 
-    expect(tool.description).toBe(DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION);
+    expect(registrationsByName.get("delete_msg").meta.tags).toEqual(["message"]);
+    expect(registrationsByName.get("poke_user").meta.tags).toEqual(["poke"]);
+    expect(registrationsByName.get("set_group_ban").meta.tags).toEqual(["group"]);
+    expect(registrationsByName.get("set_group_card").meta.tags).toEqual(["group"]);
+    expect(registrationsByName.get("set_msg_emoji").meta.tags).toEqual(["message"]);
+    expect(registrationsByName.get("set_self_profile").meta.tags).toEqual([]);
   });
   it("忽略未启用的原生工具", () => {
     const registerTool = vi.fn();

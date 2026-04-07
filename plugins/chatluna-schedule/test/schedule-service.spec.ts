@@ -16,6 +16,13 @@ import {
 } from "../src/services/schedule-service";
 import type { ToolRegistration } from "../src/types";
 
+const TOOL_DEFAULT_AVAILABILITY = {
+  enabled: true,
+  main: true,
+  chatluna: true,
+  characterScope: "all",
+} as const;
+
 describe("schedule service utilities", () => {
   it("normalizes common time formats", () => {
     expect(normalizeTime("7:30")?.minutes).toBe(450);
@@ -149,6 +156,14 @@ describe("schedule service tool registration", () => {
     };
 
     expect(registrations[0].name).toBe("daily_schedule");
+    expect(registrations[0].options.description).toBe("自定义日程工具描述");
+    expect(registrations[0].options.meta).toEqual(
+      expect.objectContaining({
+        group: "schedule",
+        tags: [],
+        defaultAvailability: TOOL_DEFAULT_AVAILABILITY,
+      }),
+    );
     expect(tool.name).toBe("daily_schedule");
     expect(tool.description).toBe("自定义日程工具描述");
   });
@@ -219,6 +234,16 @@ describe("schedule service tool registration", () => {
 
     expect(registeredName).toBe("legacy_schedule");
     expect(registrations[0].name).toBe("legacy_schedule");
+    expect(registrations[0].options.description).toBe(
+      "legacy schedule description",
+    );
+    expect(registrations[0].options.meta).toEqual(
+      expect.objectContaining({
+        group: "schedule",
+        tags: [],
+        defaultAvailability: TOOL_DEFAULT_AVAILABILITY,
+      }),
+    );
     expect(tool.name).toBe("legacy_schedule");
     expect(tool.description).toBe("legacy schedule description");
   });

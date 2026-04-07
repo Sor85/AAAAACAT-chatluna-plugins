@@ -20,10 +20,42 @@ import { createSetGroupCardTool } from "./tools/set-group-card";
 import { createSetMsgEmojiTool } from "./tools/set-msg-emoji";
 import { createSetProfileTool } from "./tools/profile";
 
+interface ToolDefaultAvailability {
+  enabled: true;
+  main: true;
+  chatluna: true;
+  characterScope: "all";
+}
+
+interface NativeToolMeta {
+  source: "extension";
+  group: string;
+  tags: string[];
+  defaultAvailability: ToolDefaultAvailability;
+}
+
 export interface NativeToolRegistration {
   selector: () => boolean;
   authorization: (session: Session) => boolean;
+  description: string;
   createTool: () => unknown;
+  meta: NativeToolMeta;
+}
+
+const NATIVE_TOOL_DEFAULT_AVAILABILITY: ToolDefaultAvailability = {
+  enabled: true,
+  main: true,
+  chatluna: true,
+  characterScope: "all",
+};
+
+function createNativeToolMeta(group: string, tags: string[]): NativeToolMeta {
+  return {
+    source: "extension",
+    group,
+    tags,
+    defaultAvailability: NATIVE_TOOL_DEFAULT_AVAILABILITY,
+  };
 }
 
 export interface RegisterNativeToolsDeps {
@@ -72,8 +104,10 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
     plugin.registerTool(toolName, {
       selector: () => true,
       authorization: (session: Session) => session?.platform === "onebot",
+      description,
       createTool: () =>
         createPokeTool({ ctx, toolName, description, log, protocol }),
+      meta: createNativeToolMeta("onebot", ["poke"]),
     });
     log?.("info", `戳一戳工具已注册: ${toolName}`);
   }
@@ -90,8 +124,10 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
     plugin.registerTool(toolName, {
       selector: () => true,
       authorization: (session: Session) => session?.platform === "onebot",
+      description,
       createTool: () =>
         createSetProfileTool({ ctx, toolName, description, log, protocol }),
+      meta: createNativeToolMeta("onebot", []),
     });
     log?.("info", `设置资料工具已注册: ${toolName}`);
   }
@@ -108,8 +144,10 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
     plugin.registerTool(toolName, {
       selector: () => true,
       authorization: (session: Session) => session?.platform === "onebot",
+      description,
       createTool: () =>
         createSetGroupCardTool({ ctx, toolName, description, log }),
+      meta: createNativeToolMeta("onebot", ["group"]),
     });
     log?.("info", `群昵称工具已注册: ${toolName}`);
   }
@@ -126,8 +164,10 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
     plugin.registerTool(toolName, {
       selector: () => true,
       authorization: (session: Session) => session?.platform === "onebot",
+      description,
       createTool: () =>
         createSetGroupBanTool({ toolName, description, log, protocol }),
+      meta: createNativeToolMeta("onebot", ["group"]),
     });
     log?.("info", `群成员禁言工具已注册: ${toolName}`);
   }
@@ -144,8 +184,10 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
     plugin.registerTool(toolName, {
       selector: () => true,
       authorization: (session: Session) => session?.platform === "onebot",
+      description,
       createTool: () =>
         createSetMsgEmojiTool({ toolName, description, log, protocol }),
+      meta: createNativeToolMeta("onebot", ["message"]),
     });
     log?.("info", `消息表情工具已注册: ${toolName}`);
   }
@@ -162,7 +204,9 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
     plugin.registerTool(toolName, {
       selector: () => true,
       authorization: (session: Session) => session?.platform === "onebot",
+      description,
       createTool: () => createDeleteMessageTool({ toolName, description, log }),
+      meta: createNativeToolMeta("onebot", ["message"]),
     });
     log?.("info", `删除消息工具已注册: ${toolName}`);
   }

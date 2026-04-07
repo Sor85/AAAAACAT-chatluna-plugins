@@ -17,8 +17,21 @@ import type {
   ScheduleConfig,
   ScheduleEntry,
   ScheduleService,
+  ToolMeta,
+  WeatherService,
 } from "../types";
-import type { WeatherService } from "../types";
+
+const SCHEDULE_TOOL_META: ToolMeta = {
+  source: "extension",
+  group: "schedule",
+  tags: [],
+  defaultAvailability: {
+    enabled: true,
+    main: true,
+    chatluna: true,
+    characterScope: "all",
+  },
+};
 
 interface ScheduleRenderData {
   title: string;
@@ -631,6 +644,8 @@ export function createScheduleService(
 
     plugin.registerTool(toolName, {
       selector: () => true,
+      description: toolDescription,
+      meta: SCHEDULE_TOOL_META,
       createTool: () =>
         // @ts-expect-error zod 和 StructuredTool 的推导深度过大
         new (class extends StructuredTool {

@@ -12,8 +12,21 @@ import type {
   Config,
   LogFn,
   ScheduleService,
+  ToolMeta,
   WeatherService,
 } from "../types";
+
+const WEATHER_TOOL_META: ToolMeta = {
+  source: "extension",
+  group: "weather",
+  tags: ["weather"],
+  defaultAvailability: {
+    enabled: true,
+    main: true,
+    chatluna: true,
+    characterScope: "all",
+  },
+};
 
 interface RegisterIntegrationDeps {
   ctx: Context;
@@ -89,6 +102,8 @@ export function registerChatLunaIntegrations(
       const weatherToolDescription = toolsConfig.weather.description;
       plugin.registerTool(weatherToolName, {
         selector: () => true,
+        description: weatherToolDescription,
+        meta: WEATHER_TOOL_META,
         createTool: () =>
           // @ts-expect-error zod 和 StructuredTool 组合会触发推导深度限制
           new (class extends StructuredTool {

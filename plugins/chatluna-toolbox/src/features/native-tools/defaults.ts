@@ -11,7 +11,7 @@ export const DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION =
 export const DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION = "修改群成员的群昵称。";
 
 export const DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION =
-  "禁言指定群成员，duration=0 表示解除禁言。";
+  "用于管理群成员禁言状态，可设置禁言时长或解除禁言。";
 
 export const DEFAULT_SET_MSG_EMOJI_TOOL_DESCRIPTION =
   "对指定消息添加表情回应。";

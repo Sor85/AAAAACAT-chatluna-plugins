@@ -44,6 +44,22 @@ export function isUrlContextToolEnabled(config: Config): boolean {
   return isToolRegistrationEnabled(config) && config.enableUrlContextTool;
 }
 
+const GEMINI_TOOL_DEFAULT_AVAILABILITY = {
+  enabled: true,
+  main: true,
+  chatluna: true,
+  characterScope: "all",
+} as const;
+
+function createGeminiToolMeta(group: string, tags: string[]) {
+  return {
+    source: "extension",
+    group,
+    tags,
+    defaultAvailability: GEMINI_TOOL_DEFAULT_AVAILABILITY,
+  };
+}
+
 function buildGoogleSearchRegistration(
   ctx: Context,
   config: Config,
@@ -55,9 +71,11 @@ function buildGoogleSearchRegistration(
     authorization() {
       return true;
     },
+    description: config.googleSearchDescription,
     createTool() {
       return createGoogleSearchTool(ctx, config);
     },
+    meta: createGeminiToolMeta("search", ["search"]),
   };
 }
 
@@ -72,9 +90,11 @@ function buildUrlContextRegistration(
     authorization() {
       return true;
     },
+    description: config.urlContextDescription,
     createTool() {
       return createUrlContextTool(ctx, config);
     },
+    meta: createGeminiToolMeta("search", ["url"]),
   };
 }
 
