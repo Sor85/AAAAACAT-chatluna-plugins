@@ -126,6 +126,7 @@ function createBaseConfig(): Config {
     allowLeadingAtBeforeCommand: false,
     enableDeveloperDebugLog: false,
     enableMemeXmlTool: false,
+    injectMemeXmlToolAsReplyTool: false,
     enableRandomDedupeWithinHours: false,
     randomDedupeWindowHours: 24,
     enableRandomKeywordNotice: false,

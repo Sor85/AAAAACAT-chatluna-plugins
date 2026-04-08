@@ -42,6 +42,7 @@ export interface Config {
   allowLeadingAtBeforeCommand: boolean;
   enableDeveloperDebugLog: boolean;
   enableMemeXmlTool: boolean;
+  injectMemeXmlToolAsReplyTool: boolean;
   memeXmlReferencePrompt?: string;
   enableRandomDedupeWithinHours: boolean;
   randomDedupeWindowHours: number;
@@ -85,6 +86,7 @@ export const defaultConfig: Config = {
   allowLeadingAtBeforeCommand: false,
   enableDeveloperDebugLog: false,
   enableMemeXmlTool: false,
+  injectMemeXmlToolAsReplyTool: false,
   memeXmlReferencePrompt:
     '可用 XML 工具调用格式：<meme key="memekey" text="text1|text2" image="url1|url2" at="userid1|userid2"/>\n支持参数：key、text、image、at\n示例：<meme key="can_can_need" at="123456"/>\n如果缺少参数，会按预设的补全设置自动补全',
   enableRandomDedupeWithinHours: true,
@@ -213,6 +215,9 @@ const triggerSchema = Schema.object({
   enableMemeXmlTool: Schema.boolean()
     .default(defaultConfig.enableMemeXmlTool)
     .description("是否启用 XML 形式的 meme 工具调用"),
+  injectMemeXmlToolAsReplyTool: Schema.boolean()
+    .default(defaultConfig.injectMemeXmlToolAsReplyTool)
+    .description("是否将 XML meme 工具注入实验性工具调用回复参数"),
   memeXmlReferencePrompt: Schema.string()
     .role("textarea")
     .default(defaultConfig.memeXmlReferencePrompt || "")

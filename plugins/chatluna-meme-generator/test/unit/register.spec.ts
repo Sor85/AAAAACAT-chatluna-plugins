@@ -129,12 +129,25 @@ function createMockCharacterService() {
     completionMessages,
   };
   const getTemp = vi.fn(async () => tempStore);
+  const registerReplyToolFieldDisposers: Array<ReturnType<typeof vi.fn>> = [];
+  const registerReplyToolFields: any[] = [];
+
+  const registerReplyToolField = vi.fn((field: any) => {
+    const disposer = vi.fn();
+    registerReplyToolFieldDisposers.push(disposer);
+    registerReplyToolFields.push(field);
+    return disposer;
+  });
 
   return {
     service: {
       getTemp,
+      registerReplyToolField,
     },
     getTemp,
+    registerReplyToolField,
+    registerReplyToolFieldDisposers,
+    registerReplyToolFields,
     tempStore,
     completionMessages,
     originalCompletionMessagesPush: completionMessages.push,
@@ -240,6 +253,10 @@ function createMockContext(options: { withCharacterService?: boolean } = {}) {
     completionMessages: characterService?.completionMessages,
     originalCompletionMessagesPush:
       characterService?.originalCompletionMessagesPush,
+    registerReplyToolField: characterService?.registerReplyToolField,
+    registerReplyToolFieldDisposers:
+      characterService?.registerReplyToolFieldDisposers,
+    registerReplyToolFields: characterService?.registerReplyToolFields,
     injectHandlers,
     injectDisposers,
     triggerInjectHandlers,
@@ -276,6 +293,7 @@ function createBaseConfig(overrides: Partial<Config> = {}): Config {
     allowLeadingAtBeforeCommand: false,
     enableDeveloperDebugLog: false,
     enableMemeXmlTool: false,
+    injectMemeXmlToolAsReplyTool: false,
     enableRandomDedupeWithinHours: false,
     randomDedupeWindowHours: 24,
     enableRandomKeywordNotice: false,
@@ -801,32 +819,100 @@ describe("registerCommands", () => {
     );
   });
 
-  it("dispose 后应恢复原始 completionMessages.push", async () => {
+
+  it("开启 reply tool 注入且能力可用时应关闭 XML 动作执行", async () => {
     const {
       ctx,
       readyHandlers,
-      runDisposeHandlers,
       completionMessages,
-      originalCompletionMessagesPush,
+      registerReplyToolField,
+      registerReplyToolFields,
     } = createMockContext();
 
     registerCommands(
       ctx,
       createBaseConfig({
         enableMemeXmlTool: true,
+        injectMemeXmlToolAsReplyTool: true,
         enableDirectAliasWithoutPrefix: false,
       }),
     );
 
     await flushReadyHandlers(readyHandlers);
+    expect(registerReplyToolField).toHaveBeenCalledTimes(1);
+    expect(registerReplyToolFields?.map((field) => field.name)).toEqual([
+      "meme_generate",
+    ]);
+
     const session = createSession("ignored");
     await ctx.chatluna_character.getTemp(session);
 
-    expect(completionMessages.push).not.toBe(originalCompletionMessagesPush);
+    completionMessages.push({
+      role: "assistant",
+      content: '<meme key="qizhu" text="reply-tool-mode"/>',
+    });
+    await flushAsyncCycles();
+
+    expect(generateMock).not.toHaveBeenCalled();
+    expect(session.send).not.toHaveBeenCalled();
+  });
+
+  it("开启 reply tool 注入但能力不可用时应回退 XML 动作执行", async () => {
+    const { ctx, readyHandlers, completionMessages, loggerWarn } =
+      createMockContext();
+    delete ctx.chatluna_character.registerReplyToolField;
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableMemeXmlTool: true,
+        injectMemeXmlToolAsReplyTool: true,
+        enableDirectAliasWithoutPrefix: false,
+        enableDeveloperDebugLog: true,
+      }),
+    );
+
+    await flushReadyHandlers(readyHandlers);
+
+    const session = createSession("ignored");
+    await ctx.chatluna_character.getTemp(session);
+
+    completionMessages.push({
+      role: "assistant",
+      content: '<meme key="qizhu" text="fallback-xml"/>',
+    });
+    await flushAsyncCycles();
+
+    expect(generateMock).toHaveBeenCalled();
+    expect(session.send).toHaveBeenCalledTimes(1);
+    expect(loggerWarn).toHaveBeenCalledWith(
+      "chatluna_character.registerReplyToolField 不可用，回退为 XML 动作执行模式",
+    );
+  });
+
+  it("开启 reply tool 注入后 dispose 应注销 reply tool 字段", async () => {
+    const {
+      ctx,
+      readyHandlers,
+      runDisposeHandlers,
+      registerReplyToolFieldDisposers,
+    } = createMockContext();
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableMemeXmlTool: true,
+        injectMemeXmlToolAsReplyTool: true,
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+
+    await flushReadyHandlers(readyHandlers);
+    expect(registerReplyToolFieldDisposers).toHaveLength(1);
 
     runDisposeHandlers();
 
-    expect(completionMessages.push).toBe(originalCompletionMessagesPush);
+    expect(registerReplyToolFieldDisposers?.[0]).toHaveBeenCalledTimes(1);
   });
 
   it("命令映射缺失 meme.preview 时直触发中文别名仍会直接触发 meme 生成", async () => {

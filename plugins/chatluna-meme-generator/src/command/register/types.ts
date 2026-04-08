@@ -3,7 +3,7 @@
  * 收敛命令注册链路与 XML runtime 复用的上下文结构
  */
 
-import type { Context } from "koishi";
+import type { Context, Session } from "koishi";
 import type { MemeInfoResponse } from "../../types";
 
 export interface HttpLikeError {
@@ -58,8 +58,31 @@ export interface ChatlunaTempLike {
 
 export type MaybePromise<T> = T | Promise<T>;
 
+export interface CharacterReplyToolField {
+  name: string;
+  schema: Record<string, unknown>;
+  isAvailable?: (
+    ctx: Context,
+    session: Session,
+    config: unknown,
+  ) => boolean;
+  invoke?: (
+    ctx: Context,
+    session: Session,
+    value: unknown,
+    config: unknown,
+  ) => Promise<void> | void;
+  render?: (
+    ctx: Context,
+    session: Session,
+    value: unknown,
+    config: unknown,
+  ) => string | string[] | undefined;
+}
+
 export interface ChatlunaCharacterServiceLike {
   getTemp?: (...args: unknown[]) => MaybePromise<ChatlunaTempLike | undefined>;
+  registerReplyToolField?: (field: CharacterReplyToolField) => () => void;
 }
 
 export interface ContextWithChatlunaCharacter extends Context {

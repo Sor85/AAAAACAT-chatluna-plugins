@@ -10,7 +10,6 @@ import {
 } from "chatluna-xml-tools";
 import { h, type Context, type Session } from "koishi";
 import type { Config } from "../../config";
-import { downloadImage } from "../../utils/image";
 import {
   getBotAvatarImage,
   getSenderAvatarImage,
@@ -18,26 +17,64 @@ import {
   resolveAvatarImageByUserId,
   resolveDisplayNameByUserId,
 } from "../../utils/avatar";
+import { downloadImage } from "../../utils/image";
 import { extractXmlMemeToolCalls } from "../xml-tool-call";
+import type { PreparedAvatarImage, PreparedImages } from "./generate";
 import type {
   ChatlunaCompletionMessageLike,
   ChatlunaTempLike,
   ContextWithChatlunaCharacter,
 } from "./types";
-import type { PreparedImages } from "./generate";
 
-interface XmlGenerateInput {
+export interface XmlGenerateInput {
   texts: string[];
   images: PreparedImages;
-  senderAvatarImage?: Awaited<ReturnType<typeof getSenderAvatarImage>>;
+  senderAvatarImage?: PreparedAvatarImage;
   mentionedAvatarImages: PreparedImages;
   senderName?: string;
   groupNicknameText?: string;
 }
 
-interface XmlToolSendPayload {
+export interface XmlToolCallInput {
+  key: string;
+  texts: string[];
+  imageSources: string[];
+  atUserIds: string[];
+}
+
+export interface XmlToolSendPayload {
   memeKey: string;
   result: string | ReturnType<typeof h.image>;
+}
+
+export interface XmlMemeToolExecutorDeps {
+  ctx: Context;
+  config: Config;
+  ensureCategoryExcludedMemeKeySet: () => Promise<void>;
+  resolveMemeKey: (key: string) => Promise<string>;
+  isExcludedMemeKey: (key: string) => boolean;
+  handleGenerateWithPreparedInput: (
+    key: string,
+    texts: string[],
+    images: PreparedImages,
+    senderAvatarImage?: PreparedAvatarImage,
+    mentionedAvatarImages?: PreparedImages,
+    botAvatarImage?: PreparedAvatarImage,
+    senderName?: string,
+    groupNicknameText?: string,
+  ) => Promise<ReturnType<typeof h.image>>;
+  handleRuntimeError: (scope: string, error: unknown) => string;
+}
+
+export interface XmlMemeToolExecutor {
+  executeToolCall: (
+    session: Session,
+    toolCall: XmlToolCallInput,
+  ) => Promise<XmlToolSendPayload | null>;
+}
+
+export interface InstallXmlRuntimeControls {
+  shouldExecuteXmlActions?: () => boolean;
 }
 
 interface InstallXmlRuntimeOptions {
@@ -51,115 +88,140 @@ interface InstallXmlRuntimeOptions {
     key: string,
     texts: string[],
     images: PreparedImages,
-    senderAvatarImage?: Awaited<ReturnType<typeof getSenderAvatarImage>>,
+    senderAvatarImage?: PreparedAvatarImage,
     mentionedAvatarImages?: PreparedImages,
-    botAvatarImage?: Awaited<ReturnType<typeof getSenderAvatarImage>>,
+    botAvatarImage?: PreparedAvatarImage,
     senderName?: string,
     groupNicknameText?: string,
   ) => Promise<ReturnType<typeof h.image>>;
   handleRuntimeError: (scope: string, error: unknown) => string;
+  controls?: InstallXmlRuntimeControls;
 }
 
-type CharacterServiceLike = SharedCharacterServiceLike<ChatlunaTempLike & TempLike>;
+interface BuildXmlGenerateInputOptions {
+  ctx: Context;
+  config: Config;
+  session: Session;
+  pickedCall: XmlToolCallInput;
+}
 
-export function installXmlRuntime(options: InstallXmlRuntimeOptions): void {
+const DEFAULT_XML_RUNTIME_CONTROLS: Required<InstallXmlRuntimeControls> = {
+  shouldExecuteXmlActions: () => true,
+};
+
+function normalizeTrimmedStrings(items: readonly string[]): string[] {
+  return items
+    .map((item) => String(item ?? "").trim())
+    .filter((item) => item.length > 0);
+}
+
+function normalizeAtUserIds(items: readonly string[]): string[] {
+  const dedupe = new Set<string>();
+  const normalized: string[] = [];
+  for (const item of normalizeTrimmedStrings(items)) {
+    const userId = item.replace(/^@+/, "").trim();
+    if (!userId || dedupe.has(userId)) continue;
+    dedupe.add(userId);
+    normalized.push(userId);
+  }
+  return normalized;
+}
+
+function normalizeXmlToolCallInput(toolCall: XmlToolCallInput): XmlToolCallInput {
+  return {
+    key: String(toolCall.key ?? "").trim(),
+    texts: normalizeTrimmedStrings(toolCall.texts ?? []),
+    imageSources: normalizeTrimmedStrings(toolCall.imageSources ?? []),
+    atUserIds: normalizeAtUserIds(toolCall.atUserIds ?? []),
+  };
+}
+
+async function buildXmlGenerateInput(
+  options: BuildXmlGenerateInputOptions,
+): Promise<XmlGenerateInput> {
+  const { ctx, config, session, pickedCall } = options;
+  const senderName = getSenderDisplayName(session);
+  const preferredGuildId =
+    session.guildId && session.guildId !== "private" ? session.guildId : undefined;
+
+  const downloadedImages: PreparedImages = [];
+  for (let index = 0; index < pickedCall.imageSources.length; index += 1) {
+    const src = pickedCall.imageSources[index];
+    const image = await downloadImage(
+      ctx,
+      src,
+      config.timeoutMs,
+      `xml-image-${index + 1}`,
+    );
+    downloadedImages.push(image);
+  }
+
+  const mentionedAvatarImages: PreparedImages = [];
+  for (let index = 0; index < pickedCall.atUserIds.length; index += 1) {
+    const userId = pickedCall.atUserIds[index];
+    const avatar = await resolveAvatarImageByUserId(
+      ctx,
+      session,
+      userId,
+      config.timeoutMs,
+      preferredGuildId,
+      `xml-at-avatar-${index + 1}`,
+    );
+    if (!avatar) continue;
+    mentionedAvatarImages.push(avatar);
+  }
+
+  let targetDisplayName: string | undefined;
+  if (config.autoUseGroupNicknameWhenNoDefaultText && pickedCall.atUserIds.length > 0) {
+    targetDisplayName = await resolveDisplayNameByUserId(
+      session,
+      pickedCall.atUserIds[0],
+      preferredGuildId,
+    );
+  }
+
+  const senderAvatarImage = await getSenderAvatarImage(
+    ctx,
+    session,
+    config.timeoutMs,
+  );
+
+  return {
+    texts: pickedCall.texts,
+    images: downloadedImages,
+    senderAvatarImage,
+    mentionedAvatarImages,
+    senderName,
+    groupNicknameText: config.autoUseGroupNicknameWhenNoDefaultText
+      ? targetDisplayName || senderName
+      : undefined,
+  };
+}
+
+export function createXmlMemeToolExecutor(
+  deps: XmlMemeToolExecutorDeps,
+): XmlMemeToolExecutor {
   const {
     ctx,
     config,
-    logger,
     ensureCategoryExcludedMemeKeySet,
     resolveMemeKey,
     isExcludedMemeKey,
     handleGenerateWithPreparedInput,
     handleRuntimeError,
-  } = options;
+  } = deps;
 
-  const buildXmlGenerateInput = async (
+  const executeToolCall = async (
     session: Session,
-    pickedCall: {
-      texts: string[];
-      imageSources: string[];
-      atUserIds: string[];
-    },
-  ): Promise<XmlGenerateInput> => {
-    const senderName = getSenderDisplayName(session);
-    const preferredGuildId =
-      session.guildId && session.guildId !== "private"
-        ? session.guildId
-        : undefined;
-
-    const downloadedImages: PreparedImages = [];
-    for (let index = 0; index < pickedCall.imageSources.length; index += 1) {
-      const src = pickedCall.imageSources[index];
-      const image = await downloadImage(
-        ctx,
-        src,
-        config.timeoutMs,
-        `xml-image-${index + 1}`,
-      );
-      downloadedImages.push(image);
-    }
-
-    const mentionedAvatarImages: PreparedImages = [];
-    for (let index = 0; index < pickedCall.atUserIds.length; index += 1) {
-      const userId = pickedCall.atUserIds[index];
-      const avatar = await resolveAvatarImageByUserId(
-        ctx,
-        session,
-        userId,
-        config.timeoutMs,
-        preferredGuildId,
-        `xml-at-avatar-${index + 1}`,
-      );
-      if (!avatar) continue;
-      mentionedAvatarImages.push(avatar);
-    }
-
-    let targetDisplayName: string | undefined;
-    if (
-      config.autoUseGroupNicknameWhenNoDefaultText &&
-      pickedCall.atUserIds.length > 0
-    ) {
-      targetDisplayName = await resolveDisplayNameByUserId(
-        session,
-        pickedCall.atUserIds[0],
-        preferredGuildId,
-      );
-    }
-
-    const senderAvatarImage = await getSenderAvatarImage(
-      ctx,
-      session,
-      config.timeoutMs,
-    );
-
-    return {
-      texts: pickedCall.texts,
-      images: downloadedImages,
-      senderAvatarImage,
-      mentionedAvatarImages,
-      senderName,
-      groupNicknameText: config.autoUseGroupNicknameWhenNoDefaultText
-        ? targetDisplayName || senderName
-        : undefined,
-    };
-  };
-
-  const handleXmlMemeToolCall = async (
-    session: Session,
-    content: string,
+    toolCall: XmlToolCallInput,
   ): Promise<XmlToolSendPayload | null> => {
-    if (!content) return null;
+    const normalized = normalizeXmlToolCallInput(toolCall);
+    if (!normalized.key) return null;
 
-    const toolCalls = extractXmlMemeToolCalls(content);
-    if (toolCalls.length === 0) return null;
-
-    const pickedCall = toolCalls[0];
-    let resolvedKey = pickedCall.key;
-
+    let resolvedKey = normalized.key;
     try {
       await ensureCategoryExcludedMemeKeySet();
-      resolvedKey = await resolveMemeKey(pickedCall.key);
+      resolvedKey = await resolveMemeKey(normalized.key);
       if (isExcludedMemeKey(resolvedKey)) {
         return {
           memeKey: resolvedKey,
@@ -167,7 +229,12 @@ export function installXmlRuntime(options: InstallXmlRuntimeOptions): void {
         };
       }
 
-      const xmlInput = await buildXmlGenerateInput(session, pickedCall);
+      const xmlInput = await buildXmlGenerateInput({
+        ctx,
+        config,
+        session,
+        pickedCall: normalized,
+      });
       const botAvatarImage = await getBotAvatarImage(
         ctx,
         session,
@@ -195,14 +262,52 @@ export function installXmlRuntime(options: InstallXmlRuntimeOptions): void {
     }
   };
 
+  return {
+    executeToolCall,
+  };
+}
+
+type CharacterServiceLike = SharedCharacterServiceLike<ChatlunaTempLike & TempLike>;
+
+export function installXmlRuntime(options: InstallXmlRuntimeOptions): void {
+  const {
+    ctx,
+    config,
+    logger,
+    ensureCategoryExcludedMemeKeySet,
+    resolveMemeKey,
+    isExcludedMemeKey,
+    handleGenerateWithPreparedInput,
+    handleRuntimeError,
+  } = options;
+  const controls = {
+    ...DEFAULT_XML_RUNTIME_CONTROLS,
+    ...(options.controls || {}),
+  };
+
+  const executor = createXmlMemeToolExecutor({
+    ctx,
+    config,
+    ensureCategoryExcludedMemeKeySet,
+    resolveMemeKey,
+    isExcludedMemeKey,
+    handleGenerateWithPreparedInput,
+    handleRuntimeError,
+  });
+
   const dispatchXmlToolCall = async (
     session: Session | null,
     content: string,
   ): Promise<void> => {
     if (!session || !content) return;
+    if (!controls.shouldExecuteXmlActions()) return;
+
     try {
-      const payload = await handleXmlMemeToolCall(session, content);
+      const toolCalls = extractXmlMemeToolCalls(content);
+      if (toolCalls.length === 0) return;
+      const payload = await executor.executeToolCall(session, toolCalls[0]);
       if (!payload) return;
+
       await session.send(payload.result);
       logger.info(
         "meme=%s, user=%s, guild=%s",
@@ -228,9 +333,7 @@ export function installXmlRuntime(options: InstallXmlRuntimeOptions): void {
     symbolNamespace: "chatluna-meme-generator",
     getMessages: (temp) => temp?.completionMessages,
     resolveSession: (args) =>
-      args[0] && typeof args[0] === "object"
-        ? (args[0] as Session)
-        : null,
+      args[0] && typeof args[0] === "object" ? (args[0] as Session) : null,
     onResponse: ({ response, session }) => {
       void dispatchXmlToolCall(session, response);
     },

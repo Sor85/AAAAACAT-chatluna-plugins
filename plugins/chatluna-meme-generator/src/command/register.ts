@@ -28,9 +28,19 @@ import {
   type PreparedAvatarImage,
   type PreparedImages,
 } from "./register/generate";
-import type { ContextWithOptionalServices } from "./register/types";
+import {
+  hasReplyToolsEnabled,
+  registerCharacterReplyTools,
+} from "./register/reply-tools";
+import type {
+  ChatlunaCharacterServiceLike,
+  ContextWithOptionalServices,
+} from "./register/types";
 import { installDirectAliasRuntime } from "./register/direct-alias-runtime";
-import { installXmlRuntime } from "./register/xml-runtime";
+import {
+  createXmlMemeToolExecutor,
+  installXmlRuntime,
+} from "./register/xml-runtime";
 import { installRandomRuntime } from "./register/random-poke-runtime";
 
 interface LeadingAtCommandParts {
@@ -424,6 +434,43 @@ export function registerCommands(ctx: Context, config: Config): void {
     return filterExcludedMemeKeys(keys, mergedExcludedMemeKeySet());
   };
 
+  const xmlExecutor = createXmlMemeToolExecutor({
+    ctx,
+    config,
+    ensureCategoryExcludedMemeKeySet,
+    resolveMemeKey,
+    isExcludedMemeKey: isExcludedFromMergedSet,
+    handleGenerateWithPreparedInput: async (
+      key: string,
+      texts: string[],
+      images: PreparedImages,
+      senderAvatarImage?: PreparedAvatarImage,
+      mentionedAvatarImages?: PreparedImages,
+      botAvatarImage?: PreparedAvatarImage,
+      senderName?: string,
+      groupNicknameText?: string,
+    ) => {
+      return await handleGenerateWithPreparedInput(
+        client,
+        config,
+        key,
+        texts,
+        images,
+        senderAvatarImage,
+        mentionedAvatarImages,
+        botAvatarImage,
+        senderName,
+        groupNicknameText,
+      );
+    },
+    handleRuntimeError,
+  });
+
+  let xmlActionExecutionEnabled = true;
+  let replyToolsDispose: (() => void) | null = null;
+  let replyToolsBoundService: ChatlunaCharacterServiceLike | null = null;
+  const enableReplyTools = hasReplyToolsEnabled(config);
+
   if (config.enableMemeXmlTool) {
     installXmlRuntime({
       ctx,
@@ -456,8 +503,87 @@ export function registerCommands(ctx: Context, config: Config): void {
         );
       },
       handleRuntimeError,
+      controls: {
+        shouldExecuteXmlActions: () => xmlActionExecutionEnabled,
+      },
     });
   }
+
+  const bindReplyTools = (bindCtx: Context): void => {
+    const characterService = (bindCtx as {
+      chatluna_character?: ChatlunaCharacterServiceLike;
+    }).chatluna_character;
+
+    if (!enableReplyTools) {
+      replyToolsDispose?.();
+      replyToolsDispose = null;
+      replyToolsBoundService = null;
+      xmlActionExecutionEnabled = true;
+      return;
+    }
+
+    if (characterService && characterService === replyToolsBoundService && replyToolsDispose) {
+      return;
+    }
+
+    replyToolsDispose?.();
+    replyToolsDispose = null;
+    replyToolsBoundService = null;
+    xmlActionExecutionEnabled = true;
+
+    if (characterService?.registerReplyToolField) {
+      replyToolsDispose = registerCharacterReplyTools({
+        ctx: bindCtx,
+        config,
+        logger,
+        executeToolCall: xmlExecutor.executeToolCall,
+      });
+      replyToolsBoundService = characterService;
+      xmlActionExecutionEnabled = false;
+      if (config.enableDeveloperDebugLog) {
+        logger.info("已启用实验性 reply tool 字段注入，关闭 XML 动作执行");
+      }
+      return;
+    }
+
+    if (config.enableDeveloperDebugLog) {
+      logger.warn(
+        "chatluna_character.registerReplyToolField 不可用，回退为 XML 动作执行模式",
+      );
+    }
+  };
+
+
+  if (enableReplyTools) {
+    bindReplyTools(ctx);
+  }
+
+  if (typeof ctx.inject === "function") {
+    ctx.inject(["chatluna_character"], (innerCtx) => {
+      bindReplyTools(innerCtx);
+      const innerCharacterService = (innerCtx as {
+        chatluna_character?: ChatlunaCharacterServiceLike;
+      }).chatluna_character;
+      innerCtx.on("dispose", () => {
+        if (
+          innerCharacterService &&
+          innerCharacterService === replyToolsBoundService
+        ) {
+          replyToolsDispose?.();
+          replyToolsDispose = null;
+          replyToolsBoundService = null;
+          xmlActionExecutionEnabled = true;
+        }
+      });
+    });
+  }
+
+  ctx.on("dispose", () => {
+    replyToolsDispose?.();
+    replyToolsDispose = null;
+    replyToolsBoundService = null;
+    xmlActionExecutionEnabled = true;
+  });
 
   if (config.enableDirectAliasWithoutPrefix) {
     installDirectAliasRuntime({
