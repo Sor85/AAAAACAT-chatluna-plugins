@@ -87,8 +87,21 @@ export const defaultConfig: Config = {
   enableDeveloperDebugLog: false,
   enableMemeXmlTool: false,
   injectMemeXmlToolAsReplyTool: false,
-  memeXmlReferencePrompt:
-    '可用 XML 工具调用格式：<meme key="memekey" text="text1|text2" image="url1|url2" at="userid1|userid2"/>\n支持参数：key、text、image、at\n示例：<meme key="can_can_need" at="123456"/>\n如果缺少参数，会按预设的补全设置自动补全',
+  memeXmlReferencePrompt: `## 动作指令
+你可以根据需要在模型回复中输出一个独立的 <actions> 元素。它用于执行非语言的系统指令。如果不需要执行任何动作，请省略此元素。
+- meme: \`<meme key="" text="" image="" at=""/>\`
+  - 固定用法
+    - <meme key="can_can_need" at="{bot_id}|目标用户 ID"/> ## 看看你的，调侃用户时使用
+    - <meme key="erciyuan" at="目标用户 ID"/> ## 嘲笑二次元
+    - <meme key="turtle_jue" at="{bot_id}|目标用户 ID"/> ## 撅，当用户惹你生气时使用
+    - <meme key="hug" at="{bot_id}|目标用户 ID"/> ## 抱抱
+    - <meme key="taunt" at="目标用户 ID"/> ## 嘲讽用户
+    - <meme key="crawl" at="目标用户 ID"/> ## 爬，让用户爬
+    - <meme key="kiss" at="{bot_id}|目标用户 ID"/> ## 亲亲
+  - 要求:
+    - 必须按固定用法的 at 顺序使用，不能颠倒
+  - 适用场景:
+    - 作为表情包的补充，使用 meme 时不要额外发送表情包`,
   enableRandomDedupeWithinHours: true,
   randomDedupeWindowHours: 24,
   enableRandomKeywordNotice: true,
@@ -217,11 +230,11 @@ const triggerSchema = Schema.object({
     .description("是否启用 XML 形式的 meme 工具调用"),
   injectMemeXmlToolAsReplyTool: Schema.boolean()
     .default(defaultConfig.injectMemeXmlToolAsReplyTool)
-    .description("是否将 XML meme 工具注入实验性工具调用回复参数"),
+    .description("是否将 XML 工具改为注入实验性工具调用回复"),
   memeXmlReferencePrompt: Schema.string()
     .role("textarea")
     .default(defaultConfig.memeXmlReferencePrompt || "")
-    .description("参考提示词"),
+    .description("模型回复 XML 参考提示词，自行写入提示词中，不会自动注入，将 {bot_id} 替换为 bot 的实际 id。text、image、at 支持多个参数，参数之间使用“|”隔开，如果缺少参数，会按预设的补全设置自动补全；若开启“将 XML 工具改为注入实验性工具调用回复”，则只需提供必要参数"),
 }).description("触发方式设置");
 
 const filterSchema = Schema.object({

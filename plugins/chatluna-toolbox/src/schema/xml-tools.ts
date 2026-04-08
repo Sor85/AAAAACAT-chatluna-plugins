@@ -70,5 +70,5 @@ export const XmlToolsSchema = Schema.object({
   referencePrompt: Schema.string()
     .role("textarea")
     .default(DEFAULT_XML_REFERENCE_PROMPT)
-    .description("模型回复 XML 参考提示词，自行写入提示词中，不会自动注入"),
+    .description("模型回复 XML 参考提示词，自行写入提示词中，不会自动注入；若开启“将 XML 工具改为注入实验性工具调用回复”，则无需增加额外提示词"),
 }).description("XML 工具");

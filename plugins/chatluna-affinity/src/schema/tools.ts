@@ -73,7 +73,7 @@ export const XmlToolSettingsSchema = Schema.object({
   </actions>
 \`\`\``,
     )
-    .description("参考提示词，使用前请手动将 {scopeId} 替换为你的实际 scopeId")
+    .description("模型回复 XML 参考提示词，将 {scopeId} 替换为实际 scopeId，并自行写入提示词中，不会自动注入；若开启“将 XML 工具改为注入实验性工具调用回复”，则只需在提示词中告知 AI 你的 scopeId")
     .collapse(),
 }).description("XML 工具设置");
 

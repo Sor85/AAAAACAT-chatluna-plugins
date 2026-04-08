@@ -186,7 +186,7 @@ export function registerCharacterReplyTools(deps: RegisterDeps): () => void {
         name: "affinity_affinity",
         schema: {
           type: "array",
-          description: "更新一个或多个用户的好感度动作。",
+          description: "更新一个或多个用户的好感度。",
           items: {
             type: "object",
             properties: {
@@ -269,7 +269,7 @@ export function registerCharacterReplyTools(deps: RegisterDeps): () => void {
         name: "affinity_blacklist",
         schema: {
           type: "array",
-          description: "新增或移除一个或多个黑名单动作。",
+          description: "新增或移除一个或多个黑名单。",
           items: {
             type: "object",
             properties: {
