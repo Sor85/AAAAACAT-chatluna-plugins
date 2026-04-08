@@ -45,14 +45,31 @@ export function isUrlContextToolEnabled(config: Config): boolean {
   return isToolRegistrationEnabled(config) && config.enableUrlContextTool;
 }
 
-const GEMINI_TOOL_DEFAULT_AVAILABILITY = {
+interface GeminiToolDefaultAvailability {
+  enabled: true;
+  main: true;
+  chatluna: true;
+  characterScope: "all";
+}
+
+interface GeminiToolMeta {
+  source: "extension";
+  group: string;
+  tags: string[];
+  defaultAvailability: GeminiToolDefaultAvailability;
+}
+
+const GEMINI_TOOL_DEFAULT_AVAILABILITY: GeminiToolDefaultAvailability = {
   enabled: true,
   main: true,
   chatluna: true,
   characterScope: "all",
-} as const;
+};
 
-function createGeminiToolMeta(group: string, tags: string[]) {
+function createGeminiToolMeta(
+  group: string,
+  tags: string[],
+): GeminiToolMeta {
   return {
     source: "extension",
     group,
@@ -102,17 +119,19 @@ function buildUrlContextRegistration(
 export function apply(ctx: Context, config: Config): void {
   modelSchema(ctx);
 
-  ctx.inject(["console"], (innerCtx) => {
-    const consoleService = (
-      innerCtx as unknown as {
-        console?: { addEntry?: (entry: unknown) => void };
-      }
-    ).console;
-    consoleService?.addEntry?.({
-      dev: path.resolve(__dirname, "../client/index.ts"),
-      prod: path.resolve(__dirname, "../dist"),
+  if (typeof ctx.inject === "function") {
+    ctx.inject(["console"], (innerCtx) => {
+      const consoleService = (
+        innerCtx as unknown as {
+          console?: { addEntry?: (entry: unknown) => void };
+        }
+      ).console;
+      consoleService?.addEntry?.({
+        dev: path.resolve(__dirname, "../client/index.ts"),
+        prod: path.resolve(__dirname, "../dist"),
+      });
     });
-  });
+  }
 
   const plugin = new ChatLunaPlugin(
     ctx,
