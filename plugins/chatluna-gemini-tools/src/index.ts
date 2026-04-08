@@ -2,6 +2,7 @@
  * 插件入口
  * 注册 Gemini Google Search 与 URL Context 到 ChatLuna 工具系统
  */
+import * as path from "path";
 import type {} from "koishi-plugin-chatluna/services/chat";
 import type { ChatLunaTool } from "koishi-plugin-chatluna/llm-core/platform/types";
 import { modelSchema } from "koishi-plugin-chatluna/utils/schema";
@@ -100,6 +101,18 @@ function buildUrlContextRegistration(
 
 export function apply(ctx: Context, config: Config): void {
   modelSchema(ctx);
+
+  ctx.inject(["console"], (innerCtx) => {
+    const consoleService = (
+      innerCtx as unknown as {
+        console?: { addEntry?: (entry: unknown) => void };
+      }
+    ).console;
+    consoleService?.addEntry?.({
+      dev: path.resolve(__dirname, "../client/index.ts"),
+      prod: path.resolve(__dirname, "../dist"),
+    });
+  });
 
   const plugin = new ChatLunaPlugin(
     ctx,

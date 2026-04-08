@@ -5,7 +5,9 @@
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "files": [
-    "lib"
+    "lib",
+    "dist",
+    "client"
   ],
   "license": "MIT",
   "homepage": "https://github.com/Sor85/koishi-plugins",
@@ -14,7 +16,7 @@
     "url": "https://github.com/Sor85/koishi-plugins.git"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && vite build",
     "watch": "tsup --watch",
     "typecheck": "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit",
     "test": "vitest run"
@@ -28,10 +30,14 @@
   "peerDependencies": {
     "koishi": "^4.18.7",
     "koishi-plugin-chatluna": "*",
-    "koishi-plugin-chatluna-character": "*"
+    "koishi-plugin-chatluna-character": "*",
+    "@koishijs/plugin-console": "^5.30.0"
   },
   "peerDependenciesMeta": {
     "koishi-plugin-chatluna-character": {
+      "optional": true
+    },
+    "@koishijs/plugin-console": {
       "optional": true
     }
   },
@@ -40,10 +46,15 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@koishijs/client": "^5.30.0",
     "@types/node": "^22.10.1",
+    "@vitejs/plugin-vue": "^6.0.2",
     "chatluna-xml-tools": "workspace:*",
+    "sass": "^1.77.0",
+    "shared-nav": "workspace:*",
     "tsup": "^8.0.0",
     "typescript": "^5.7.2",
+    "vite": "^6.0.0",
     "vitest": "^3.2.4"
   }
 }

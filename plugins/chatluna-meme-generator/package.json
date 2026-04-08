@@ -6,10 +6,12 @@
   "types": "lib/index.d.ts",
   "files": [
     "lib",
+    "dist",
+    "client",
     "README.md"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && vite build",
     "watch": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
@@ -27,14 +29,25 @@
   },
   "dependencies": {},
   "peerDependencies": {
-    "koishi": "^4.18.7"
+    "koishi": "^4.18.7",
+    "@koishijs/plugin-console": "^5.30.0"
+  },
+  "peerDependenciesMeta": {
+    "@koishijs/plugin-console": {
+      "optional": true
+    }
   },
   "devDependencies": {
+    "@koishijs/client": "^5.30.0",
     "@types/node": "^22.10.1",
+    "@vitejs/plugin-vue": "^6.0.2",
     "chatluna-xml-tools": "workspace:*",
     "koishi": "^4.18.7",
+    "sass": "^1.77.0",
+    "shared-nav": "workspace:*",
     "tsup": "^8.0.0",
     "typescript": "^5.7.2",
+    "vite": "^6.0.0",
     "vitest": "^3.2.4"
   },
   "koishi": {

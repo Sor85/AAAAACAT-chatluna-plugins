@@ -3,6 +3,7 @@
  * 负责初始化服务、注册命令与生命周期清理
  */
 
+import * as path from "path";
 import type { Context } from "koishi";
 import { ChatLunaPlugin } from "koishi-plugin-chatluna/services/chat";
 import { getMessageContent } from "koishi-plugin-chatluna/utils/string";
@@ -183,6 +184,18 @@ function createRuntime(ctx: Context, config: Config): PluginRuntime {
 }
 
 export function apply(ctx: Context, config: Config): void {
+  ctx.inject(["console"], (innerCtx) => {
+    const consoleService = (
+      innerCtx as unknown as {
+        console?: { addEntry?: (entry: unknown) => void };
+      }
+    ).console;
+    consoleService?.addEntry?.({
+      dev: path.resolve(__dirname, "../client/index.ts"),
+      prod: path.resolve(__dirname, "../dist"),
+    });
+  });
+
   const runtime = createRuntime(ctx, config);
   ctx.on("dispose", () => {
     runtime.dispose();

@@ -27,6 +27,24 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0)
 
+  packages/shared-nav:
+    devDependencies:
+      '@vitejs/plugin-vue':
+        specifier: ^6.0.2
+        version: 6.0.5(vite@6.4.1(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0))(vue@3.5.31(typescript@5.9.3))
+      sass:
+        specifier: ^1.77.0
+        version: 1.98.0
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.1(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0)
+      vue:
+        specifier: ^3.5.21
+        version: 3.5.31(typescript@5.9.3)
+
   packages/tsconfig: {}
 
   plugins/chatluna-affinity:
@@ -65,6 +83,9 @@ importers:
       sass:
         specifier: ^1.77.0
         version: 1.98.0
+      shared-nav:
+        specifier: workspace:*
+        version: link:../../packages/shared-nav
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.8)(tsx@4.21.0)(typescript@5.9.3)
@@ -77,6 +98,9 @@ importers:
 
   plugins/chatluna-gemini-tools:
     dependencies:
+      '@koishijs/plugin-console':
+        specifier: ^5.30.0
+        version: 5.30.11(@koishijs/client@5.30.11(@types/node@22.19.15)(postcss@8.5.8)(rollup@4.60.0)(typescript@5.9.3))(koishi@4.18.11(@cordisjs/plugin-http@0.6.3(cordis@3.18.1))(cordis@3.18.1))
       '@langchain/core':
         specifier: ^0.3.62
         version: 0.3.80
@@ -90,42 +114,79 @@ importers:
         specifier: ^3.25.76
         version: 3.25.76
     devDependencies:
+      '@koishijs/client':
+        specifier: ^5.30.0
+        version: 5.30.11(@types/node@22.19.15)(postcss@8.5.8)(rollup@4.60.0)(typescript@5.9.3)
       '@types/node':
         specifier: ^22.10.1
         version: 22.19.15
+      '@vitejs/plugin-vue':
+        specifier: ^6.0.2
+        version: 6.0.5(vite@6.4.1(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0))(vue@3.5.31(typescript@5.9.3))
+      sass:
+        specifier: ^1.77.0
+        version: 1.98.0
+      shared-nav:
+        specifier: workspace:*
+        version: link:../../packages/shared-nav
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.8)(tsx@4.21.0)(typescript@5.9.3)
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.1(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0)
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0)
 
   plugins/chatluna-meme-generator:
+    dependencies:
+      '@koishijs/plugin-console':
+        specifier: ^5.30.0
+        version: 5.30.11(@koishijs/client@5.30.11(@types/node@22.19.15)(postcss@8.5.8)(rollup@4.60.0)(typescript@5.9.3))(koishi@4.18.11(@cordisjs/plugin-http@0.6.3(cordis@3.18.1))(cordis@3.18.1))
     devDependencies:
+      '@koishijs/client':
+        specifier: ^5.30.0
+        version: 5.30.11(@types/node@22.19.15)(postcss@8.5.8)(rollup@4.60.0)(typescript@5.9.3)
       '@types/node':
         specifier: ^22.10.1
         version: 22.19.15
+      '@vitejs/plugin-vue':
+        specifier: ^6.0.2
+        version: 6.0.5(vite@6.4.1(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0))(vue@3.5.31(typescript@5.9.3))
       chatluna-xml-tools:
         specifier: workspace:*
         version: link:../../packages/chatluna-xml-tools
       koishi:
         specifier: ^4.18.7
         version: 4.18.11(@cordisjs/plugin-http@0.6.3(cordis@3.18.1))(cordis@3.18.1)
+      sass:
+        specifier: ^1.77.0
+        version: 1.98.0
+      shared-nav:
+        specifier: workspace:*
+        version: link:../../packages/shared-nav
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.8)(tsx@4.21.0)(typescript@5.9.3)
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.1(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0)
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0)
 
   plugins/chatluna-schedule:
     dependencies:
+      '@koishijs/plugin-console':
+        specifier: ^5.30.0
+        version: 5.30.11(@koishijs/client@5.30.11(@types/node@22.19.15)(postcss@8.5.8)(rollup@4.60.0)(typescript@5.9.3))(koishi@4.18.11(@cordisjs/plugin-http@0.6.3(cordis@3.18.1))(cordis@3.18.1))
       '@langchain/core':
         specifier: ^0.3.62
         version: 0.3.80
@@ -136,24 +197,42 @@ importers:
         specifier: ^3.25.76
         version: 3.25.76
     devDependencies:
+      '@koishijs/client':
+        specifier: ^5.30.0
+        version: 5.30.11(@types/node@22.19.15)(postcss@8.5.8)(rollup@4.60.0)(typescript@5.9.3)
       '@types/node':
         specifier: ^22.10.1
         version: 22.19.15
+      '@vitejs/plugin-vue':
+        specifier: ^6.0.2
+        version: 6.0.5(vite@6.4.1(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0))(vue@3.5.31(typescript@5.9.3))
       koishi:
         specifier: ^4.18.7
         version: 4.18.11(@cordisjs/plugin-http@0.6.3(cordis@3.18.1))(cordis@3.18.1)
+      sass:
+        specifier: ^1.77.0
+        version: 1.98.0
+      shared-nav:
+        specifier: workspace:*
+        version: link:../../packages/shared-nav
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.8)(tsx@4.21.0)(typescript@5.9.3)
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.1(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0)
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0)
 
   plugins/chatluna-toolbox:
     dependencies:
+      '@koishijs/plugin-console':
+        specifier: ^5.30.0
+        version: 5.30.11(@koishijs/client@5.30.11(@types/node@22.19.15)(postcss@8.5.8)(rollup@4.60.0)(typescript@5.9.3))(koishi@4.18.11(@cordisjs/plugin-http@0.6.3(cordis@3.18.1))(cordis@3.18.1))
       '@langchain/core':
         specifier: ^0.3.62
         version: 0.3.80
@@ -170,18 +249,33 @@ importers:
         specifier: ^3.25.76
         version: 3.25.76
     devDependencies:
+      '@koishijs/client':
+        specifier: ^5.30.0
+        version: 5.30.11(@types/node@22.19.15)(postcss@8.5.8)(rollup@4.60.0)(typescript@5.9.3)
       '@types/node':
         specifier: ^22.10.1
         version: 22.19.15
+      '@vitejs/plugin-vue':
+        specifier: ^6.0.2
+        version: 6.0.5(vite@6.4.1(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0))(vue@3.5.31(typescript@5.9.3))
       chatluna-xml-tools:
         specifier: workspace:*
         version: link:../../packages/chatluna-xml-tools
+      sass:
+        specifier: ^1.77.0
+        version: 1.98.0
+      shared-nav:
+        specifier: workspace:*
+        version: link:../../packages/shared-nav
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.8)(tsx@4.21.0)(typescript@5.9.3)
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.1(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0)
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0)
@@ -1538,8 +1632,8 @@ packages:
     resolution: {integrity: sha512-Ceh+7ox5qe7LJuLHoY0feh3pHuUDHAcRUeyL2VYghZwfpkNIy/+8Ocg0a3UuSoYzavmylwuLWQOf3hl0jjMMIw==}
     engines: {node: '>=8'}
 
-  brace-expansion@2.0.2:
-    resolution: {integrity: sha512-Jt0vHyM+jmUBqojB7E1NIYadt0vI0Qxjxd2TErW94wDz+E2LAm5vKMXXwg6ZZBTHPuUlDgQHKXvjGBdfcF1ZDQ==}
+  brace-expansion@2.0.3:
+    resolution: {integrity: sha512-MCV/fYJEbqx68aE58kv2cA/kiky1G8vux3OR6/jbS+jIMe/6fJWa0DTzJU7dqijOWYwHi1t29FlfYI9uytqlpA==}
 
   braces@3.0.3:
     resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
@@ -4497,7 +4591,7 @@ snapshots:
 
   binary-extensions@2.3.0: {}
 
-  brace-expansion@2.0.2:
+  brace-expansion@2.0.3:
     dependencies:
       balanced-match: 1.0.2
 
@@ -5364,7 +5458,7 @@ snapshots:
 
   minimatch@9.0.9:
     dependencies:
-      brace-expansion: 2.0.2
+      brace-expansion: 2.0.3
 
   minipass@7.1.3: {}
 

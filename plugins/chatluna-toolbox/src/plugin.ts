@@ -3,6 +3,7 @@
  * 编排变量、原生工具与 XML 工具生命周期
  */
 
+import * as path from "path";
 import { Context } from "koishi";
 import type { Config } from "./types";
 import { createLogger } from "./helpers";
@@ -18,6 +19,18 @@ import { registerXmlTools } from "./features/xml-tools/register";
 import { registerVariables } from "./features/variables/register";
 
 export function apply(ctx: Context, config: Config): void {
+  ctx.inject(["console"], (innerCtx) => {
+    const consoleService = (
+      innerCtx as unknown as {
+        console?: { addEntry?: (entry: unknown) => void };
+      }
+    ).console;
+    consoleService?.addEntry?.({
+      dev: path.resolve(__dirname, "../client/index.ts"),
+      prod: path.resolve(__dirname, "../dist"),
+    });
+  });
+
   const chatlunaService = (
     ctx as unknown as {
       chatluna?: {

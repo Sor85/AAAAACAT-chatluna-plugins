@@ -3,6 +3,7 @@
  * 负责声明插件信息、配置模型与命令注册
  */
 
+import * as path from "path";
 import type { Context } from "koishi";
 import {
   ConfigSchema,
@@ -25,6 +26,18 @@ export function apply(ctx: Context, config: PluginConfig): void {
     ...defaultConfig,
     ...config,
   };
+
+  ctx.inject(["console"], (innerCtx) => {
+    const consoleService = (
+      innerCtx as unknown as {
+        console?: { addEntry?: (entry: unknown) => void };
+      }
+    ).console;
+    consoleService?.addEntry?.({
+      dev: path.resolve(__dirname, "../client/index.ts"),
+      prod: path.resolve(__dirname, "../dist"),
+    });
+  });
 
   registerCommands(ctx, mergedConfig);
 }
