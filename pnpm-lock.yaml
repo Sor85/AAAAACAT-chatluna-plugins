@@ -239,13 +239,13 @@ importers:
       koishi-plugin-chatluna-character:
         specifier: '*'
         version: 0.0.205(@koishijs/plugin-console@5.30.11(@koishijs/client@5.30.11(@types/node@22.19.15)(postcss@8.5.8)(rollup@4.60.0)(typescript@5.9.3))(koishi@4.18.11(@cordisjs/plugin-http@0.6.3(cordis@3.18.1))(cordis@3.18.1)))(koishi-plugin-chatluna@1.3.35(koishi@4.18.11(@cordisjs/plugin-http@0.6.3(cordis@3.18.1))(cordis@3.18.1)))(koishi@4.18.11(@cordisjs/plugin-http@0.6.3(cordis@3.18.1))(cordis@3.18.1))
-      shared-chatluna-xmltools:
-        specifier: workspace:*
-        version: link:../../packages/shared-chatluna-xmltools
     devDependencies:
       '@types/node':
         specifier: ^22.10.1
         version: 22.19.15
+      shared-chatluna-xmltools:
+        specifier: workspace:*
+        version: link:../../packages/shared-chatluna-xmltools
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.8)(tsx@4.21.0)(typescript@5.9.3)
