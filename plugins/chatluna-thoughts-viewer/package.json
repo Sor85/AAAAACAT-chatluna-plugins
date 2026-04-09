@@ -1,0 +1,51 @@
+{
+  "name": "koishi-plugin-chatluna-thoughts-viewer",
+  "description": "提取 chatluna-character 模型输出中的 think 标签，并通过指令展示内容。",
+  "version": "0.0.1",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/Sor85/koishi-plugins",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sor85/koishi-plugins.git"
+  },
+  "koishi": {
+    "service": {
+      "required": ["chatluna"],
+      "optional": ["chatluna_character"]
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "watch": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "chatluna"
+  ],
+  "peerDependencies": {
+    "koishi": "^4.18.7",
+    "koishi-plugin-chatluna": "*",
+    "koishi-plugin-chatluna-character": "*"
+  },
+  "peerDependenciesMeta": {
+    "koishi-plugin-chatluna-character": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "shared-chatluna-xmltools": "workspace:*",
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.4"
+  }
+}
