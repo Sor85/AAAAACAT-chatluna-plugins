@@ -21,10 +21,10 @@
     "koishi",
     "plugin"
   ],
-  "homepage": "https://github.com/Sor85/koishi-plugins",
+  "homepage": "https://github.com/Sor85/AAAAACAT-chatluna-plugins",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Sor85/koishi-plugins.git"
+    "url": "https://github.com/Sor85/AAAAACAT-chatluna-plugins.git"
   },
   "dependencies": {},
   "peerDependencies": {
