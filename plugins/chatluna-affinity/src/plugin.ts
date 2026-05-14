@@ -84,6 +84,11 @@ function normalizeToolSettings(config: Config): void {
       (config as unknown as { affinityVariableName?: string })
         .affinityVariableName ||
       "affinity",
+    showChatCountInAffinityVariable:
+      config.variableSettings?.showChatCountInAffinityVariable ??
+      (config as unknown as { showChatCountInAffinityVariable?: boolean })
+        .showChatCountInAffinityVariable ??
+      true,
     relationshipLevelVariableName:
       config.variableSettings?.relationshipLevelVariableName ||
       (config as unknown as { relationshipLevelVariableName?: string })

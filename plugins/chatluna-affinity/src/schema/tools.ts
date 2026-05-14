@@ -81,8 +81,11 @@ export const VariableSettingsSchema = Schema.object({
   affinityVariableName: Schema.string()
     .default("affinity")
     .description(
-      '好感度变量名称，调用示例：{affinity("scopeId")}，请将 scopeId 替换为你设定的实际 scopeId。返回格式为文本行，包含 id、name、nickname、affinity、relationship；当展示范围大于 1 时会返回多行。',
+      '好感度变量名称，调用示例：{affinity("scopeId")}，请将 scopeId 替换为你设定的实际 scopeId。返回格式为文本行，包含 id、name、nickname、affinity、relationship、chatcount；当展示范围大于 1 时会返回多行。',
     ),
+  showChatCountInAffinityVariable: Schema.boolean()
+    .default(true)
+    .description("在好感度变量中显示对话次数 chatcount"),
   affinityDisplayRange: Schema.number()
     .default(1)
     .min(1)

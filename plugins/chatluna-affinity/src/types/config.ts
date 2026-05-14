@@ -49,6 +49,7 @@ export interface ManualRelationship {
 
 export interface VariableSettings {
   affinityVariableName: string;
+  showChatCountInAffinityVariable: boolean;
   relationshipLevelVariableName: string;
   blacklistListVariableName: string;
 }

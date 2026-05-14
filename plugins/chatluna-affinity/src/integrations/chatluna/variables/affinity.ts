@@ -15,6 +15,7 @@ interface AffinityVariableRow {
   nickname: string;
   affinity: number;
   relationship: string;
+  chatCount: number;
 }
 
 interface ProviderConfigurable {
@@ -59,6 +60,9 @@ export function createAffinityProvider(deps: AffinityProviderDeps) {
       row.nickname ? `nickname:${row.nickname}` : "",
       `affinity:${row.affinity}`,
       `relationship:${row.relationship}`,
+      config.variableSettings.showChatCountInAffinityVariable
+        ? `chatcount:${row.chatCount}`
+        : "",
     ].filter(Boolean);
     return parts.join(" ");
   };
@@ -80,7 +84,11 @@ export function createAffinityProvider(deps: AffinityProviderDeps) {
     const platform = session.platform;
     const targetUserId = resolved?.targetUserId || session.userId;
     const cached = cache.get(scopeId, targetUserId);
-    if (cached !== null && (config.affinityDisplayRange ?? 1) <= 1) {
+    if (
+      cached !== null &&
+      (config.affinityDisplayRange ?? 1) <= 1 &&
+      !config.variableSettings.showChatCountInAffinityVariable
+    ) {
       const cachedNickname = await resolveNickname(
         scopeId,
         platform,
@@ -92,6 +100,7 @@ export function createAffinityProvider(deps: AffinityProviderDeps) {
         nickname: cachedNickname,
         affinity: cached,
         relationship: resolveRelationByAffinity(cached),
+        chatCount: 0,
       });
     }
 
@@ -120,6 +129,7 @@ export function createAffinityProvider(deps: AffinityProviderDeps) {
         nickname: currentNickname,
         affinity: currentAffinity,
         relationship: currentRelation,
+        chatCount: currentRecord?.chatCount || 0,
       });
     }
     if (typeof fetchEntries !== "function") {
@@ -129,6 +139,7 @@ export function createAffinityProvider(deps: AffinityProviderDeps) {
         nickname: currentNickname,
         affinity: currentAffinity,
         relationship: currentRelation,
+        chatCount: currentRecord?.chatCount || 0,
       });
     }
 
@@ -156,6 +167,7 @@ export function createAffinityProvider(deps: AffinityProviderDeps) {
         nickname: currentNickname,
         affinity: currentAffinity,
         relationship: currentRelation,
+        chatCount: currentRecord?.chatCount || 0,
       }),
     );
 
@@ -177,6 +189,7 @@ export function createAffinityProvider(deps: AffinityProviderDeps) {
           nickname,
           affinity,
           relationship: relation,
+          chatCount: record?.chatCount || 0,
         });
       }),
     );

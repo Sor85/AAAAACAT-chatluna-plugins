@@ -25,7 +25,7 @@ export {
 export const usage = `
 ## 更新日志
 
-0.3.0-beta
+0.3.0
 
 ### 重构
 - 引入 \`scopeId\` 作为新的核心作用域语义；数据隔离从旧版按 bot / 旧主键切换为按 \`scopeId\` 隔离。
@@ -43,6 +43,8 @@ export const usage = `
 - 新增作用域化命令前缀，命令由固定 \`affinity.*\` 改为 \`\${scopeId}.*\`。
 - 新增永久黑名单解除后的好感度重置逻辑；解除后会同时重置好感度相关状态。
 - 新增作用域化变量调用要求，变量现在需要显式传入 \`scopeId\`。
+- 新增 \`affinity\` 变量的 \`chatcount\` 输出，默认显示用户对话次数，可在变量设置中关闭。
+- 新增 \`injectXmlToolAsReplyTool\` 选项，可将 XML 工具注入到 ChatLuna Character 的实验性工具调用回复参数中。
 
 ### 修改
 - 好感度、黑名单、昵称数据的写入与读取主键语义改为以 \`scopeId\` 为核心：
@@ -52,7 +54,7 @@ export const usage = `
 - 多 bot 共享方案从旧版分组配置改为统一的 \`scopeId\` 语义。
 - 好感度初始化时机改为“与 bot 首次有效交互时入库”，不再在收到消息时提前初始化。
 - 随机初始好感度改为固定初始好感度，默认值为 \`30\`。
-- \`userAlias\` 的昵称信息已融入 \`affinity\` 变量输出；当前输出形态为 \`id name nickname affinity relationship\`。
+- \`userAlias\` 的昵称信息已融入 \`affinity\` 变量输出；当前输出形态为 \`id name nickname affinity relationship chatcount\`。
 - 对于尚未与 bot 产生有效互动的用户，\`affinity\` 变量现在会直接显示默认好感度，以及该默认值对应的关系。
 - 关系区间变量名由 \`relationshipAffinityLevel\` 简化为 \`relationshipLevel\`。
 - 所有变量现在都需要显式传入 \`scopeId\`，例如：
