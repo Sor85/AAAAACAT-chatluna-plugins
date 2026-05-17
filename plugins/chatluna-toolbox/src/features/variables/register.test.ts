@@ -21,6 +21,16 @@ function createConfig(overrides: Partial<Config> = {}): Config {
       toolName: "set_self_profile",
       description: "",
     },
+    setQQAvatar: {
+      enabled: false,
+      toolName: "set_qq_avatar",
+      description: "",
+    },
+    koishiPluginManager: {
+      enabled: false,
+      toolName: "koishi_plugin_manager",
+      description: "",
+    },
     setGroupCard: {
       enabled: false,
       toolName: "set_group_card",

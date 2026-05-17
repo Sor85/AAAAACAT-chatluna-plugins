@@ -9,6 +9,8 @@ import {
   DEFAULT_POKE_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION,
+  DEFAULT_SET_KOISHI_PLUGIN_MANAGER_TOOL_DESCRIPTION,
+  DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION,
   DEFAULT_SET_MSG_EMOJI_TOOL_DESCRIPTION,
   DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION,
 } from "../features/native-tools/defaults";
@@ -39,6 +41,43 @@ export const NativeToolsSchema = Schema.object({
       .description("工具描述"),
   })
     .description("修改自身账户信息工具")
+    .collapse(),
+  setQQAvatar: Schema.object({
+    enabled: Schema.boolean()
+      .default(false)
+      .description("注册 ChatLuna 工具：修改机器人 QQ 头像"),
+    toolName: Schema.string().default("set_qq_avatar").description("工具名称"),
+    description: Schema.string()
+      .default(DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION)
+      .description("工具描述"),
+  })
+    .description("修改 QQ 头像工具")
+    .collapse(),
+  koishiPluginManager: Schema.object({
+    enabled: Schema.boolean()
+      .default(false)
+      .description("注册 ChatLuna 工具：管理 Koishi 插件（重载/停用/移除）"),
+    toolName: Schema.string()
+      .default("koishi_plugin_manager")
+      .description("工具名称"),
+    description: Schema.string()
+      .default(DEFAULT_SET_KOISHI_PLUGIN_MANAGER_TOOL_DESCRIPTION)
+      .description("工具描述"),
+    commandAuthority: Schema.number()
+      .default(4)
+      .min(0)
+      .max(5)
+      .description(
+        "toolbox.plugin 指令需要的最低权限等级。指令本身以低权限注册，进入 action 后由本插件按该等级和用户白名单自行判断。",
+      ),
+    allowedUserIds: Schema.array(String)
+      .default([])
+      .role("table")
+      .description(
+        "允许直接使用 toolbox.plugin 的用户 ID 白名单。命中白名单时不受 commandAuthority 限制，适合未启用 auth 或只想授权少数 QQ 号的场景。",
+      ),
+  })
+    .description("Koishi 插件管理工具")
     .collapse(),
   setGroupCard: Schema.object({
     enabled: Schema.boolean()
@@ -99,6 +138,18 @@ export const NativeToolsSchema = Schema.object({
       enabled: false,
       toolName: "set_self_profile",
       description: DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION,
+    },
+    setQQAvatar: {
+      enabled: false,
+      toolName: "set_qq_avatar",
+      description: DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION,
+    },
+    koishiPluginManager: {
+      enabled: false,
+      toolName: "koishi_plugin_manager",
+      description: DEFAULT_SET_KOISHI_PLUGIN_MANAGER_TOOL_DESCRIPTION,
+      commandAuthority: 4,
+      allowedUserIds: [],
     },
     setGroupCard: {
       enabled: false,
