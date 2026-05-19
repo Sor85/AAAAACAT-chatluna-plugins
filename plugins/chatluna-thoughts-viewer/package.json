@@ -15,8 +15,12 @@
   },
   "koishi": {
     "service": {
-      "required": ["chatluna"],
-      "optional": ["chatluna_character"]
+      "required": [
+        "chatluna"
+      ],
+      "optional": [
+        "chatluna_character"
+      ]
     }
   },
   "scripts": {

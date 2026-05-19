@@ -27,10 +27,9 @@
     "type": "git",
     "url": "https://github.com/Sor85/AAAAACAT-chatluna-plugins.git"
   },
-  "dependencies": {},
   "peerDependencies": {
-    "koishi": "^4.18.7",
-    "@koishijs/plugin-console": "^5.30.0"
+    "@koishijs/plugin-console": "^5.30.0",
+    "koishi": "^4.18.7"
   },
   "peerDependenciesMeta": {
     "@koishijs/plugin-console": {
@@ -41,9 +40,9 @@
     "@koishijs/client": "^5.30.0",
     "@types/node": "^22.10.1",
     "@vitejs/plugin-vue": "^6.0.2",
-    "shared-chatluna-xmltools": "workspace:*",
     "koishi": "^4.18.7",
     "sass": "^1.77.0",
+    "shared-chatluna-xmltools": "workspace:*",
     "shared-nav": "workspace:*",
     "tsup": "^8.0.0",
     "typescript": "^5.7.2",
