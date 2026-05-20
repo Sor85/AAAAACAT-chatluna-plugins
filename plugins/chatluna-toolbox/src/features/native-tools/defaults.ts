@@ -13,6 +13,9 @@ export const DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION = "修改群成员的群昵
 export const DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION =
   "用于管理群成员禁言状态，可设置禁言时长或解除禁言。";
 
+export const DEFAULT_SET_GROUP_SPECIAL_TITLE_TOOL_DESCRIPTION =
+  "修改或清除群成员的 QQ 群专属头衔。";
+
 export const DEFAULT_SET_MSG_EMOJI_TOOL_DESCRIPTION =
   "对指定消息添加表情回应。";
 

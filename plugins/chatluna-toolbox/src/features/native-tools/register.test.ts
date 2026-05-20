@@ -11,6 +11,7 @@ import {
   DEFAULT_POKE_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION,
+  DEFAULT_SET_GROUP_SPECIAL_TITLE_TOOL_DESCRIPTION,
   DEFAULT_SET_MSG_EMOJI_TOOL_DESCRIPTION,
   DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION,
 } from "./defaults";
@@ -45,6 +46,11 @@ function createConfig(overrides: Partial<Config> = {}): Config {
       enabled: false,
       toolName: "set_group_ban",
       description: DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
+    },
+    setGroupSpecialTitle: {
+      enabled: false,
+      toolName: "set_group_special_title",
+      description: DEFAULT_SET_GROUP_SPECIAL_TITLE_TOOL_DESCRIPTION,
     },
     setMsgEmoji: {
       enabled: false,
@@ -111,6 +117,11 @@ describe("registerNativeTools", () => {
         toolName: "custom_ban",
         description: "custom ban description",
       },
+      setGroupSpecialTitle: {
+        enabled: true,
+        toolName: "custom_title",
+        description: "custom title description",
+      },
     });
 
     registerNativeTools({
@@ -120,7 +131,7 @@ describe("registerNativeTools", () => {
       protocol: "napcat",
     });
 
-    expect(registerTool).toHaveBeenCalledTimes(3);
+    expect(registerTool).toHaveBeenCalledTimes(4);
     expect(registerTool).toHaveBeenNthCalledWith(
       1,
       "custom_poke",
@@ -151,6 +162,20 @@ describe("registerNativeTools", () => {
     );
     expect(registerTool).toHaveBeenNthCalledWith(
       3,
+      "custom_title",
+      expect.objectContaining({
+        selector: expect.any(Function),
+        authorization: expect.any(Function),
+        description: "custom title description",
+        createTool: expect.any(Function),
+        meta: expect.objectContaining({
+          tags: ["group"],
+          defaultAvailability: TOOL_DEFAULT_AVAILABILITY,
+        }),
+      }),
+    );
+    expect(registerTool).toHaveBeenNthCalledWith(
+      4,
       "custom_emoji",
       expect.objectContaining({
         selector: expect.any(Function),
@@ -268,6 +293,11 @@ describe("registerNativeTools", () => {
         toolName: "set_group_ban",
         description: DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
       },
+      setGroupSpecialTitle: {
+        enabled: true,
+        toolName: "set_group_special_title",
+        description: DEFAULT_SET_GROUP_SPECIAL_TITLE_TOOL_DESCRIPTION,
+      },
       setMsgEmoji: {
         enabled: true,
         toolName: "set_msg_emoji",
@@ -295,6 +325,7 @@ describe("registerNativeTools", () => {
     expect(registrationsByName.get("poke_user").meta.tags).toEqual(["poke"]);
     expect(registrationsByName.get("set_group_ban").meta.tags).toEqual(["group"]);
     expect(registrationsByName.get("set_group_card").meta.tags).toEqual(["group"]);
+    expect(registrationsByName.get("set_group_special_title").meta.tags).toEqual(["group"]);
     expect(registrationsByName.get("set_msg_emoji").meta.tags).toEqual(["message"]);
     expect(registrationsByName.get("set_self_profile").meta.tags).toEqual([]);
   });

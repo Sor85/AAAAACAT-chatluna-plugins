@@ -18,6 +18,7 @@ export interface NativeToolsConfig {
   setSelfProfile: NativeToolItemConfig;
   setGroupCard: NativeToolItemConfig;
   setGroupBan: NativeToolItemConfig;
+  setGroupSpecialTitle: NativeToolItemConfig;
   setMsgEmoji: NativeToolItemConfig;
   deleteMessage: NativeToolItemConfig;
 }

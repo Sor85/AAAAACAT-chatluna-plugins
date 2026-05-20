@@ -9,6 +9,7 @@ import {
   DEFAULT_POKE_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION,
+  DEFAULT_SET_GROUP_SPECIAL_TITLE_TOOL_DESCRIPTION,
   DEFAULT_SET_MSG_EMOJI_TOOL_DESCRIPTION,
   DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION,
 } from "../features/native-tools/defaults";
@@ -62,6 +63,19 @@ export const NativeToolsSchema = Schema.object({
   })
     .description("禁言工具")
     .collapse(),
+  setGroupSpecialTitle: Schema.object({
+    enabled: Schema.boolean()
+      .default(false)
+      .description("注册 ChatLuna 工具：修改群成员专属头衔"),
+    toolName: Schema.string()
+      .default("set_group_special_title")
+      .description("工具名称"),
+    description: Schema.string()
+      .default(DEFAULT_SET_GROUP_SPECIAL_TITLE_TOOL_DESCRIPTION)
+      .description("工具描述"),
+  })
+    .description("修改群成员专属头衔工具")
+    .collapse(),
   setMsgEmoji: Schema.object({
     enabled: Schema.boolean()
       .default(false)
@@ -109,6 +123,11 @@ export const NativeToolsSchema = Schema.object({
       enabled: false,
       toolName: "set_group_ban",
       description: DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
+    },
+    setGroupSpecialTitle: {
+      enabled: false,
+      toolName: "set_group_special_title",
+      description: DEFAULT_SET_GROUP_SPECIAL_TITLE_TOOL_DESCRIPTION,
     },
     setMsgEmoji: {
       enabled: false,
