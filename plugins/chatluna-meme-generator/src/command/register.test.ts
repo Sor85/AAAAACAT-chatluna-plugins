@@ -4,6 +4,15 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { DirectAliasListResult } from "./key-resolver";
+import type { Config } from "../config";
+import type { GenerateImageInput } from "../types";
+
+type AvatarImageResult = GenerateImageInput | undefined;
+type AsyncAvatarImageMock = (...args: any[]) => Promise<AvatarImageResult>;
+type AsyncAvatarImagesMock = (...args: any[]) => Promise<GenerateImageInput[]>;
+type AsyncDisplayNameMock = (...args: any[]) => Promise<string | undefined>;
+type DisplayNameMock = (...args: any[]) => string | undefined;
 
 vi.mock("koishi", () => ({
   h: {
@@ -12,7 +21,7 @@ vi.mock("koishi", () => ({
 }));
 
 const keyResolverMocks = vi.hoisted(() => ({
-  listDirectAliases: vi.fn(async () => ({
+  listDirectAliases: vi.fn<() => Promise<DirectAliasListResult>>(async () => ({
     entries: [{ alias: "骑猪", keys: ["qizhu"] }],
     hasInfoFailure: false,
     failedInfoKeys: 0,
@@ -27,15 +36,25 @@ vi.mock("./key-resolver", () => ({
 }));
 
 const avatarMocks = vi.hoisted(() => ({
-  getSenderAvatarImage: vi.fn(async () => undefined),
-  getMentionedAvatarImages: vi.fn(async () => []),
-  getMentionedTargetAvatarImage: vi.fn(async () => undefined),
-  getMentionedSecondaryAvatarImage: vi.fn(async () => undefined),
-  getBotAvatarImage: vi.fn(async () => undefined),
-  getMentionedTargetDisplayName: vi.fn(async () => undefined),
-  getSenderDisplayName: vi.fn(() => undefined),
-  resolveAvatarImageByUserId: vi.fn(async () => undefined),
-  resolveDisplayNameByUserId: vi.fn(async () => undefined),
+  getSenderAvatarImage: vi.fn<AsyncAvatarImageMock>(async () => undefined),
+  getMentionedAvatarImages: vi.fn<AsyncAvatarImagesMock>(async () => []),
+  getMentionedTargetAvatarImage: vi.fn<AsyncAvatarImageMock>(
+    async () => undefined,
+  ),
+  getMentionedSecondaryAvatarImage: vi.fn<AsyncAvatarImageMock>(
+    async () => undefined,
+  ),
+  getBotAvatarImage: vi.fn<AsyncAvatarImageMock>(async () => undefined),
+  getMentionedTargetDisplayName: vi.fn<AsyncDisplayNameMock>(
+    async () => undefined,
+  ),
+  getSenderDisplayName: vi.fn<DisplayNameMock>(() => undefined),
+  resolveAvatarImageByUserId: vi.fn<AsyncAvatarImageMock>(
+    async () => undefined,
+  ),
+  resolveDisplayNameByUserId: vi.fn<AsyncDisplayNameMock>(
+    async () => undefined,
+  ),
 }));
 
 vi.mock("../utils/avatar", () => ({
@@ -107,7 +126,6 @@ vi.mock("../infra/client", () => ({
 }));
 
 import { registerCommands } from "./register";
-import type { Config } from "../config";
 
 interface MatchOptions {
   appel?: boolean;
@@ -154,6 +172,8 @@ function createMockCharacterService() {
   };
 }
 
+type MockCharacterService = ReturnType<typeof createMockCharacterService>;
+
 function createMockContext(options: { withCharacterService?: boolean } = {}) {
   const readyHandlers: Array<() => void> = [];
   const disposeHandlers: Array<() => void> = [];
@@ -169,10 +189,9 @@ function createMockContext(options: { withCharacterService?: boolean } = {}) {
   const loggerWarn = vi.fn();
   const injectHandlers: Array<(ctx: any) => void> = [];
   const injectDisposers: Array<ReturnType<typeof vi.fn>> = [];
+  const initialCharacterService = createMockCharacterService();
   let characterService =
-    options.withCharacterService === false
-      ? null
-      : createMockCharacterService();
+    options.withCharacterService === false ? null : initialCharacterService;
 
   const ctx: any = {
     command: vi.fn(() => ({
@@ -227,7 +246,7 @@ function createMockContext(options: { withCharacterService?: boolean } = {}) {
   };
 
   const setCharacterService = (
-    nextCharacterService: ReturnType<typeof createMockCharacterService> | null,
+    nextCharacterService: MockCharacterService | null,
   ) => {
     characterService = nextCharacterService;
     ctx.chatluna_character = nextCharacterService?.service;
@@ -248,15 +267,15 @@ function createMockContext(options: { withCharacterService?: boolean } = {}) {
     matchCalls,
     loggerInfo,
     loggerWarn,
-    getTemp: characterService?.getTemp,
-    tempStore: characterService?.tempStore,
-    completionMessages: characterService?.completionMessages,
+    getTemp: initialCharacterService.getTemp,
+    tempStore: initialCharacterService.tempStore,
+    completionMessages: initialCharacterService.completionMessages,
     originalCompletionMessagesPush:
-      characterService?.originalCompletionMessagesPush,
-    registerReplyToolField: characterService?.registerReplyToolField,
+      initialCharacterService.originalCompletionMessagesPush,
+    registerReplyToolField: initialCharacterService.registerReplyToolField,
     registerReplyToolFieldDisposers:
-      characterService?.registerReplyToolFieldDisposers,
-    registerReplyToolFields: characterService?.registerReplyToolFields,
+      initialCharacterService.registerReplyToolFieldDisposers,
+    registerReplyToolFields: initialCharacterService.registerReplyToolFields,
     injectHandlers,
     injectDisposers,
     triggerInjectHandlers,
