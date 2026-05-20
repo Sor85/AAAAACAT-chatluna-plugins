@@ -11,7 +11,6 @@ import {
   DEFAULT_POKE_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION,
-  DEFAULT_SET_KOISHI_PLUGIN_MANAGER_TOOL_DESCRIPTION,
   DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION,
   DEFAULT_SET_MSG_EMOJI_TOOL_DESCRIPTION,
   DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION,
@@ -42,11 +41,6 @@ function createConfig(overrides: Partial<Config> = {}): Config {
       enabled: false,
       toolName: "set_qq_avatar",
       description: DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION,
-    },
-    koishiPluginManager: {
-      enabled: false,
-      toolName: "koishi_plugin_manager",
-      description: DEFAULT_SET_KOISHI_PLUGIN_MANAGER_TOOL_DESCRIPTION,
     },
     setGroupCard: {
       enabled: false,
@@ -256,48 +250,6 @@ describe("registerNativeTools", () => {
     expect(tool.description).toBe(DEFAULT_SET_MSG_EMOJI_TOOL_DESCRIPTION);
   });
 
-  it("插件管理工具在无 auth 用户字段时仍可暴露给 ChatLuna", () => {
-    const registerTool = vi.fn();
-    const config = createConfig({
-      koishiPluginManager: {
-        enabled: true,
-        toolName: "koishi_plugin_manager",
-        description: DEFAULT_SET_KOISHI_PLUGIN_MANAGER_TOOL_DESCRIPTION,
-        commandAuthority: 3,
-        allowedUserIds: ["2657455842"],
-      },
-    });
-    const command = {
-      alias: vi.fn(() => command),
-      option: vi.fn(() => command),
-      action: vi.fn(() => command),
-    };
-    const ctx = { command: vi.fn(() => command) };
-
-    registerNativeTools({
-      ctx: ctx as never,
-      config,
-      plugin: { registerTool },
-      protocol: "napcat",
-    });
-
-    const registration = registerTool.mock.calls[0][1];
-
-    expect(registration.authorization({ platform: "onebot" })).toBe(true);
-    expect(
-      registration.authorization({
-        platform: "onebot",
-        user: { authority: 1 },
-      }),
-    ).toBe(false);
-    expect(ctx.command).toHaveBeenCalledWith(
-      "toolbox.plugin <action> <pluginKey>",
-      expect.any(String),
-      { authority: 0 },
-    );
-  });
-
-
   it("按约定写入各工具标签", () => {
     const registerTool = vi.fn();
     const config = createConfig({
@@ -315,11 +267,6 @@ describe("registerNativeTools", () => {
         enabled: true,
         toolName: "set_qq_avatar",
         description: DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION,
-      },
-      koishiPluginManager: {
-        enabled: true,
-        toolName: "koishi_plugin_manager",
-        description: DEFAULT_SET_KOISHI_PLUGIN_MANAGER_TOOL_DESCRIPTION,
       },
       setGroupCard: {
         enabled: true,
@@ -361,7 +308,6 @@ describe("registerNativeTools", () => {
     expect(registrationsByName.get("set_msg_emoji").meta.tags).toEqual(["message"]);
     expect(registrationsByName.get("set_self_profile").meta.tags).toEqual([]);
     expect(registrationsByName.get("set_qq_avatar").meta.tags).toEqual(["profile"]);
-    expect(registrationsByName.get("koishi_plugin_manager").meta.tags).toEqual(["admin"]);
   });
   it("忽略未启用的原生工具", () => {
     const registerTool = vi.fn();

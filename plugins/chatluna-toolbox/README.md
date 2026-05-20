@@ -17,12 +17,6 @@
 - 设置群名片
 - 给消息添加表情
 - 撤回消息
-- 管理 Koishi 插件（重载/停用/移除，需管理员权限）
-
-插件管理同时提供 ChatLuna 原生工具与 Koishi 指令：
-
-- 原生工具名默认是 `koishi_plugin_manager`，参数为 `action` 和 `pluginKey`。`action` 可选 `reload`、`restart`、`unload`、`remove`，`pluginKey` 使用 `koishi.yml` 中的插件键名，例如 `chatluna-toolbox:r0sjxj`。
-- Koishi 指令为 `toolbox.plugin <reload|restart|unload|remove> <pluginKey>`，也可使用别名 `ctoolbox.plugin`。该指令会先进入插件内部鉴权，再按 `commandAuthority` 或 `allowedUserIds` 判断是否允许执行，适合给少数管理员 QQ 号直接授权。
 
 QQ 头像工具会把 HTTP/HTTPS 图片先转为 OneBot `base64://` 文件再提交，避免 OneBot 端无法访问 Koishi 临时图片地址。
 

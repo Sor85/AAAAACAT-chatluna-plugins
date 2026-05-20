@@ -9,8 +9,6 @@ export interface NativeToolItemConfig {
   enabled: boolean;
   toolName: string;
   description: string;
-  commandAuthority?: number;
-  allowedUserIds?: string[];
 }
 
 export interface NativeToolsConfig {
@@ -19,7 +17,6 @@ export interface NativeToolsConfig {
   poke: NativeToolItemConfig;
   setSelfProfile: NativeToolItemConfig;
   setQQAvatar: NativeToolItemConfig;
-  koishiPluginManager: NativeToolItemConfig;
   setGroupCard: NativeToolItemConfig;
   setGroupBan: NativeToolItemConfig;
   setMsgEmoji: NativeToolItemConfig;

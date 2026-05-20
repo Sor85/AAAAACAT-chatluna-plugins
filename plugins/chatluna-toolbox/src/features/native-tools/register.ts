@@ -10,15 +10,10 @@ import {
   DEFAULT_POKE_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION,
-  DEFAULT_SET_KOISHI_PLUGIN_MANAGER_TOOL_DESCRIPTION,
   DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION,
   DEFAULT_SET_MSG_EMOJI_TOOL_DESCRIPTION,
   DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION,
 } from "./defaults";
-import {
-  createKoishiPluginManagerTool,
-  registerKoishiPluginManagerCommand,
-} from "./tools/koishi-plugin-manager";
 import { createDeleteMessageTool } from "./tools/delete-msg";
 import { createPokeTool } from "./tools/poke";
 import { createSetGroupBanTool } from "./tools/set-group-ban";
@@ -157,38 +152,6 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
       meta: createNativeToolMeta("onebot", ["profile"]),
     });
     log?.("info", `QQ 头像工具已注册: ${toolName}`);
-  }
-
-  if (config.koishiPluginManager.enabled) {
-    const toolName = resolveToolName(
-      config.koishiPluginManager.toolName,
-      "koishi_plugin_manager",
-    );
-    const description = resolveToolDescription(
-      config.koishiPluginManager.description,
-      DEFAULT_SET_KOISHI_PLUGIN_MANAGER_TOOL_DESCRIPTION,
-    );
-    plugin.registerTool(toolName, {
-      selector: () => true,
-      authorization: (session: Session) => {
-        const user = (session as unknown as { user?: { authority?: number } })
-          ?.user;
-        if (!user) return true;
-        const authority = Number(user.authority ?? 0);
-        return authority >= 4;
-      },
-      description,
-      createTool: () =>
-        createKoishiPluginManagerTool({ ctx, toolName, description, log }),
-      meta: createNativeToolMeta("koishi", ["admin"]),
-    });
-    registerKoishiPluginManagerCommand({
-      ctx,
-      commandAuthority: config.koishiPluginManager.commandAuthority,
-      allowedUserIds: config.koishiPluginManager.allowedUserIds,
-      log,
-    });
-    log?.("info", `Koishi 插件管理工具已注册: ${toolName}`);
   }
 
   if (config.setGroupCard.enabled) {
