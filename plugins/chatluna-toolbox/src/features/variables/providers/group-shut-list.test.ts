@@ -36,6 +36,11 @@ function createConfig(overrides: Partial<Config> = {}): Config {
       toolName: "set_group_ban",
       description: "",
     },
+    setGroupSpecialTitle: {
+      enabled: false,
+      toolName: "set_group_special_title",
+      description: "",
+    },
     setMsgEmoji: {
       enabled: false,
       toolName: "set_msg_emoji",

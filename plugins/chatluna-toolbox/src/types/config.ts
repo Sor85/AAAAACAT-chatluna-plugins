@@ -19,6 +19,7 @@ export interface NativeToolsConfig {
   setQQAvatar: NativeToolItemConfig;
   setGroupCard: NativeToolItemConfig;
   setGroupBan: NativeToolItemConfig;
+  setGroupSpecialTitle: NativeToolItemConfig;
   setMsgEmoji: NativeToolItemConfig;
   deleteMessage: NativeToolItemConfig;
 }

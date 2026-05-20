@@ -16,6 +16,7 @@ export * from "./features/native-tools/tools/profile";
 export * from "./features/native-tools/tools/set-qq-avatar";
 export * from "./features/native-tools/tools/set-group-card";
 export * from "./features/native-tools/tools/set-group-ban";
+export * from "./features/native-tools/tools/set-group-special-title";
 export * from "./features/native-tools/tools/set-msg-emoji";
 export * from "./features/native-tools/tools/delete-msg";
 export * from "./features/xml-tools/parser";
