@@ -14,6 +14,7 @@
     "build": "tsup && vite build",
     "watch": "tsup --watch",
     "clean": "rimraf lib dist",
+    "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test --test-name-pattern='.*' $(find tests -name '*.test.ts' -print)"
   },
   "keywords": [

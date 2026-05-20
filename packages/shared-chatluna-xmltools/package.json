@@ -11,7 +11,7 @@
   "scripts": {
     "build": "tsup",
     "watch": "tsup --watch",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run"
   },
   "devDependencies": {

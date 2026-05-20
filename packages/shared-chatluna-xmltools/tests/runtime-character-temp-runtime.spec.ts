@@ -14,6 +14,8 @@ interface TempLike {
   completionMessages?: unknown[];
 }
 
+type GetTempMock = (...args: unknown[]) => Promise<TempLike>;
+
 describe("createCharacterTempRuntime", () => {
   it("service 缺失时 start 返回 false 并触发 onServiceMissing", () => {
     const onServiceMissing = vi.fn();
@@ -32,7 +34,7 @@ describe("createCharacterTempRuntime", () => {
   it("assistant 消息会触发 onResponse 并透传 session", async () => {
     const temp = { completionMessages: [] as unknown[] };
     const service = {
-      getTemp: vi.fn(async () => temp),
+      getTemp: vi.fn<GetTempMock>(async () => temp),
     };
     const onResponse = vi.fn();
 
@@ -60,7 +62,7 @@ describe("createCharacterTempRuntime", () => {
     const completionMessages: unknown[] = [];
     const originalPush = completionMessages.push;
     const temp = { completionMessages };
-    const originalGetTemp = vi.fn(async () => temp);
+    const originalGetTemp = vi.fn<GetTempMock>(async () => temp);
     const service = {
       getTemp: originalGetTemp,
     };
@@ -87,10 +89,10 @@ describe("createCharacterTempRuntime", () => {
     const tempA = { completionMessages: [] as unknown[] };
     const tempB = { completionMessages: [] as unknown[] };
     const serviceA = {
-      getTemp: vi.fn(async () => tempA),
+      getTemp: vi.fn<GetTempMock>(async () => tempA),
     };
     const serviceB = {
-      getTemp: vi.fn(async () => tempB),
+      getTemp: vi.fn<GetTempMock>(async () => tempB),
     };
 
     const originalAGetTemp = serviceA.getTemp;
