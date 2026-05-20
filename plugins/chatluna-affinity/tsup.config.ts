@@ -1,3 +1,8 @@
+/**
+ * 构建配置
+ * 输出 Affinity 插件运行时代码
+ */
+
 import { defineConfig } from "tsup";
 
 export default defineConfig({
