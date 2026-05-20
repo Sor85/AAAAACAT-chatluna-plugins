@@ -18,7 +18,7 @@
   "scripts": {
     "build": "tsup && vite build",
     "watch": "tsup --watch",
-    "typecheck": "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit",
+    "typecheck": "NODE_OPTIONS=--max-old-space-size=8192 tsc -p tsconfig.test.json",
     "test": "vitest run"
   },
   "keywords": [

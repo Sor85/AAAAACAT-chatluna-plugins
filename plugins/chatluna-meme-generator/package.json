@@ -13,7 +13,7 @@
   "scripts": {
     "build": "tsup && vite build",
     "watch": "tsup --watch",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run"
   },
   "keywords": [
