@@ -10,6 +10,7 @@ import {
   DEFAULT_POKE_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION,
+  DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION,
   DEFAULT_SET_MSG_EMOJI_TOOL_DESCRIPTION,
   DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION,
 } from "./defaults";
@@ -19,6 +20,7 @@ import { createSetGroupBanTool } from "./tools/set-group-ban";
 import { createSetGroupCardTool } from "./tools/set-group-card";
 import { createSetMsgEmojiTool } from "./tools/set-msg-emoji";
 import { createSetProfileTool } from "./tools/profile";
+import { createSetQQAvatarTool } from "./tools/set-qq-avatar";
 
 interface ToolDefaultAvailability {
   enabled: true;
@@ -130,6 +132,26 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
       meta: createNativeToolMeta("onebot", []),
     });
     log?.("info", `设置资料工具已注册: ${toolName}`);
+  }
+
+  if (config.setQQAvatar.enabled) {
+    const toolName = resolveToolName(
+      config.setQQAvatar.toolName,
+      "set_qq_avatar",
+    );
+    const description = resolveToolDescription(
+      config.setQQAvatar.description,
+      DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION,
+    );
+    plugin.registerTool(toolName, {
+      selector: () => true,
+      authorization: (session: Session) => session?.platform === "onebot",
+      description,
+      createTool: () =>
+        createSetQQAvatarTool({ ctx, toolName, description, log }),
+      meta: createNativeToolMeta("onebot", ["profile"]),
+    });
+    log?.("info", `QQ 头像工具已注册: ${toolName}`);
   }
 
   if (config.setGroupCard.enabled) {

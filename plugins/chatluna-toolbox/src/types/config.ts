@@ -16,6 +16,7 @@ export interface NativeToolsConfig {
   enableLlbotProtocol: boolean;
   poke: NativeToolItemConfig;
   setSelfProfile: NativeToolItemConfig;
+  setQQAvatar: NativeToolItemConfig;
   setGroupCard: NativeToolItemConfig;
   setGroupBan: NativeToolItemConfig;
   setMsgEmoji: NativeToolItemConfig;

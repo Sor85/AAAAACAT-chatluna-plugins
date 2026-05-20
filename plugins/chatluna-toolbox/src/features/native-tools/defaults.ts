@@ -8,6 +8,9 @@ export const DEFAULT_POKE_TOOL_DESCRIPTION = "对指定用户执行戳一戳。"
 export const DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION =
   "修改自己的 QQ 资料，可设置昵称、签名和性别。";
 
+export const DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION =
+  "修改机器人 QQ 头像。提供 imageUrl；HTTP/HTTPS 图片会先由 Koishi 读取并转为 OneBot base64 文件，避免临时 URL 过期或 OneBot 端无法访问。";
+
 export const DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION = "修改群成员的群昵称。";
 
 export const DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION =

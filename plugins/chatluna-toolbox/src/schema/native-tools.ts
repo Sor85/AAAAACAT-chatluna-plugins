@@ -9,6 +9,7 @@ import {
   DEFAULT_POKE_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION,
+  DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION,
   DEFAULT_SET_MSG_EMOJI_TOOL_DESCRIPTION,
   DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION,
 } from "../features/native-tools/defaults";
@@ -39,6 +40,17 @@ export const NativeToolsSchema = Schema.object({
       .description("工具描述"),
   })
     .description("修改自身账户信息工具")
+    .collapse(),
+  setQQAvatar: Schema.object({
+    enabled: Schema.boolean()
+      .default(false)
+      .description("注册 ChatLuna 工具：修改机器人 QQ 头像"),
+    toolName: Schema.string().default("set_qq_avatar").description("工具名称"),
+    description: Schema.string()
+      .default(DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION)
+      .description("工具描述"),
+  })
+    .description("修改 QQ 头像工具")
     .collapse(),
   setGroupCard: Schema.object({
     enabled: Schema.boolean()
@@ -99,6 +111,11 @@ export const NativeToolsSchema = Schema.object({
       enabled: false,
       toolName: "set_self_profile",
       description: DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION,
+    },
+    setQQAvatar: {
+      enabled: false,
+      toolName: "set_qq_avatar",
+      description: DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION,
     },
     setGroupCard: {
       enabled: false,

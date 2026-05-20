@@ -11,6 +11,7 @@ import {
   DEFAULT_POKE_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION,
+  DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION,
   DEFAULT_SET_MSG_EMOJI_TOOL_DESCRIPTION,
   DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION,
 } from "./defaults";
@@ -35,6 +36,11 @@ function createConfig(overrides: Partial<Config> = {}): Config {
       enabled: false,
       toolName: "set_self_profile",
       description: DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION,
+    },
+    setQQAvatar: {
+      enabled: false,
+      toolName: "set_qq_avatar",
+      description: DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION,
     },
     setGroupCard: {
       enabled: false,
@@ -244,7 +250,6 @@ describe("registerNativeTools", () => {
     expect(tool.description).toBe(DEFAULT_SET_MSG_EMOJI_TOOL_DESCRIPTION);
   });
 
-
   it("按约定写入各工具标签", () => {
     const registerTool = vi.fn();
     const config = createConfig({
@@ -257,6 +262,11 @@ describe("registerNativeTools", () => {
         enabled: true,
         toolName: "set_self_profile",
         description: DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION,
+      },
+      setQQAvatar: {
+        enabled: true,
+        toolName: "set_qq_avatar",
+        description: DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION,
       },
       setGroupCard: {
         enabled: true,
@@ -297,6 +307,7 @@ describe("registerNativeTools", () => {
     expect(registrationsByName.get("set_group_card").meta.tags).toEqual(["group"]);
     expect(registrationsByName.get("set_msg_emoji").meta.tags).toEqual(["message"]);
     expect(registrationsByName.get("set_self_profile").meta.tags).toEqual([]);
+    expect(registrationsByName.get("set_qq_avatar").meta.tags).toEqual(["profile"]);
   });
   it("忽略未启用的原生工具", () => {
     const registerTool = vi.fn();

@@ -13,6 +13,7 @@ export * from "./features/native-tools/onebot-api";
 export * from "./features/native-tools/session";
 export * from "./features/native-tools/tools/poke";
 export * from "./features/native-tools/tools/profile";
+export * from "./features/native-tools/tools/set-qq-avatar";
 export * from "./features/native-tools/tools/set-group-card";
 export * from "./features/native-tools/tools/set-group-ban";
 export * from "./features/native-tools/tools/set-msg-emoji";
