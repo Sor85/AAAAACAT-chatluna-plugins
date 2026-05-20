@@ -99,52 +99,6 @@ importers:
         specifier: ^6.0.0
         version: 6.4.1(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0)
 
-  plugins/chatluna-gemini-tools:
-    dependencies:
-      '@koishijs/plugin-console':
-        specifier: ^5.30.0
-        version: 5.30.11(@koishijs/client@5.30.11(@types/node@22.19.15)(postcss@8.5.8)(rollup@4.60.0)(typescript@5.9.3))(koishi@4.18.11(@cordisjs/plugin-http@0.6.3(cordis@3.18.1))(cordis@3.18.1))
-      '@langchain/core':
-        specifier: ^0.3.62
-        version: 0.3.80
-      koishi:
-        specifier: ^4.18.7
-        version: 4.18.11(@cordisjs/plugin-http@0.6.3(cordis@3.18.1))(cordis@3.18.1)
-      koishi-plugin-chatluna:
-        specifier: '*'
-        version: 1.3.35(koishi@4.18.11(@cordisjs/plugin-http@0.6.3(cordis@3.18.1))(cordis@3.18.1))
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
-    devDependencies:
-      '@koishijs/client':
-        specifier: ^5.30.0
-        version: 5.30.11(@types/node@22.19.15)(postcss@8.5.8)(rollup@4.60.0)(typescript@5.9.3)
-      '@types/node':
-        specifier: ^22.10.1
-        version: 22.19.15
-      '@vitejs/plugin-vue':
-        specifier: ^6.0.2
-        version: 6.0.5(vite@6.4.1(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0))(vue@3.5.31(typescript@5.9.3))
-      sass:
-        specifier: ^1.77.0
-        version: 1.98.0
-      shared-nav:
-        specifier: workspace:*
-        version: link:../../packages/shared-nav
-      tsup:
-        specifier: ^8.0.0
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.8)(tsx@4.21.0)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
-      vite:
-        specifier: ^6.0.0
-        version: 6.4.1(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0)
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0)
-
   plugins/chatluna-meme-generator:
     dependencies:
       '@koishijs/plugin-console':
@@ -169,52 +123,6 @@ importers:
       shared-chatluna-xmltools:
         specifier: workspace:*
         version: link:../../packages/shared-chatluna-xmltools
-      shared-nav:
-        specifier: workspace:*
-        version: link:../../packages/shared-nav
-      tsup:
-        specifier: ^8.0.0
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.8)(tsx@4.21.0)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
-      vite:
-        specifier: ^6.0.0
-        version: 6.4.1(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0)
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0)
-
-  plugins/chatluna-schedule:
-    dependencies:
-      '@koishijs/plugin-console':
-        specifier: ^5.30.0
-        version: 5.30.11(@koishijs/client@5.30.11(@types/node@22.19.15)(postcss@8.5.8)(rollup@4.60.0)(typescript@5.9.3))(koishi@4.18.11(@cordisjs/plugin-http@0.6.3(cordis@3.18.1))(cordis@3.18.1))
-      '@langchain/core':
-        specifier: ^0.3.62
-        version: 0.3.80
-      koishi-plugin-chatluna:
-        specifier: '*'
-        version: 1.3.35(koishi@4.18.11(@cordisjs/plugin-http@0.6.3(cordis@3.18.1))(cordis@3.18.1))
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
-    devDependencies:
-      '@koishijs/client':
-        specifier: ^5.30.0
-        version: 5.30.11(@types/node@22.19.15)(postcss@8.5.8)(rollup@4.60.0)(typescript@5.9.3)
-      '@types/node':
-        specifier: ^22.10.1
-        version: 22.19.15
-      '@vitejs/plugin-vue':
-        specifier: ^6.0.2
-        version: 6.0.5(vite@6.4.1(@types/node@22.19.15)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0))(vue@3.5.31(typescript@5.9.3))
-      koishi:
-        specifier: ^4.18.7
-        version: 4.18.11(@cordisjs/plugin-http@0.6.3(cordis@3.18.1))(cordis@3.18.1)
-      sass:
-        specifier: ^1.77.0
-        version: 1.98.0
       shared-nav:
         specifier: workspace:*
         version: link:../../packages/shared-nav

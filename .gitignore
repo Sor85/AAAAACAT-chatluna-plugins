@@ -2,6 +2,7 @@ node_modules
 .pnpm-store
 .DS_Store
 coverage
+docs
 .turbo
 *.tsbuildinfo
 plugins/*/node_modules

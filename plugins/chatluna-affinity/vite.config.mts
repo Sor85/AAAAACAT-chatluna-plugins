@@ -1,27 +1,32 @@
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import { resolve } from 'path'
+/**
+ * 前端构建配置
+ * 构建 Affinity 控制台前端产物
+ */
+
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+import { resolve } from "node:path";
 
 export default defineConfig({
   plugins: [vue()],
   build: {
-    outDir: 'dist',
+    outDir: "dist",
     emptyOutDir: true,
     lib: {
-      entry: resolve(__dirname, 'client/index.ts'),
-      formats: ['es'],
-      fileName: () => 'index.js'
+      entry: resolve(__dirname, "client/index.ts"),
+      formats: ["es"],
+      fileName: () => "index.js",
     },
     rollupOptions: {
-      external: ['vue', '@koishijs/client'],
+      external: ["vue", "@koishijs/client"],
       output: {
         globals: {
-          vue: 'Vue',
-          '@koishijs/client': 'client'
+          vue: "Vue",
+          "@koishijs/client": "client",
         },
-        assetFileNames: 'style.[ext]'
-      }
+        assetFileNames: "style.[ext]",
+      },
     },
-    cssCodeSplit: false
-  }
-})
+    cssCodeSplit: false,
+  },
+});

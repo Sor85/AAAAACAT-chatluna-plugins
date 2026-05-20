@@ -14,7 +14,8 @@
     "build": "tsup && vite build",
     "watch": "tsup --watch",
     "clean": "rimraf lib dist",
-    "test": "node --import tsx --test --test-name-pattern='.*' $(find src -name '*.test.ts' -print)"
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test --test-name-pattern='.*' $(find tests -name '*.test.ts' -print)"
   },
   "keywords": [
     "chatbot",
