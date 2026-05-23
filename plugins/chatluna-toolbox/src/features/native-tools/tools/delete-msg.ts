@@ -73,18 +73,22 @@ export async function sendDeleteMessage(
   }
 }
 
-export function createDeleteMessageTool(deps: DeleteMessageToolDeps) {
+export function createDeleteMessageTool(
+  deps: DeleteMessageToolDeps,
+): StructuredTool {
   const { toolName, description, log } = deps;
 
-  const tool = {
-    name: toolName || "delete_msg",
-    description: description || DEFAULT_DELETE_MESSAGE_TOOL_DESCRIPTION,
-    schema: z.object({
+  // @ts-ignore
+  return new (class extends StructuredTool {
+    name = toolName || "delete_msg";
+    description = description || DEFAULT_DELETE_MESSAGE_TOOL_DESCRIPTION;
+    schema = z.object({
       messageId: z
         .string()
         .min(1, "messageId is required")
         .describe("Specific message ID to delete."),
-    }),
+    });
+
     async _call(
       input: { messageId: string },
       _manager?: unknown,
@@ -101,8 +105,6 @@ export function createDeleteMessageTool(deps: DeleteMessageToolDeps) {
         log?.("warn", "delete_msg failed", error);
         return `delete_msg failed: ${(error as Error).message}`;
       }
-    },
-  };
-
-  return tool as unknown as StructuredTool;
+    }
+  })() as StructuredTool;
 }
