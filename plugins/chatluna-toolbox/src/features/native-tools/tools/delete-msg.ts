@@ -11,6 +11,13 @@ import { ensureOneBotSession, callOneBotAPI } from "../onebot-api";
 import { getSession } from "../session";
 import { DEFAULT_DELETE_MESSAGE_TOOL_DESCRIPTION } from "../defaults";
 
+interface OneBotResponseLike {
+  status?: string;
+  retcode?: number;
+  wording?: string;
+  message?: string;
+}
+
 export interface DeleteMessageToolDeps {
   toolName: string;
   description: string;
@@ -19,20 +26,35 @@ export interface DeleteMessageToolDeps {
 
 export interface SendDeleteMessageParams {
   session: Session | null;
-  messageId: string;
+  message_id: string;
   log?: LogFn;
+}
+
+function assertOneBotSuccess(result: unknown): void {
+  const response = result as OneBotResponseLike | undefined;
+  if (!response || typeof response !== "object") return;
+  const status = String(response.status || "").toLowerCase();
+  const failed =
+    status === "failed" ||
+    (!!status && status !== "ok") ||
+    (typeof response.retcode === "number" && response.retcode !== 0);
+  if (!failed) return;
+  const reason = response.wording || response.message || response.status;
+  const retcode =
+    typeof response.retcode === "number" ? ` (retcode: ${response.retcode})` : "";
+  throw new Error(`${reason || "OneBot returned failed"}${retcode}`);
 }
 
 export async function sendDeleteMessage(
   params: SendDeleteMessageParams,
 ): Promise<string> {
-  const { session, messageId, log } = params;
+  const { session, message_id, log } = params;
 
   try {
     if (!session) return "No session context available.";
 
-    const messageIdRaw = messageId.trim();
-    if (!messageIdRaw) return "messageId is required.";
+    const messageIdRaw = message_id.trim();
+    if (!messageIdRaw) return "message_id is required.";
 
     const numericId = /^\d+$/.test(messageIdRaw)
       ? Number(messageIdRaw)
@@ -41,9 +63,13 @@ export async function sendDeleteMessage(
     if (session.platform === "onebot") {
       const { error, internal } = ensureOneBotSession(session);
       if (error) return error;
-      await callOneBotAPI(internal!, "delete_msg", { message_id: numericId }, [
-        "deleteMsg",
-      ]);
+      const result = await callOneBotAPI(
+        internal!,
+        "delete_msg",
+        { message_id: numericId },
+        ["deleteMsg"],
+      );
+      assertOneBotSuccess(result);
       const success = `Message deleted by ID ${messageIdRaw}.`;
       log?.("info", success);
       return success;
@@ -76,17 +102,21 @@ export async function sendDeleteMessage(
 export function createDeleteMessageTool(deps: DeleteMessageToolDeps) {
   const { toolName, description, log } = deps;
 
-  const tool = {
-    name: toolName || "delete_msg",
-    description: description || DEFAULT_DELETE_MESSAGE_TOOL_DESCRIPTION,
-    schema: z.object({
-      messageId: z
-        .string()
-        .min(1, "messageId is required")
-        .describe("Specific message ID to delete."),
-    }),
+  // @ts-ignore
+  return new (class extends StructuredTool {
+    name = toolName || "delete_msg";
+    description = description || DEFAULT_DELETE_MESSAGE_TOOL_DESCRIPTION;
+    schema = z
+      .object({
+        message_id: z
+          .string()
+          .min(1, "message_id is required")
+          .describe("Specific message ID to delete."),
+      })
+      .strict();
+
     async _call(
-      input: { messageId: string },
+      input: { message_id: string },
       _manager?: unknown,
       runnable?: unknown,
     ) {
@@ -94,15 +124,13 @@ export function createDeleteMessageTool(deps: DeleteMessageToolDeps) {
         const session = getSession(runnable);
         return await sendDeleteMessage({
           session,
-          messageId: input.messageId,
+          message_id: input.message_id,
           log,
         });
       } catch (error) {
         log?.("warn", "delete_msg failed", error);
         return `delete_msg failed: ${(error as Error).message}`;
       }
-    },
-  };
-
-  return tool as unknown as StructuredTool;
+    }
+  })() as StructuredTool;
 }

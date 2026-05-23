@@ -79,7 +79,7 @@ describe("createXmlProcessor", () => {
     });
     expect(sendDeleteMessage).toHaveBeenCalledWith({
       session,
-      messageId: "m2",
+      message_id: "m2",
       log: undefined,
     });
     expect(sendGroupBan).toHaveBeenCalledWith({
@@ -142,7 +142,7 @@ describe("createXmlProcessor", () => {
     expect(sendDeleteMessage).toHaveBeenCalledTimes(1);
     expect(sendDeleteMessage).toHaveBeenCalledWith({
       session,
-      messageId: "m3",
+      message_id: "m3",
       log: undefined,
     });
   });

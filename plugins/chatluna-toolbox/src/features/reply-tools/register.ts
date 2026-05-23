@@ -304,7 +304,7 @@ export function registerCharacterReplyTools(
             if (typeof action.message_id !== "string") continue;
             await sendDeleteMessage({
               session,
-              messageId: action.message_id,
+              message_id: action.message_id,
               log,
             });
           }

@@ -105,7 +105,7 @@ export function createXmlProcessor(deps: XmlProcessorDeps) {
         if (messageIds.length > 0) handled = true;
         for (const messageId of messageIds) {
           try {
-            await runDelete({ session, messageId, log });
+            await runDelete({ session, message_id: messageId, log });
           } catch (error) {
             log?.("warn", "XML 触发撤回失败", error);
           }
