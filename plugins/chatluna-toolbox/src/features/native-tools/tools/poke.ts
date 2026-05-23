@@ -41,14 +41,13 @@ export async function sendPoke(params: SendPokeParams): Promise<string> {
     const resolvedGroupId =
       groupId?.trim() ||
       (validatedSession as unknown as { guildId?: string })?.guildId ||
-      validatedSession?.channelId ||
       (validatedSession as unknown as { roomId?: string })?.roomId;
 
     const payload: Record<string, unknown> = { user_id: userId };
     if (resolvedGroupId) payload.group_id = resolvedGroupId;
 
+    const action = payload.group_id ? "group_poke" : "friend_poke";
     if (protocol === "llbot") {
-      const action = payload.group_id ? "group_poke" : "friend_poke";
       if (typeof internal!._request === "function") {
         await internal!._request(action, payload);
       } else if (typeof internal![action] === "function") {
@@ -59,7 +58,11 @@ export async function sendPoke(params: SendPokeParams): Promise<string> {
         throw new Error(`当前适配器未实现 ${action} API。`);
       }
     } else if (typeof internal!._request === "function") {
-      await internal!._request("send_poke", payload);
+      await internal!._request(action, payload);
+    } else if (typeof internal![action] === "function") {
+      await (
+        internal![action] as (p: Record<string, unknown>) => Promise<void>
+      )(payload);
     } else if (typeof internal!.sendPoke === "function") {
       await (internal!.sendPoke as (g: unknown, u: unknown) => Promise<void>)(
         payload.group_id,
