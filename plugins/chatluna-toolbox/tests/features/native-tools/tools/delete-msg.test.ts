@@ -91,9 +91,8 @@ describe("createDeleteMessageTool", () => {
       true,
     );
 
-    const result = await (tool as any)._call(
+    const result = await tool.invoke(
       { message_id: "12345" },
-      undefined,
       { configurable: { session } },
     );
 
