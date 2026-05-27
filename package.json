@@ -2,7 +2,7 @@
   "name": "koishi-plugins",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "pnpm@10.27.0",
+  "packageManager": "yarn@4.15.0",
   "workspaces": [
     "plugins/*",
     "plugins/*/packages/*",
@@ -10,12 +10,12 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "pnpm -r --if-present run build",
-    "test": "pnpm -r --if-present run test",
-    "typecheck": "pnpm -r --if-present run typecheck",
-    "build:changed": "pnpm -r --filter \"...[main]\" --if-present run build",
-    "test:changed": "pnpm -r --filter \"...[main]\" --if-present run test",
-    "typecheck:changed": "pnpm -r --filter \"...[main]\" --if-present run typecheck",
+    "build": "yarn workspaces foreach -A --topological-dev run build",
+    "test": "yarn workspaces foreach -A run test",
+    "typecheck": "yarn workspaces foreach -A --topological-dev run typecheck",
+    "build:changed": "yarn workspaces foreach --since --exclude koishi-plugins --topological-dev run build",
+    "test:changed": "yarn workspaces foreach --since --exclude koishi-plugins run test",
+    "typecheck:changed": "yarn workspaces foreach --since --exclude koishi-plugins --topological-dev run typecheck",
     "version": "changeset version",
     "release": "changeset publish"
   },

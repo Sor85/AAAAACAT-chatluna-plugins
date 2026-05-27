@@ -18,7 +18,7 @@
   "scripts": {
     "build": "tsup && vite build",
     "watch": "tsup --watch",
-    "typecheck": "pnpm --dir ../../packages/shared-chatluna-xmltools run build && node --max-old-space-size=8192 ./node_modules/typescript/bin/tsc -p tsconfig.test.json",
+    "typecheck": "yarn workspace shared-chatluna-xmltools build && NODE_OPTIONS=--max-old-space-size=8192 tsc -p tsconfig.test.json",
     "test": "vitest run"
   },
   "keywords": [
@@ -55,6 +55,7 @@
     "tsup": "^8.0.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.0",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "vue": "^3.5.21"
   }
 }

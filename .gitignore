@@ -1,5 +1,13 @@
 node_modules
-.pnpm-store
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.yarn/install-state.gz
+.pnp.*
+package-lock.json
 .DS_Store
 coverage
 docs

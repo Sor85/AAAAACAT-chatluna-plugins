@@ -58,15 +58,15 @@ QQ 头像工具会把 HTTP/HTTPS 图片先转为 OneBot `base64://` 文件再提
 ### 4. 构建
 
 ```bash
-npm run build
+yarn build
 ```
 
 ## 开发命令
 
 ```bash
-npm run typecheck
-npm run build
-npm run test
+yarn typecheck
+yarn build
+yarn test
 ```
 
 ## 仓库地址

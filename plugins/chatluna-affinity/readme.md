@@ -34,7 +34,7 @@
 ### 安装插件
 
 ```bash
-npm install koishi-plugin-chatluna-affinity
+yarn add koishi-plugin-chatluna-affinity
 ```
 
 安装后，在 Koishi 中启用本插件并完成配置。
