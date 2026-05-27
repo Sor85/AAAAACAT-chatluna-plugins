@@ -31,35 +31,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6.0.2
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v5.0.0
-
       - name: Setup Node.js
         uses: actions/setup-node@v6.3.0
         with:
           node-version: '20'
-          cache: 'pnpm'
+          cache: 'yarn'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: yarn install --immutable
 
       - name: Find plugin directory
         id: find
         run: |
-          PLUGIN_DIR=$(pnpm -r list --json --depth 0 \
+          PLUGIN_DIR=$(yarn workspaces list --json \
             | jq -r --arg name "${{ steps.parse.outputs.package_name }}" \
-              '.[] | select(.name == $name) | .path')
+              'select(.name == $name) | .location')
 
           if [ -z "$PLUGIN_DIR" ]; then
             echo "::error::Package '${{ steps.parse.outputs.package_name }}' not found in workspace"
             exit 1
           fi
 
-          # 转换为相对路径
-          RELATIVE_DIR="${PLUGIN_DIR#$GITHUB_WORKSPACE/}"
-          echo "dir=$RELATIVE_DIR" >> "$GITHUB_OUTPUT"
-          echo "Found plugin at: $RELATIVE_DIR"
+          echo "dir=$PLUGIN_DIR" >> "$GITHUB_OUTPUT"
+          echo "Found plugin at: $PLUGIN_DIR"
 
       - name: Verify version matches
         working-directory: ${{ steps.find.outputs.dir }}
@@ -73,11 +71,16 @@ jobs:
           echo "Version verified: $PKG_VERSION"
 
       - name: Build
-        run: pnpm --filter "${{ steps.parse.outputs.package_name }}..." run build
+        run: yarn workspaces foreach -R --from "${{ steps.parse.outputs.package_name }}" --topological-dev run build
 
       - name: Test
         working-directory: ${{ steps.find.outputs.dir }}
-        run: pnpm run --if-present test
+        run: |
+          if jq -e '.scripts.test' package.json > /dev/null; then
+            yarn test
+          else
+            echo "No test script defined"
+          fi
 
       - name: Publish to npm
         working-directory: ${{ steps.find.outputs.dir }}
@@ -88,9 +91,9 @@ jobs:
           if echo "$TAG_VERSION" | grep -qE '(alpha|beta|rc|next)'; then
             DIST_TAG=$(echo "$TAG_VERSION" | sed -E 's/.*-(alpha|beta|rc|next).*/\1/')
             echo "Publishing with dist-tag: $DIST_TAG"
-            pnpm publish --no-git-checks --access public --tag "$DIST_TAG"
+            yarn npm publish --access public --tag "$DIST_TAG"
           else
-            pnpm publish --no-git-checks --access public
+            yarn npm publish --access public
           fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -32,23 +32,23 @@ jobs:
             git fetch origin main:main
           fi
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v5.0.0
-
       - name: Setup Node.js
         uses: actions/setup-node@v6.3.0
         with:
           node-version: '20'
-          cache: 'pnpm'
+          cache: 'yarn'
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: yarn install --immutable
 
       - name: Typecheck changed packages
-        run: NODE_OPTIONS=--max-old-space-size=8192 pnpm run typecheck:changed
+        run: NODE_OPTIONS=--max-old-space-size=8192 yarn typecheck:changed
 
       - name: Test changed packages
-        run: pnpm run test:changed
+        run: yarn test:changed
 
       - name: Build changed packages
-        run: pnpm run build:changed
+        run: yarn build:changed
