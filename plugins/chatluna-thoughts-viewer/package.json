@@ -22,7 +22,7 @@
   "scripts": {
     "build": "tsup",
     "watch": "tsup --watch",
-    "typecheck": "tsc -p tsconfig.test.json",
+    "typecheck": "yarn workspace shared-chatluna-xmltools build && tsc -p tsconfig.test.json",
     "test": "vitest run"
   },
   "keywords": [
