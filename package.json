@@ -11,11 +11,11 @@
   ],
   "scripts": {
     "build": "yarn workspaces foreach -A --topological-dev run build",
-    "test": "yarn workspaces foreach -A run test",
-    "typecheck": "yarn workspaces foreach -A --topological-dev run typecheck",
-    "build:changed": "yarn workspaces foreach --since --exclude koishi-plugins --topological-dev run build",
-    "test:changed": "yarn workspaces foreach --since --exclude koishi-plugins run test",
-    "typecheck:changed": "yarn workspaces foreach --since --exclude koishi-plugins --topological-dev run typecheck",
+    "test": "yarn build && yarn workspaces foreach -A run test",
+    "typecheck": "yarn workspace shared-chatluna-xmltools build && yarn workspaces foreach -A --topological-dev run typecheck",
+    "build:changed": "yarn workspace shared-chatluna-xmltools build && yarn workspaces foreach --since --exclude koishi-plugins --topological-dev run build",
+    "test:changed": "yarn build:changed && yarn workspaces foreach --since --exclude koishi-plugins run test",
+    "typecheck:changed": "yarn workspace shared-chatluna-xmltools build && yarn workspaces foreach --since --exclude koishi-plugins --topological-dev run typecheck",
     "version": "changeset version",
     "release": "changeset publish"
   },
