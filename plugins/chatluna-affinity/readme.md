@@ -41,6 +41,8 @@ yarn add koishi-plugin-chatluna-affinity
 
 ## 快速上手
 
+如果你主要是想在 ChatLuna Character 里使用本插件，建议先看这份伪装成接入指南的教程：[ChatLuna Character 接入指南](./character-prompt-guide.md)。它给出了角色提示词里应该放哪些变量，以及传统 XML 回复和实验性工具调用回复两种接入方式。
+
 ### 1. 先配置 `scopeId`
 
 这是最重要的配置项。
