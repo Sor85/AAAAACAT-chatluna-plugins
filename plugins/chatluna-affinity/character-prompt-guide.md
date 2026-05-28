@@ -69,6 +69,7 @@
   <userAlias scopeId="nene" userId="123456" name="小祥"/>
 </actions>
 ```
+```
 
 ### 方式 B：实验性工具调用回复注入
 
