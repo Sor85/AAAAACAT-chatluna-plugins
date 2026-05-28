@@ -73,7 +73,7 @@ export const XmlToolSettingsSchema = Schema.object({
   </actions>
 \`\`\``,
     )
-    .description("模型回复 XML 参考提示词，将 {scopeId} 替换为实际 scopeId，并自行写入提示词中，不会自动注入；若开启“将 XML 工具改为注入实验性工具调用回复”，则只需在提示词中告知 AI 你的 scopeId")
+    .description("模型回复 XML 参考提示词。此内容不会自动注入到角色提示词中；请先将 {scopeId} 替换为实际 scopeId，再手动复制到 ChatLuna Character 的角色提示词里。若开启“将 XML 工具改为注入实验性工具调用回复”，则只需在提示词中告知 AI 你的 scopeId")
     .collapse(),
 }).description("XML 工具设置");
 
