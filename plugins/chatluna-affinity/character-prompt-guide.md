@@ -58,7 +58,6 @@
   - name: 用户自定义昵称
 
 格式示例:
-```xml
 <actions>
   <affinity scopeId="nene" userId="123456" action="increase" delta="5"/>
   <affinity scopeId="nene" userId="123456" action="decrease" delta="3"/>
@@ -68,7 +67,6 @@
   <relationship scopeId="nene" userId="123456" action="clear"/>
   <userAlias scopeId="nene" userId="123456" name="小祥"/>
 </actions>
-```
 ```
 
 ### 方式 B：实验性工具调用回复注入
