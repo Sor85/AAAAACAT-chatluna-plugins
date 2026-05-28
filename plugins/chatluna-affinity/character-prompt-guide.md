@@ -30,8 +30,34 @@
 
 如果没有开启“将 XML 工具改为注入实验性‘工具调用回复’的参数中”，就需要把插件配置页里的 XML 参考提示词复制到角色提示词中，并把其中的 `{scopeId}` 手动替换为真实值。
 
-常用动作示例：
+示例：
 
+```text
+## 动作指令
+你可以根据需要创建一个独立的 <actions> 元素。它用于执行非语言的系统指令。如果不需要执行任何动作，请省略此元素。
+1. 好感度更新: `<affinity scopeId="" userId="" action="" delta=""/>`
+  - scopeId: nene
+  - userId: 目标用户 ID
+  - action: increase 或 decrease
+  - delta: 必须填写正整数
+2. 黑名单管理: `<blacklist scopeId="" userId="" action="" mode="" durationHours="" note=""/>`
+  - scopeId: nene
+  - userId: 目标用户 ID
+  - action: add 或 remove
+  - mode: permanent 或 temporary
+  - durationHours: 仅在 action=add 且 mode=temporary 时填写
+  - note: 可选备注
+3. 关系调整: `<relationship scopeId="" userId="" action="" relation=""/>`
+  - scopeId: nene
+  - userId: 目标用户 ID
+  - action: set 或 clear
+  - relation: 仅在 action=set 时填写
+4. 自定义昵称设置: `<userAlias scopeId="" userId="" name=""/>`
+  - scopeId: nene
+  - userId: 目标用户 ID
+  - name: 用户自定义昵称
+
+格式示例:
 ```xml
 <actions>
   <affinity scopeId="nene" userId="123456" action="increase" delta="5"/>
