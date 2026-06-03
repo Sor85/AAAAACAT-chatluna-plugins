@@ -50,21 +50,21 @@ export const XmlToolsSchema = Schema.object({
     .description("将 XML 工具注入实验性[工具调用回复](https://chatluna.chat/ecosystem/other/character.html#%E9%A2%84%E8%AE%BE)的参数中"),
   enablePokeXmlTool: Schema.boolean()
     .default(false)
-    .description("启用 XML 戳一戳调用（与**戳一戳工具**二选一）"),
+    .description(`启用 XML 戳一戳调用，与**戳一戳工具**二选一`),
   enableEmojiXmlTool: Schema.boolean()
     .default(false)
     .description(
-      "启用 XML 消息表情调用（需`chatluna-character`开启`enableMessageId`，与**消息表情工具**二选一，查看[emoji_id 对照表](https://bot.q.qq.com/wiki/develop/pythonsdk/model/emoji.html)）",
+      `启用 XML 消息表情调用，需\`chatluna-character\`开启\`enableMessageId\`，与**消息表情工具**二选一，点击查看[emoji_id 对照表](https://bot.q.qq.com/wiki/develop/pythonsdk/model/emoji.html)`,
     ),
   enableDeleteXmlTool: Schema.boolean()
     .default(false)
     .description(
-      "启用 XML 消息撤回调用（需`chatluna-character`开启`enableMessageId`，与**撤回消息工具**二选一）",
+      `启用 XML 消息撤回调用，需\`chatluna-character\`开启\`enableMessageId\`，与**撤回消息工具**二选一`,
     ),
   enableBanXmlTool: Schema.boolean()
     .default(false)
     .description(
-      "启用 XML 群成员禁言调用（与**禁言工具**二选一）",
+      `启用 XML 群成员禁言调用，与**禁言工具**二选一`,
     ),
   referencePrompt: Schema.string()
     .role("textarea")

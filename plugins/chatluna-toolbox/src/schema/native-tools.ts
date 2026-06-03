@@ -19,7 +19,7 @@ export const NativeToolsSchema = Schema.object({
   poke: Schema.object({
     enabled: Schema.boolean()
       .default(false)
-      .description("注册 ChatLuna 原生工具：戳一戳（与**XML 戳一戳调用**二选一）"),
+      .description(`注册 ChatLuna 原生工具：戳一戳，与**XML 戳一戳调用**二选一`),
     toolName: Schema.string().default("poke_user").description("工具名称"),
     description: Schema.string()
       .default(DEFAULT_POKE_TOOL_DESCRIPTION)
@@ -31,7 +31,7 @@ export const NativeToolsSchema = Schema.object({
     enabled: Schema.boolean()
       .default(false)
       .description(
-        "注册 ChatLuna 原生工具：修改自身账户信息（支持昵称 / 签名 / 性别）",
+        `注册 ChatLuna 原生工具：修改自身账户信息，支持昵称 / 签名 / 性别`,
       ),
     toolName: Schema.string()
       .default("set_self_profile")
@@ -92,7 +92,7 @@ export const NativeToolsSchema = Schema.object({
     enabled: Schema.boolean()
       .default(false)
       .description(
-        "注册 ChatLuna 原生工具：给消息添加表情（需`chatluna-character`开启`enableMessageId`，与**XML 表情回应调用**二选一，查看[表情对照表](https://bot.q.qq.com/wiki/develop/pythonsdk/model/emoji.html)）",
+        `注册 ChatLuna 原生工具：给消息添加表情，需\`chatluna-character\`开启\`enableMessageId\`，与**XML 表情回应调用**二选一，点击查看[表情对照表](https://bot.q.qq.com/wiki/develop/pythonsdk/model/emoji.html)`,
       ),
     toolName: Schema.string().default("set_msg_emoji").description("工具名称"),
     description: Schema.string()
@@ -105,7 +105,7 @@ export const NativeToolsSchema = Schema.object({
     enabled: Schema.boolean()
       .default(false)
       .description(
-        "注册 ChatLuna 原生工具：撤回消息（需`chatluna-character`开启`enableMessageId`，与**XML 消息撤回调用**二选一）",
+        `注册 ChatLuna 原生工具：撤回消息，需\`chatluna-character\`开启\`enableMessageId\`，与**XML 消息撤回调用**二选一`,
       ),
     toolName: Schema.string().default("delete_msg").description("工具名称"),
     description: Schema.string()
