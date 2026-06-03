@@ -12,8 +12,7 @@ export interface NativeToolItemConfig {
 }
 
 export interface NativeToolsConfig {
-  enableNapCatProtocol: boolean;
-  enableLlbotProtocol: boolean;
+  oneBotProtocol: OneBotProtocol;
   poke: NativeToolItemConfig;
   setSelfProfile: NativeToolItemConfig;
   setQQAvatar: NativeToolItemConfig;

@@ -86,14 +86,7 @@ export function resolveOneBotProtocol(
   config: Config,
   log?: LogFn,
 ): OneBotProtocol {
-  if (config.enableNapCatProtocol && config.enableLlbotProtocol) {
-    log?.("warn", "NapCat 与 LLBot 协议同时启用，将优先使用 LLBot。");
-    return "llbot";
-  }
-  if (config.enableLlbotProtocol) return "llbot";
-  if (config.enableNapCatProtocol) return "napcat";
-  log?.("warn", "未启用 OneBot 协议选项，默认使用 NapCat。");
-  return "napcat";
+  return config.oneBotProtocol;
 }
 
 export function registerNativeTools(deps: RegisterNativeToolsDeps): void {

@@ -26,8 +26,7 @@ const TOOL_DEFAULT_AVAILABILITY = {
 
 function createConfig(overrides: Partial<Config> = {}): Config {
   return {
-    enableNapCatProtocol: true,
-    enableLlbotProtocol: false,
+    oneBotProtocol: "napcat",
     poke: {
       enabled: false,
       toolName: "poke_user",
@@ -85,22 +84,16 @@ function createConfig(overrides: Partial<Config> = {}): Config {
 }
 
 describe("resolveOneBotProtocol", () => {
-  it("在 LLBot 开启时优先返回 llbot", () => {
+  it("在 oneBotProtocol 为 llbot 时返回 llbot", () => {
     const config = createConfig({
-      enableNapCatProtocol: true,
-      enableLlbotProtocol: true,
+      oneBotProtocol: "llbot",
     });
 
     expect(resolveOneBotProtocol(config)).toBe("llbot");
   });
 
-  it("在协议都关闭时回退到 napcat", () => {
-    const config = createConfig({
-      enableNapCatProtocol: false,
-      enableLlbotProtocol: false,
-    });
-
-    expect(resolveOneBotProtocol(config)).toBe("napcat");
+  it("在 oneBotProtocol 为 napcat 时返回 napcat", () => {
+    expect(resolveOneBotProtocol(createConfig())).toBe("napcat");
   });
 });
 

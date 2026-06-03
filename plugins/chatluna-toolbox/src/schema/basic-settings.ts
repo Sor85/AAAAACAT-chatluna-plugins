@@ -6,10 +6,10 @@
 import { Schema } from "koishi";
 
 export const BasicSettingsSchema = Schema.object({
-  enableNapCatProtocol: Schema.boolean()
-    .default(true)
-    .description("启用 NapCat OneBot 协议（与 LLBot 二选一）"),
-  enableLlbotProtocol: Schema.boolean()
-    .default(false)
-    .description("启用 LLBot OneBot 协议（与 NapCat 二选一）"),
+  oneBotProtocol: Schema.union([
+    Schema.const("napcat").description("NapCat"),
+    Schema.const("llbot").description("LLBot"),
+  ])
+    .default("napcat")
+    .description("OneBot 协议"),
 }).description("基础设置");

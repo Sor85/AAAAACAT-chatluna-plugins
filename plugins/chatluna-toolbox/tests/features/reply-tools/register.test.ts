@@ -8,8 +8,7 @@ import {
 function createConfig(overrides: Partial<Config> = {}): Config {
   return {
     injectXmlToolAsReplyTool: false,
-    enableNapCatProtocol: true,
-    enableLlbotProtocol: false,
+    oneBotProtocol: "napcat",
     poke: {
       enabled: false,
       toolName: "poke_user",

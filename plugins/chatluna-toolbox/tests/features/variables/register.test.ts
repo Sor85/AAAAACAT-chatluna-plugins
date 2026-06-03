@@ -9,8 +9,7 @@ import type { Config } from "../../../src/types";
 
 function createConfig(overrides: Partial<Config> = {}): Config {
   return {
-    enableNapCatProtocol: true,
-    enableLlbotProtocol: false,
+    oneBotProtocol: "napcat",
     poke: {
       enabled: false,
       toolName: "poke_user",
