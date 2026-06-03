@@ -47,27 +47,27 @@ const DEFAULT_XML_REFERENCE_PROMPT = `## 动作指令
 export const XmlToolsSchema = Schema.object({
   injectXmlToolAsReplyTool: Schema.boolean()
     .default(false)
-    .description("将 XML 工具改为注入实验性“工具调用回复”的参数中"),
+    .description("将 XML 工具注入实验性[工具调用回复](https://chatluna.chat/ecosystem/other/character.html#%E9%A2%84%E8%AE%BE)的参数中"),
   enablePokeXmlTool: Schema.boolean()
     .default(false)
-    .description("启用 XML 形式的戳一戳调用（与 原生工具 二选一）"),
+    .description("启用 XML 戳一戳调用（与**戳一戳工具**二选一）"),
   enableEmojiXmlTool: Schema.boolean()
     .default(false)
     .description(
-      "启用 XML 形式的消息表情调用，（需 chatluna-character 开启 enableMessageId，与 原生工具 二选一，emoji_id 对照表：https://bot.q.qq.com/wiki/develop/pythonsdk/model/emoji.html ）",
+      "启用 XML 消息表情调用（需`chatluna-character`开启`enableMessageId`，与**消息表情工具**二选一，查看[emoji_id 对照表](https://bot.q.qq.com/wiki/develop/pythonsdk/model/emoji.html)）",
     ),
   enableDeleteXmlTool: Schema.boolean()
     .default(false)
     .description(
-      "启用 XML 形式的消息撤回调用（需 chatluna-character 开启 enableMessageId，与 原生工具 二选一）",
+      "启用 XML 消息撤回调用（需`chatluna-character`开启`enableMessageId`，与**撤回消息工具**二选一）",
     ),
   enableBanXmlTool: Schema.boolean()
     .default(false)
     .description(
-      "启用 XML 形式的群成员禁言调用（与 原生工具 二选一）",
+      "启用 XML 群成员禁言调用（与**禁言工具**二选一）",
     ),
   referencePrompt: Schema.string()
     .role("textarea")
     .default(DEFAULT_XML_REFERENCE_PROMPT)
-    .description("模型回复 XML 参考提示词，自行写入提示词中，不会自动注入；若开启“将 XML 工具改为注入实验性工具调用回复”，则无需增加额外提示词"),
+    .description("模型回复 XML 参考提示词。自行写入提示词中，不会自动注入；若开启“将 XML 工具注入实验性[工具调用回复](https://chatluna.chat/ecosystem/other/character.html#%E9%A2%84%E8%AE%BE)的参数中”，则无需增加额外提示词"),
 }).description("XML 工具");

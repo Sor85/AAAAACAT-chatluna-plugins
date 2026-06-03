@@ -28,7 +28,7 @@ export const VariablesSchema = Schema.object({
     )
       .role("checkbox")
       .default([...DEFAULT_MEMBER_INFO_ITEMS])
-      .description("显示的详细信息项"),
+      .description("选择用户信息变量中显示的详细信息项"),
   })
     .description("用户信息变量")
     .collapse(),
@@ -50,7 +50,7 @@ export const VariablesSchema = Schema.object({
     )
       .role("checkbox")
       .default([...DEFAULT_MEMBER_INFO_ITEMS])
-      .description("显示的机器人详细信息项"),
+      .description("选择机器人信息变量中显示的详细信息项"),
   })
     .description("机器人信息变量")
     .collapse(),
@@ -68,7 +68,7 @@ export const VariablesSchema = Schema.object({
     )
       .role("checkbox")
       .default([...DEFAULT_GROUP_INFO_ITEMS])
-      .description("显示的群信息项"),
+      .description("选择群信息变量中显示的群信息项"),
   })
     .description("群信息变量")
     .collapse(),

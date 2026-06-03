@@ -11,5 +11,5 @@ export const BasicSettingsSchema = Schema.object({
     Schema.const("llbot").description("LLBot"),
   ])
     .default("napcat")
-    .description("OneBot 协议"),
+    .description("选择 OneBot 协议"),
 }).description("基础设置");
