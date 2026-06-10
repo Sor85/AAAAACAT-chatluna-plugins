@@ -44,7 +44,7 @@ export function apply(ctx: Context, config: PluginConfig): void {
 export const usage = `
 ## 额外表情仓库
 
-如果你自建了 meme-generator 服务，可以安装以下额外表情仓库来扩展更多表情：
+如果你自建了[MemeCrafters/meme-generator](https://github.com/MemeCrafters/meme-generator)服务，可以安装以下额外表情仓库来扩展更多表情：
 
 - [meme-generator-contrib](https://github.com/MemeCrafters/meme-generator-contrib)
 - [meme_emoji](https://github.com/anyliew/meme_emoji)

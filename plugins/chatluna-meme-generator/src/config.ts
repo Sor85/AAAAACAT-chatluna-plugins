@@ -172,22 +172,22 @@ const imageSchema = Schema.object({
     .default(
       defaultConfig.autoFillSenderAndBotAvatarsWhenMinImagesTwoAndNoImage,
     )
-    .description("最少需 2 图且无图时自动补发送者与 bot 头像"),
+    .description("最少需 2 图且无图时自动补发送者与`bot`头像"),
 }).description("图片补全设置");
 
 const randomSchema = Schema.object({
   enableRandomDedupeWithinHours: Schema.boolean()
     .default(defaultConfig.enableRandomDedupeWithinHours)
-    .description("是否开启 meme.random 时间窗口去重"),
+    .description("是否开启`meme.random`时间窗口去重"),
   randomDedupeWindowHours: Schema.number()
     .min(1)
     .max(720)
     .step(1)
     .default(defaultConfig.randomDedupeWindowHours)
-    .description("meme.random 去重时间窗口（小时）"),
+    .description("`meme.random`去重时间窗口（小时）"),
   enableRandomKeywordNotice: Schema.boolean()
     .default(defaultConfig.enableRandomKeywordNotice)
-    .description("meme.random 是否附带模板关键词提示"),
+    .description("`meme.random`是否附带模板关键词提示"),
   randomMemeBucketWeightRules: Schema.array(
     Schema.object({
       category: Schema.union([
@@ -208,7 +208,7 @@ const randomSchema = Schema.object({
   )
     .role("table")
     .default(defaultConfig.randomMemeBucketWeightRules)
-    .description("meme.random 随机时的权重配置"),
+    .description("`meme.random`随机时的权重配置"),
 }).description("随机触发设置");
 
 const triggerSchema = Schema.object({
@@ -217,13 +217,13 @@ const triggerSchema = Schema.object({
     .description("是否允许中文别名跳过指令前缀直接触发"),
   allowKeyWithoutPrefixTrigger: Schema.boolean()
     .default(defaultConfig.allowKeyWithoutPrefixTrigger ?? false)
-    .description("是否允许 key 跳过指令前缀直接触发"),
+    .description("是否允许`key`跳过指令前缀直接触发"),
   allowMentionPrefixDirectAliasTrigger: Schema.boolean()
     .default(defaultConfig.allowMentionPrefixDirectAliasTrigger)
-    .description("是否允许贴合参数触发（如 meme@用户1@用户2文本参数）"),
+    .description("是否允许贴合参数触发，如`meme@用户1@用户2文本参数`"),
   allowLeadingAtBeforeCommand: Schema.boolean()
     .default(defaultConfig.allowLeadingAtBeforeCommand)
-    .description("是否允许前置@参数触发（如 @用户 meme）"),
+    .description("是否允许前置 @ 参数触发，如`@用户 meme`"),
   enableQuotedImageTrigger: Schema.boolean()
     .default(defaultConfig.enableQuotedImageTrigger)
     .description("是否允许引用消息中的图片参与触发"),
@@ -232,14 +232,14 @@ const triggerSchema = Schema.object({
     .description("是否在未提供文本参数时使用引用消息文字触发"),
   enableMemeXmlTool: Schema.boolean()
     .default(defaultConfig.enableMemeXmlTool)
-    .description("是否启用 XML 形式的 meme 工具调用"),
+    .description("是否启用 XML 形式的`meme`工具调用"),
   injectMemeXmlToolAsReplyTool: Schema.boolean()
     .default(defaultConfig.injectMemeXmlToolAsReplyTool)
-    .description("是否将 XML 工具改为注入实验性“工具调用回复”的参数中"),
+    .description("是否将 XML 工具改为注入实验性[工具调用回复](https://chatluna.chat/ecosystem/other/character.html#%E9%A2%84%E8%AE%BE)的参数中"),
   memeXmlReferencePrompt: Schema.string()
     .role("textarea")
     .default(defaultConfig.memeXmlReferencePrompt || "")
-    .description("模型回复 XML 参考提示词，自行写入提示词中，不会自动注入，将 {bot_id} 替换为 bot 的实际 id。text、image、at 支持多个参数，参数之间使用“|”隔开，如果缺少参数，会按预设的补全设置自动补全；若开启“将 XML 工具改为注入实验性工具调用回复”，则只需提供必要参数"),
+    .description("模型回复 XML 参考提示词，自行写入提示词中，不会自动注入，将`{bot_id}`替换为`bot`的实际 id。`text`、`image`、`at`支持多个参数，参数之间使用`|`隔开，如果缺少参数，会按预设的补全设置自动补全；若开启“将 XML 工具改为注入实验性工具调用回复”，则只需提供必要参数"),
 }).description("触发方式设置");
 
 const filterSchema = Schema.object({
@@ -261,7 +261,7 @@ const filterSchema = Schema.object({
   excludedMemeKeys: Schema.array(Schema.string().min(1))
     .role("table")
     .default(defaultConfig.excludedMemeKeys)
-    .description("排除模板 key 列表"),
+    .description("排除模板`key`列表"),
 }).description("模板筛选设置");
 
 const runtimeSchema = Schema.object({
@@ -282,7 +282,7 @@ const runtimeSchema = Schema.object({
     .description("是否关闭平台错误回复（仅写日志）"),
   renderMemeListAsImage: Schema.boolean()
     .default(defaultConfig.renderMemeListAsImage)
-    .description("meme.list 是否以图片形式输出"),
+    .description("`meme.list`是否以图片形式输出"),
   enableDeveloperDebugLog: Schema.boolean()
     .default(defaultConfig.enableDeveloperDebugLog)
     .description("开启调试日志"),
