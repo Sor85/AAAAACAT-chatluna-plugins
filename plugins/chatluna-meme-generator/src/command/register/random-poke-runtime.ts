@@ -403,7 +403,8 @@ export function installRandomRuntime(
           eligibleCandidates.length > 0 &&
           candidatesForPick.length === 0
         ) {
-          historyForRecord = new Map<string, number>();
+          // 只让当前输入条件下的候选轮回，不能清空全局历史。
+          // 否则一个小候选子集耗尽时，会让其他模板提前失去时间窗口保护。
           candidatesForPick = eligibleCandidates;
         }
 

@@ -2448,6 +2448,100 @@ describe("registerCommands", () => {
     randomSpy.mockRestore();
   });
 
+  it("meme.random 当前输入候选耗尽时不应清空其他模板历史", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["text-only", "other-only", "fresh-only"]);
+    getInfoMock.mockImplementation(async (key: string) => {
+      if (key === "text-only") {
+        return createRandomMemeInfo(key, {
+          min_images: 0,
+          max_images: 0,
+          min_texts: 0,
+          max_texts: 1,
+          default_texts: [],
+        });
+      }
+      return createRandomMemeInfo(key, {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+      });
+    });
+
+    const randomSpy = vi
+      .spyOn(Math, "random")
+      .mockReturnValueOnce(0.1)
+      .mockReturnValueOnce(0.2)
+      .mockReturnValueOnce(0.3)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0.9)
+      .mockReturnValueOnce(0.1)
+      .mockReturnValueOnce(0.5)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0.1)
+      .mockReturnValueOnce(0.2)
+      .mockReturnValueOnce(0.3)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0.9)
+      .mockReturnValueOnce(0.1)
+      .mockReturnValueOnce(0.5)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0);
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_000);
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableRandomDedupeWithinHours: true,
+        randomDedupeWindowHours: 24,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const randomAction = commandActions.get("meme.random [...texts]");
+    expect(randomAction).toBeDefined();
+
+    await randomAction!({ session: createSession("meme.random") }, "文案");
+    await randomAction!({ session: createSession("meme.random") });
+    await randomAction!({ session: createSession("meme.random") }, "文案");
+    await randomAction!({ session: createSession("meme.random") });
+
+    expect(generateMock).toHaveBeenNthCalledWith(
+      1,
+      "text-only",
+      [],
+      ["文案"],
+      {},
+    );
+    expect(generateMock).toHaveBeenNthCalledWith(2, "other-only", [], [], {});
+    expect(generateMock).toHaveBeenNthCalledWith(
+      3,
+      "text-only",
+      [],
+      ["文案"],
+      {},
+    );
+    expect(generateMock).toHaveBeenNthCalledWith(4, "fresh-only", [], [], {});
+
+    nowSpy.mockRestore();
+    randomSpy.mockRestore();
+  });
+
   it("meme.random 命中模板生成失败时应跳过当前模板并继续尝试下一个候选", async () => {
     const commandActions = new Map<
       string,
