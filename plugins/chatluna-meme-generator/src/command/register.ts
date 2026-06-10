@@ -42,6 +42,7 @@ import {
   installXmlRuntime,
 } from "./register/xml-runtime";
 import { installRandomRuntime } from "./register/random-poke-runtime";
+import type { MemeInfoResponse } from "../types";
 
 interface LeadingAtCommandParts {
   leadingAtSegments: string[];
@@ -180,6 +181,19 @@ function parseLeadingAtBeforeMemeByElements(
     commandText,
     suffix,
   };
+}
+
+function collectChineseAliases(info: MemeInfoResponse): string[] {
+  const aliases = [
+    ...info.keywords,
+    ...info.shortcuts.flatMap((shortcut) =>
+      shortcut.humanized ? [shortcut.humanized, shortcut.key] : [shortcut.key],
+    ),
+  ]
+    .map((alias) => alias.trim())
+    .filter((alias) => alias && /[^\x00-\x7F]/.test(alias));
+
+  return Array.from(new Set(aliases));
 }
 
 export function registerCommands(ctx: Context, config: Config): void {
@@ -398,8 +412,10 @@ export function registerCommands(ctx: Context, config: Config): void {
         }
         const info = await client.getInfo(resolvedKey);
         const params = info.params_type;
+        const aliases = collectChineseAliases(info);
         return [
           `key: ${info.key}`,
+          `aliases: ${aliases.join(" | ") || "(无)"}`,
           `images: ${params.min_images} ~ ${params.max_images}`,
           `texts: ${params.min_texts} ~ ${params.max_texts}`,
           `default_texts: ${params.default_texts.join(" | ") || "(空)"}`,

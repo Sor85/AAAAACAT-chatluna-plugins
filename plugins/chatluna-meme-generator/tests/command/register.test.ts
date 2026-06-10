@@ -466,6 +466,58 @@ beforeEach(() => {
 });
 
 describe("registerCommands", () => {
+  it("meme.info 应显示中文别名", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getInfoMock.mockResolvedValue({
+      key: "qizhu",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 1,
+        max_texts: 1,
+        default_texts: ["默认文案"],
+      },
+      keywords: ["骑猪", "qizhu", "骑猪"],
+      shortcuts: [
+        { key: "qizhu_shortcut", humanized: "骑猪快捷" },
+        { key: "坐骑猪" },
+      ],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const infoAction = commandActions.get("meme.info <key:string>");
+
+    expect(infoAction).toBeDefined();
+
+    const result = await infoAction!({}, "qizhu");
+
+    expect(String(result)).toContain(
+      "aliases: 骑猪 | 骑猪快捷 | 坐骑猪",
+    );
+    expect(String(result)).toContain("default_texts: 默认文案");
+  });
+
   it("chatluna_character 延迟可用后仍应挂载 XML runtime", async () => {
     const {
       ctx,
