@@ -22,10 +22,7 @@ import {
   getMentionedTargetDisplayName,
   getSenderAvatarImage,
   getSenderDisplayName,
-  resolveAvatarImageByUserId,
-  resolveDisplayNameByUserId,
 } from "../../utils/avatar";
-import type { OneBotLikeInternalEvent } from "./types";
 import { buildRandomConfig, type PreparedAvatarImage } from "./generate";
 import { mapRuntimeErrorMessage, replyOrSilent } from "./errors";
 import { stringifyImageSegment } from "./meme-list";
@@ -51,207 +48,6 @@ interface InstallRandomRuntimeOptions {
   ) => Promise<ReturnType<typeof h.image>>;
   handleErrorReply: (scope: string, message: string) => string;
   handleRuntimeError: (scope: string, error: unknown) => string;
-}
-
-function isPokeTargetingCurrentBot(session: Session): boolean {
-  const sessionLike = session as unknown as { onebot?: unknown };
-  const onebotPayload = sessionLike.onebot;
-  if (!onebotPayload || typeof onebotPayload !== "object") return false;
-
-  const eventData = onebotPayload as OneBotLikeInternalEvent;
-  const postType =
-    typeof eventData.post_type === "string"
-      ? eventData.post_type.toLowerCase()
-      : "";
-  const noticeType =
-    typeof eventData.notice_type === "string"
-      ? eventData.notice_type.toLowerCase()
-      : "";
-  const subType =
-    typeof eventData.sub_type === "string"
-      ? eventData.sub_type.toLowerCase()
-      : "";
-
-  if (
-    !(postType === "notice" && noticeType === "notify" && subType === "poke")
-  ) {
-    return false;
-  }
-
-  const targetId =
-    eventData.target_id == null ? "" : String(eventData.target_id).trim();
-  const selfId =
-    eventData.self_id == null
-      ? (session.selfId ?? "")
-      : String(eventData.self_id).trim();
-
-  return targetId.length > 0 && selfId.length > 0 && targetId === selfId;
-}
-
-function isPokeTriggerSession(session: Session): boolean {
-  return isPokeTargetingCurrentBot(session);
-}
-
-function resolvePokeOperatorId(session: Session): string | undefined {
-  const onebotPayload = (session as unknown as { onebot?: unknown }).onebot;
-  if (!onebotPayload || typeof onebotPayload !== "object") return undefined;
-  const eventData = onebotPayload as OneBotLikeInternalEvent;
-  const rawOperator = eventData.operator_id ?? eventData.user_id;
-  if (rawOperator == null) return undefined;
-  const operatorId = String(rawOperator).trim();
-  return operatorId || undefined;
-}
-
-function resolvePokeGuildId(session: Session): string | undefined {
-  const onebotPayload = (session as unknown as { onebot?: unknown }).onebot;
-  if (!onebotPayload || typeof onebotPayload !== "object")
-    return session.guildId;
-  const eventData = onebotPayload as OneBotLikeInternalEvent;
-  const rawGuildId = eventData.group_id;
-  if (rawGuildId == null) return session.guildId;
-  const guildId = String(rawGuildId).trim();
-  return guildId || session.guildId;
-}
-
-function normalizePokeDisplayName(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const normalized = value.trim();
-  if (!normalized) return undefined;
-  return normalized;
-}
-
-function isPureNumericId(value: string): boolean {
-  return /^\d{5,}$/.test(value);
-}
-
-function resolvePokeRuntimeSenderFallback(
-  session: Session,
-): string | undefined {
-  const onebotPayload = (session as unknown as { onebot?: unknown }).onebot;
-  if (!onebotPayload || typeof onebotPayload !== "object") return undefined;
-
-  const eventData = onebotPayload as Record<string, unknown>;
-  const sender =
-    (eventData.sender as Record<string, unknown> | undefined) ?? undefined;
-
-  const card = normalizePokeDisplayName(sender?.card ?? eventData.card);
-  if (card) return card;
-
-  const nickname = normalizePokeDisplayName(
-    sender?.nickname ?? eventData.nickname,
-  );
-  if (nickname) return nickname;
-
-  const title = normalizePokeDisplayName(sender?.title ?? eventData.title);
-  if (title) return title;
-
-  return undefined;
-}
-
-function sanitizeResolvedPokeDisplayName(
-  name: string | undefined,
-  actorUserId?: string,
-): string | undefined {
-  const normalizedName = normalizePokeDisplayName(name);
-  if (!normalizedName) return undefined;
-  if (actorUserId && normalizedName === actorUserId) return undefined;
-  if (isPureNumericId(normalizedName) && !actorUserId) return undefined;
-  if (isPureNumericId(normalizedName) && normalizedName === actorUserId) {
-    return undefined;
-  }
-  return normalizedName;
-}
-
-async function resolvePokeRuntimeHints(session: Session): Promise<{
-  senderName?: string;
-  groupNicknameText?: string;
-  actorUserId?: string;
-  preferredGuildId?: string;
-}> {
-  const senderFallbackName = resolvePokeRuntimeSenderFallback(session);
-  const senderName = senderFallbackName || getSenderDisplayName(session);
-  if (!isPokeTriggerSession(session)) {
-    return { senderName };
-  }
-
-  const operatorId = resolvePokeOperatorId(session);
-  const fallbackUserId = session.userId?.trim();
-  const actorUserId = operatorId || fallbackUserId;
-  if (!actorUserId) {
-    return { senderName };
-  }
-
-  const resolvedGuildId = resolvePokeGuildId(session);
-  const preferredGuildId =
-    resolvedGuildId && resolvedGuildId !== "private"
-      ? resolvedGuildId
-      : undefined;
-
-  const operatorDisplayName = sanitizeResolvedPokeDisplayName(
-    await resolveDisplayNameByUserId(session, actorUserId, preferredGuildId),
-    actorUserId,
-  );
-
-  return {
-    senderName: operatorDisplayName || senderName,
-    groupNicknameText: operatorDisplayName || senderFallbackName || senderName,
-    actorUserId,
-    preferredGuildId,
-  };
-}
-
-async function resolvePokeAvatarHints(
-  ctx: Context,
-  session: Session,
-  timeoutMs: number,
-  pokeRuntimeHints?: Awaited<ReturnType<typeof resolvePokeRuntimeHints>>,
-): Promise<{
-  senderAvatarImage?: PreparedAvatarImage;
-  mentionedAvatarImages: PreparedAvatarImage[];
-  botAvatarImage?: PreparedAvatarImage;
-}> {
-  const resolvedPokeRuntimeHints =
-    pokeRuntimeHints ?? (await resolvePokeRuntimeHints(session));
-  const senderAvatarImage = await getSenderAvatarImage(ctx, session, timeoutMs);
-  const mentionedAvatarImages = await getMentionedAvatarImages(
-    ctx,
-    session,
-    timeoutMs,
-  );
-  const botAvatarImage = await getBotAvatarImage(ctx, session, timeoutMs);
-
-  if (!isPokeTriggerSession(session)) {
-    return {
-      senderAvatarImage,
-      mentionedAvatarImages,
-      botAvatarImage,
-    };
-  }
-
-  const actorUserId = resolvedPokeRuntimeHints.actorUserId;
-  const preferredGuildId = resolvedPokeRuntimeHints.preferredGuildId;
-
-  const actorAvatarImage = actorUserId
-    ? await resolveAvatarImageByUserId(
-        ctx,
-        session,
-        actorUserId,
-        timeoutMs,
-        preferredGuildId,
-        "poke-actor-avatar",
-      )
-    : undefined;
-
-  return {
-    senderAvatarImage: senderAvatarImage || actorAvatarImage,
-    mentionedAvatarImages:
-      mentionedAvatarImages.length > 0
-        ? mentionedAvatarImages
-        : actorAvatarImage
-          ? [actorAvatarImage]
-          : [],
-    botAvatarImage,
-  };
 }
 
 export function installRandomRuntime(
@@ -313,27 +109,31 @@ export function installRandomRuntime(
           texts,
           config,
         );
-        const pokeRuntimeHints = await resolvePokeRuntimeHints(session);
-        const senderName =
-          pokeRuntimeHints.senderName || getSenderDisplayName(session);
+        const senderName = getSenderDisplayName(session);
         const groupNicknameEnabled =
           config.autoUseGroupNicknameWhenNoDefaultText;
         const targetDisplayName = groupNicknameEnabled
           ? await getMentionedTargetDisplayName(session)
           : undefined;
         const groupNicknameText = groupNicknameEnabled
-          ? targetDisplayName ||
-            pokeRuntimeHints.groupNicknameText ||
-            senderName
+          ? targetDisplayName || senderName
           : undefined;
 
-        const { senderAvatarImage, mentionedAvatarImages, botAvatarImage } =
-          await resolvePokeAvatarHints(
-            ctx,
-            session,
-            config.timeoutMs,
-            pokeRuntimeHints,
-          );
+        const senderAvatarImage = await getSenderAvatarImage(
+          ctx,
+          session,
+          config.timeoutMs,
+        );
+        const mentionedAvatarImages = await getMentionedAvatarImages(
+          ctx,
+          session,
+          config.timeoutMs,
+        );
+        const botAvatarImage = await getBotAvatarImage(
+          ctx,
+          session,
+          config.timeoutMs,
+        );
         const randomConfig = buildRandomConfig(config);
         const randomDedupeConfig = {
           enabled: config.enableRandomDedupeWithinHours,

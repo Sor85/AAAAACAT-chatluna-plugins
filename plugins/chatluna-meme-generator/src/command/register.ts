@@ -47,7 +47,7 @@ import {
   createXmlMemeToolExecutor,
   installXmlRuntime,
 } from "./register/xml-runtime";
-import { installRandomRuntime } from "./register/random-poke-runtime";
+import { installRandomRuntime } from "./register/random-runtime";
 import type { MemeInfoResponse } from "../types";
 
 interface LeadingAtCommandParts {

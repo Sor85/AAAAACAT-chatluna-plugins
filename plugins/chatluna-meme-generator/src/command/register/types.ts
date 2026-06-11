@@ -89,17 +89,6 @@ export interface ContextWithChatlunaCharacter extends Context {
   chatluna_character?: ChatlunaCharacterServiceLike;
 }
 
-export interface OneBotLikeInternalEvent {
-  post_type?: unknown;
-  notice_type?: unknown;
-  sub_type?: unknown;
-  target_id?: unknown;
-  self_id?: unknown;
-  user_id?: unknown;
-  operator_id?: unknown;
-  group_id?: unknown;
-}
-
 export interface ElementLike {
   type?: string;
   attrs?: {
