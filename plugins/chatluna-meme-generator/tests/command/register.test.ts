@@ -333,6 +333,7 @@ function createBaseConfig(overrides: Partial<Config> = {}): Config {
     excludeOtherMemes: false,
     excludedMemeKeys: [],
     ...overrides,
+    enableMemeCommandTrigger: overrides.enableMemeCommandTrigger ?? true,
   };
 }
 
@@ -486,6 +487,45 @@ describe("registerCommands", () => {
       "随机选择模板并生成 meme 图片",
       { captureQuote: false },
     );
+  });
+
+  it("默认应注册 meme key 与中文别名生成命令", () => {
+    const { ctx } = createMockContext();
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+
+    expect(ctx.command).toHaveBeenCalledWith(
+      "meme <key:string> [...texts]",
+      "生成 meme 图片",
+      { captureQuote: false },
+    );
+  });
+
+  it("关闭 meme 指令触发后应仅跳过主生成命令", () => {
+    const { ctx } = createMockContext();
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+        enableMemeCommandTrigger: false,
+      }),
+    );
+
+    const registeredCommands = ctx.command.mock.calls.map(
+      (call: any[]) => call[0],
+    );
+
+    expect(registeredCommands).not.toContain("meme <key:string> [...texts]");
+    expect(registeredCommands).toContain("meme.info <key:string>");
+    expect(registeredCommands).toContain("meme.list");
+    expect(registeredCommands).toContain("meme.preview <key:string>");
+    expect(registeredCommands).toContain("meme.random [...texts]");
   });
 
   it("meme.info 应显示中文别名", async () => {

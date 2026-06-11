@@ -702,31 +702,34 @@ export function registerCommands(ctx: Context, config: Config): void {
     });
   }
 
-  ctx
-    .command("meme <key:string> [...texts]", "生成 meme 图片", {
-      captureQuote: false,
-    })
-    .action(async ({ session }, key, ...texts) => {
-      if (!session)
-        return handleErrorReply("meme.generate", "当前上下文不可用。");
-      try {
-        await ensureCategoryExcludedMemeKeySet();
-        const resolvedKey = await resolveMemeKey(key);
-        if (isExcludedMemeKey(resolvedKey, mergedExcludedMemeKeySet())) {
-          return handleErrorReply("meme.generate", "该模板已被排除。");
+  // 只控制主生成命令；关闭后保留 meme.* 子命令，让 Koishi help 仍能列出可用子指令。
+  if (config.enableMemeCommandTrigger) {
+    ctx
+      .command("meme <key:string> [...texts]", "生成 meme 图片", {
+        captureQuote: false,
+      })
+      .action(async ({ session }, key, ...texts) => {
+        if (!session)
+          return handleErrorReply("meme.generate", "当前上下文不可用。");
+        try {
+          await ensureCategoryExcludedMemeKeySet();
+          const resolvedKey = await resolveMemeKey(key);
+          if (isExcludedMemeKey(resolvedKey, mergedExcludedMemeKeySet())) {
+            return handleErrorReply("meme.generate", "该模板已被排除。");
+          }
+          return await handleGenerate(
+            ctx,
+            session,
+            client,
+            config,
+            resolvedKey,
+            texts,
+          );
+        } catch (error) {
+          return handleRuntimeError("meme.generate", error);
         }
-        return await handleGenerate(
-          ctx,
-          session,
-          client,
-          config,
-          resolvedKey,
-          texts,
-        );
-      } catch (error) {
-        return handleRuntimeError("meme.generate", error);
-      }
-    });
+      });
+  }
 
   installRandomRuntime({
     ctx,

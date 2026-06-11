@@ -61,6 +61,7 @@ function createConfig(overrides: Partial<Config> = {}): Config {
     excludeOtherMemes: false,
     excludedMemeKeys: [],
     ...overrides,
+    enableMemeCommandTrigger: overrides.enableMemeCommandTrigger ?? true,
   };
 }
 

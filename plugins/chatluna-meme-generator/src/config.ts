@@ -37,6 +37,7 @@ export interface Config {
   enableQuotedImageTrigger: boolean;
   enableQuotedTextTrigger: boolean;
   renderMemeListAsImage: boolean;
+  enableMemeCommandTrigger: boolean;
   enableDirectAliasWithoutPrefix: boolean;
   allowKeyWithoutPrefixTrigger?: boolean;
   allowMentionPrefixDirectAliasTrigger: boolean;
@@ -82,6 +83,7 @@ export const defaultConfig: Config = {
   enableQuotedImageTrigger: true,
   enableQuotedTextTrigger: false,
   renderMemeListAsImage: true,
+  enableMemeCommandTrigger: true,
   enableDirectAliasWithoutPrefix: true,
   allowKeyWithoutPrefixTrigger: false,
   allowMentionPrefixDirectAliasTrigger: false,
@@ -212,18 +214,21 @@ const randomSchema = Schema.object({
 }).description("随机触发设置");
 
 const triggerSchema = Schema.object({
+  enableMemeCommandTrigger: Schema.boolean()
+    .default(defaultConfig.enableMemeCommandTrigger)
+    .description("是否允许通过`meme key`或`meme 中文别名`生成 meme"),
   enableDirectAliasWithoutPrefix: Schema.boolean()
     .default(defaultConfig.enableDirectAliasWithoutPrefix)
-    .description("是否允许中文别名跳过指令前缀直接触发"),
+    .description("是否允许中文别名跳过 meme 前缀直接触发"),
   allowKeyWithoutPrefixTrigger: Schema.boolean()
     .default(defaultConfig.allowKeyWithoutPrefixTrigger ?? false)
-    .description("是否允许`key`跳过指令前缀直接触发"),
+    .description("是否允许`key`跳过 meme 前缀直接触发"),
   allowMentionPrefixDirectAliasTrigger: Schema.boolean()
     .default(defaultConfig.allowMentionPrefixDirectAliasTrigger)
-    .description("是否允许贴合参数触发，如`meme@用户1@用户2文本参数`"),
+    .description("是否允许贴合参数触发，如`meme key/中文别名@用户1@用户2文本参数`"),
   allowLeadingAtBeforeCommand: Schema.boolean()
     .default(defaultConfig.allowLeadingAtBeforeCommand)
-    .description("是否允许前置 @ 参数触发，如`@用户 meme`"),
+    .description("是否允许前置 @ 参数触发，如`@用户 meme key/中文别名`"),
   enableQuotedImageTrigger: Schema.boolean()
     .default(defaultConfig.enableQuotedImageTrigger)
     .description("是否允许引用消息中的图片参与触发"),
