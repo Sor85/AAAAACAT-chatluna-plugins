@@ -240,7 +240,7 @@ const triggerSchema = Schema.object({
     .description("是否启用 XML 形式的`meme`工具调用"),
   injectMemeXmlToolAsReplyTool: Schema.boolean()
     .default(defaultConfig.injectMemeXmlToolAsReplyTool)
-    .description("是否将 XML 工具改为注入实验性[工具调用回复](https://chatluna.chat/ecosystem/other/character.html#%E9%A2%84%E8%AE%BE)的参数中"),
+    .description("是否将 XML 工具改为注入实验性[工具调用回复](https://chatluna.chat/ecosystem/other/character.html#%E9%A2%84%E8%AE%BE)的参数中，需同时开启 XML 工具才会生效"),
   memeXmlReferencePrompt: Schema.string()
     .role("textarea")
     .default(defaultConfig.memeXmlReferencePrompt || "")
