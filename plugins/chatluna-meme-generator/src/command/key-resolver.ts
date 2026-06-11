@@ -25,6 +25,7 @@ export interface DirectAliasListResult {
 
 export interface KeyResolverOptions {
   infoFetchConcurrency?: number;
+  enableDirectAliasWithoutPrefix?: boolean;
   allowKeyWithoutPrefixTrigger?: boolean;
 }
 
@@ -183,15 +184,17 @@ export async function listDirectAliases(
       keyAliasSet.add(normalizeAlias(key));
     }
   }
-  for (const item of keyInfos) {
-    if (!item.info) continue;
-    for (const keyword of item.info.keywords) {
-      if (!shouldRegisterDirectAlias(keyword)) continue;
-      registerAliasCandidate(aliasCandidateMap, keyword, item.key);
-    }
-    for (const shortcutAlias of collectShortcutAliases(item.info.shortcuts)) {
-      if (!shouldRegisterDirectAlias(shortcutAlias)) continue;
-      registerAliasCandidate(aliasCandidateMap, shortcutAlias, item.key);
+  if (options.enableDirectAliasWithoutPrefix ?? true) {
+    for (const item of keyInfos) {
+      if (!item.info) continue;
+      for (const keyword of item.info.keywords) {
+        if (!shouldRegisterDirectAlias(keyword)) continue;
+        registerAliasCandidate(aliasCandidateMap, keyword, item.key);
+      }
+      for (const shortcutAlias of collectShortcutAliases(item.info.shortcuts)) {
+        if (!shouldRegisterDirectAlias(shortcutAlias)) continue;
+        registerAliasCandidate(aliasCandidateMap, shortcutAlias, item.key);
+      }
     }
   }
 

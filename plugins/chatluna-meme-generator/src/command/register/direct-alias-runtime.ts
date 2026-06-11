@@ -161,6 +161,7 @@ export function installDirectAliasRuntime(
     if (aliasRetryDisposed) return true;
     const result = await listDirectAliases(client, {
       infoFetchConcurrency: config.infoFetchConcurrency,
+      enableDirectAliasWithoutPrefix: config.enableDirectAliasWithoutPrefix,
       allowKeyWithoutPrefixTrigger: config.allowKeyWithoutPrefixTrigger,
     });
     await ensureCategoryExcludedMemeKeySet();

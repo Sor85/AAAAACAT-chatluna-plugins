@@ -87,6 +87,23 @@ describe("listDirectAliases", () => {
     expect(result.totalKeys).toBe(1);
   });
 
+  it("仅开启 key 无前缀触发时不应注册中文别名", async () => {
+    const result = await listDirectAliases(
+      {
+        getKeys: async () => ["qizhu"],
+        getInfo: async () => createInfoResponse("qizhu", ["骑猪"]),
+      },
+      {
+        enableDirectAliasWithoutPrefix: false,
+        allowKeyWithoutPrefixTrigger: true,
+      },
+    );
+
+    expect(result.entries).toEqual([
+      { alias: "qizhu", keys: ["qizhu"], isKeyAlias: true },
+    ]);
+  });
+
   it("部分 getInfo 失败时返回失败统计", async () => {
     const result = await listDirectAliases({
       getKeys: async () => ["qizhu", "google"],
