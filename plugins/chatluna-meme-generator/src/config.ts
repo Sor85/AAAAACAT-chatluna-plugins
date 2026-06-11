@@ -63,7 +63,7 @@ export interface Config {
 
 export const defaultConfig: Config = {
   baseUrl: "",
-  timeoutMs: 10000,
+  timeoutMs: 5000,
   emptyTextAutoFillRules: [
     {
       source: "template-default",
