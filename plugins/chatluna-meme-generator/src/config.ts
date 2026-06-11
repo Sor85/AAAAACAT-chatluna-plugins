@@ -225,7 +225,7 @@ const triggerSchema = Schema.object({
     .description("是否允许`key`跳过 meme 前缀直接触发"),
   allowMentionPrefixDirectAliasTrigger: Schema.boolean()
     .default(defaultConfig.allowMentionPrefixDirectAliasTrigger)
-    .description("是否允许贴合参数触发，如`meme key/中文别名@用户1@用户2文本参数`"),
+    .description("是否允许贴合参数触发，支持`meme key/中文别名@用户文本`，无前缀触发范围取决于已开启的中文别名或 key 直触发设置"),
   allowLeadingAtBeforeCommand: Schema.boolean()
     .default(defaultConfig.allowLeadingAtBeforeCommand)
     .description("是否允许前置 @ 参数触发，如`@用户 meme key/中文别名`"),

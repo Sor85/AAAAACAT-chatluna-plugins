@@ -23,6 +23,11 @@ export interface DirectAliasListResult {
   hasInfoFailure: boolean;
 }
 
+export interface MemeTriggerPrefixMatch {
+  key: string;
+  rest: string;
+}
+
 export interface KeyResolverOptions {
   infoFetchConcurrency?: number;
   enableDirectAliasWithoutPrefix?: boolean;
@@ -63,6 +68,12 @@ function collectShortcutAliases(shortcuts: MemeShortcut[]): string[] {
 
 function toSortedUniqueKeys(keys: readonly string[]): string[] {
   return [...new Set(keys.filter(Boolean))].sort();
+}
+
+function pickKeyCandidate(keyCandidates: readonly string[]): string | undefined {
+  if (keyCandidates.length === 0) return undefined;
+  if (keyCandidates.length === 1) return keyCandidates[0];
+  return keyCandidates[Math.floor(Math.random() * keyCandidates.length)];
 }
 
 const INFO_FETCH_CONCURRENCY = 10;
@@ -276,7 +287,84 @@ export function createMemeKeyResolver(
     const aliasIndex = await getAliasIndex();
     const aliasCandidates = aliasIndex.get(normalizedInput);
     if (!aliasCandidates || aliasCandidates.length === 0) return trimmedInput;
-    if (aliasCandidates.length === 1) return aliasCandidates[0];
-    return aliasCandidates[Math.floor(Math.random() * aliasCandidates.length)];
+    return pickKeyCandidate(aliasCandidates) ?? trimmedInput;
+  };
+}
+
+export function createMemeTriggerPrefixResolver(
+  client: MemeKeyResolverClient,
+  options: KeyResolverOptions = {},
+) {
+  let keyMapPromise: Promise<Map<string, string>> | undefined;
+  let aliasIndexPromise: Promise<Map<string, string[]>> | undefined;
+
+  const getKeyMap = async (): Promise<Map<string, string>> => {
+    if (!keyMapPromise) {
+      keyMapPromise = client
+        .getKeys()
+        .then((keys) => {
+          const keyMap = new Map<string, string>();
+          for (const key of keys) {
+            const normalizedKey = normalizeAlias(key);
+            if (!normalizedKey) continue;
+            keyMap.set(normalizedKey, key);
+          }
+          return keyMap;
+        })
+        .catch((error) => {
+          keyMapPromise = undefined;
+          aliasIndexPromise = undefined;
+          throw error;
+        });
+    }
+    return await keyMapPromise;
+  };
+
+  const getAliasIndex = async (): Promise<Map<string, string[]>> => {
+    if (!aliasIndexPromise) {
+      aliasIndexPromise = getKeyMap()
+        .then(async (keyMap) => {
+          const { aliasIndex, hasInfoFailure } = await buildAliasIndex(
+            client,
+            keyMap,
+            options,
+          );
+          if (hasInfoFailure) {
+            aliasIndexPromise = undefined;
+          }
+          return aliasIndex;
+        })
+        .catch((error) => {
+          aliasIndexPromise = undefined;
+          throw error;
+        });
+    }
+    return await aliasIndexPromise;
+  };
+
+  return async (
+    input: string,
+  ): Promise<MemeTriggerPrefixMatch | undefined> => {
+    const trimmedInput = input.trim();
+    const normalizedInput = normalizeAlias(trimmedInput);
+    if (!normalizedInput) return undefined;
+
+    const aliasIndex = await getAliasIndex();
+    const sortedAliases = Array.from(aliasIndex.entries()).sort(
+      ([left], [right]) => right.length - left.length,
+    );
+
+    for (const [alias, keyCandidates] of sortedAliases) {
+      if (!normalizedInput.startsWith(alias)) continue;
+
+      const rest = trimmedInput.slice(alias.length);
+      if (!rest) return undefined;
+
+      const pickedKey = pickKeyCandidate(keyCandidates);
+      if (!pickedKey) return undefined;
+      return { key: pickedKey, rest };
+    }
+
+    return undefined;
   };
 }

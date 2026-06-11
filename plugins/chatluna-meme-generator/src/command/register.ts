@@ -6,7 +6,10 @@
 import { h, type Context } from "koishi";
 import type { Config } from "../config";
 import { MemeBackendClient } from "../infra/client";
-import { createMemeKeyResolver } from "./key-resolver";
+import {
+  createMemeKeyResolver,
+  createMemeTriggerPrefixResolver,
+} from "./key-resolver";
 import {
   buildCategoryExcludedMemeKeySet,
   buildMemeListEntries,
@@ -36,7 +39,10 @@ import type {
   ChatlunaCharacterServiceLike,
   ContextWithOptionalServices,
 } from "./register/types";
-import { installDirectAliasRuntime } from "./register/direct-alias-runtime";
+import {
+  installDirectAliasRuntime,
+  normalizeMergedTriggerRestText,
+} from "./register/direct-alias-runtime";
 import {
   createXmlMemeToolExecutor,
   installXmlRuntime,
@@ -224,6 +230,9 @@ export function registerCommands(ctx: Context, config: Config): void {
   };
 
   const resolveMemeKey = createMemeKeyResolver(client, {
+    infoFetchConcurrency: config.infoFetchConcurrency,
+  });
+  const resolveMemeTriggerPrefix = createMemeTriggerPrefixResolver(client, {
     infoFetchConcurrency: config.infoFetchConcurrency,
   });
   const logger = ctx.logger("chatluna-meme-generator");
@@ -717,17 +726,31 @@ export function registerCommands(ctx: Context, config: Config): void {
           return handleErrorReply("meme.generate", "当前上下文不可用。");
         try {
           await ensureCategoryExcludedMemeKeySet();
-          const resolvedKey = await resolveMemeKey(key);
+          // 贴合写法会把 key/中文别名和 @ 提及挤在同一个 Koishi 参数里，
+          // 这里先拆出最长模板前缀，避免 @ 目标被后续逻辑误当成普通文本。
+          const mergedTrigger = config.allowMentionPrefixDirectAliasTrigger
+            ? await resolveMemeTriggerPrefix(key)
+            : undefined;
+          const resolvedKey = mergedTrigger?.key ?? (await resolveMemeKey(key));
           if (isExcludedMemeKey(resolvedKey, mergedExcludedMemeKeySet())) {
             return handleErrorReply("meme.generate", "该模板已被排除。");
           }
+          const mergedTexts = mergedTrigger
+            ? [
+                ...normalizeMergedTriggerRestText(
+                  mergedTrigger.rest,
+                  session,
+                ),
+                ...texts,
+              ]
+            : texts;
           return await handleGenerate(
             ctx,
             session,
             client,
             config,
             resolvedKey,
-            texts,
+            mergedTexts,
           );
         } catch (error) {
           return handleRuntimeError("meme.generate", error);

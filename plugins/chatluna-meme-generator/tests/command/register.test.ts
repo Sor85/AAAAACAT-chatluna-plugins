@@ -21,6 +21,7 @@ vi.mock("koishi", () => ({
 }));
 
 const keyResolverMocks = vi.hoisted(() => ({
+  createMemeTriggerPrefixResolver: vi.fn(() => async () => undefined),
   listDirectAliases: vi.fn<() => Promise<DirectAliasListResult>>(async () => ({
     entries: [{ alias: "骑猪", keys: ["qizhu"] }],
     hasInfoFailure: false,
@@ -31,6 +32,8 @@ const keyResolverMocks = vi.hoisted(() => ({
 
 vi.mock("../../src/command/key-resolver", () => ({
   createMemeKeyResolver: vi.fn(() => async (key: string) => key),
+  createMemeTriggerPrefixResolver:
+    keyResolverMocks.createMemeTriggerPrefixResolver,
   listDirectAliases: keyResolverMocks.listDirectAliases,
   shouldRegisterDirectAlias: vi.fn(() => true),
 }));
@@ -456,6 +459,10 @@ async function flushAsyncCycles(cycles = 50) {
 }
 
 beforeEach(() => {
+  keyResolverMocks.createMemeTriggerPrefixResolver.mockReset();
+  keyResolverMocks.createMemeTriggerPrefixResolver.mockImplementation(
+    () => async () => undefined,
+  );
   keyResolverMocks.listDirectAliases.mockReset();
   keyResolverMocks.listDirectAliases.mockResolvedValue({
     entries: [{ alias: "骑猪", keys: ["qizhu"] }],
@@ -1091,6 +1098,51 @@ describe("registerCommands", () => {
     expect(generateMock).toHaveBeenCalledWith("meteor", [], [], {});
   });
 
+  it("开启 key 无前缀和贴合触发时应允许 key@用户文本", async () => {
+    keyResolverMocks.listDirectAliases.mockResolvedValue({
+      entries: [{ alias: "meteor", keys: ["meteor"], isKeyAlias: true }],
+      hasInfoFailure: false,
+      failedInfoKeys: 0,
+      totalKeys: 1,
+    });
+
+    getInfoMock.mockResolvedValue({
+      key: "meteor",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 1,
+        default_texts: [],
+      },
+      keywords: [],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    const { ctx, readyHandlers, matchHandlers } = createMockContext();
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+        allowKeyWithoutPrefixTrigger: true,
+        allowMentionPrefixDirectAliasTrigger: true,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    expect(matchHandlers).toHaveLength(1);
+
+    const session = createSession("meteor@10002你好", [
+      { type: "at", attrs: { id: "10002", name: "用户A" }, children: [] },
+    ]);
+    await expect(matchHandlers[0](session)).resolves.toBeTruthy();
+    expect(generateMock).toHaveBeenCalledWith("meteor", [], ["你好"], {});
+  });
+
   it("中文别名与 key 无前缀同时开启时应同时注册两个 matcher", async () => {
     keyResolverMocks.listDirectAliases.mockResolvedValue({
       entries: [
@@ -1129,6 +1181,110 @@ describe("registerCommands", () => {
 
     expect(generateMock).toHaveBeenCalledWith("qizhu", [], [], {});
     expect(generateMock).toHaveBeenCalledWith("meteor", [], [], {});
+  });
+
+  it("meme key 贴合参数应剔除 @ 提及并保留后缀文本", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    keyResolverMocks.createMemeTriggerPrefixResolver.mockReturnValue(
+      async () => ({ key: "fade_away", rest: "@10002你好" }),
+    );
+
+    getInfoMock.mockResolvedValue({
+      key: "fade_away",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 1,
+        default_texts: [],
+      },
+      keywords: ["灰飞烟灭"],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    const { ctx } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+        allowMentionPrefixDirectAliasTrigger: true,
+      }),
+    );
+
+    const generateAction = commandActions.get("meme <key:string> [...texts]");
+    expect(generateAction).toBeDefined();
+
+    const session = createSession("meme fade_away@10002你好", [
+      { type: "at", attrs: { id: "10002", name: "用户A" }, children: [] },
+    ]);
+    await generateAction!({ session }, "fade_away@10002你好");
+
+    expect(generateMock).toHaveBeenCalledWith("fade_away", [], ["你好"], {});
+  });
+
+  it("meme 中文别名贴合参数应解析真实 key", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    keyResolverMocks.createMemeTriggerPrefixResolver.mockReturnValue(
+      async () => ({ key: "qizhu", rest: "@10002你好" }),
+    );
+
+    getInfoMock.mockResolvedValue({
+      key: "qizhu",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 1,
+        default_texts: [],
+      },
+      keywords: ["骑猪"],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    const { ctx } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+        allowMentionPrefixDirectAliasTrigger: true,
+      }),
+    );
+
+    const generateAction = commandActions.get("meme <key:string> [...texts]");
+    expect(generateAction).toBeDefined();
+
+    const session = createSession("meme 骑猪@10002你好", [
+      { type: "at", attrs: { id: "10002", name: "用户A" }, children: [] },
+    ]);
+    await generateAction!({ session }, "骑猪@10002你好");
+
+    expect(generateMock).toHaveBeenCalledWith("qizhu", [], ["你好"], {});
   });
   it("直触发中文别名生成失败时返回统一错误文案", async () => {
     generateMock.mockRejectedValue(new Error("boom"));

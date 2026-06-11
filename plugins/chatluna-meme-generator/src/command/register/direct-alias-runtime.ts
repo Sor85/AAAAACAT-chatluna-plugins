@@ -44,7 +44,7 @@ function removeFirstOccurrence(source: string, target: string): string {
   return `${source.slice(0, index)} ${source.slice(index + target.length)}`;
 }
 
-function normalizeDirectAliasRestText(
+export function normalizeMergedTriggerRestText(
   rest: string,
   session: Session,
 ): string[] {
@@ -84,7 +84,7 @@ function extractDirectAliasTexts(
   if (!rest) return [];
   if (!allowMergedSuffix && !/^\s/.test(rest)) return undefined;
 
-  return normalizeDirectAliasRestText(rest, session);
+  return normalizeMergedTriggerRestText(rest, session);
 }
 
 function escapeRegExp(source: string): string {
@@ -231,8 +231,7 @@ export function installDirectAliasRuntime(
         registeredCount += 1;
       }
 
-      const allowMergedSuffix =
-        !entry.isKeyAlias && config.allowMentionPrefixDirectAliasTrigger;
+      const allowMergedSuffix = config.allowMentionPrefixDirectAliasTrigger;
       const directAliasPattern = allowMergedSuffix
         ? createMergedDirectAliasPattern(entry.alias)
         : createStrictDirectAliasPattern(entry.alias);

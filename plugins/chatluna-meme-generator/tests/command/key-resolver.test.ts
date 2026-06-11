@@ -6,6 +6,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createMemeKeyResolver,
+  createMemeTriggerPrefixResolver,
   listDirectAliases,
   shouldRegisterDirectAlias,
 } from "../../src/command/key-resolver";
@@ -298,5 +299,43 @@ describe("createMemeKeyResolver", () => {
 
     await expect(resolver("别名")).resolves.toBeDefined();
     expect(maxRunning).toBe(4);
+  });
+});
+
+describe("createMemeTriggerPrefixResolver", () => {
+  it("贴合输入应优先命中最长中文别名前缀", async () => {
+    const resolver = createMemeTriggerPrefixResolver({
+      getKeys: async () => ["short", "long"],
+      getInfo: async (key: string) =>
+        key === "short"
+          ? createInfoResponse("short", ["骑猪"])
+          : createInfoResponse("long", ["骑猪1"]),
+    });
+
+    await expect(resolver("骑猪1@10002你好")).resolves.toEqual({
+      key: "long",
+      rest: "@10002你好",
+    });
+  });
+
+  it("贴合输入应支持 key 前缀", async () => {
+    const resolver = createMemeTriggerPrefixResolver({
+      getKeys: async () => ["fade_away"],
+      getInfo: async () => createInfoResponse("fade_away", ["灰飞烟灭"]),
+    });
+
+    await expect(resolver("fade_away@10002")).resolves.toEqual({
+      key: "fade_away",
+      rest: "@10002",
+    });
+  });
+
+  it("没有贴合后缀时应交回普通 key 解析", async () => {
+    const resolver = createMemeTriggerPrefixResolver({
+      getKeys: async () => ["qizhu"],
+      getInfo: async () => createInfoResponse("qizhu", ["骑猪"]),
+    });
+
+    await expect(resolver("骑猪")).resolves.toBeUndefined();
   });
 });
