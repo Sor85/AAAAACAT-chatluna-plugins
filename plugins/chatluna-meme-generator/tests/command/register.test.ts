@@ -1567,6 +1567,30 @@ describe("registerCommands", () => {
     expect(session.send).not.toHaveBeenCalled();
   });
 
+  it("开启前置@允许时非 meme 前置@消息应放行给下游", async () => {
+    const { ctx, middlewareHandlers } = createMockContext();
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        allowLeadingAtBeforeCommand: true,
+      }),
+    );
+
+    expect(middlewareHandlers).toHaveLength(1);
+    const middleware = middlewareHandlers[0] as MiddlewareHandler;
+    const session = createMiddlewareSession('<at id="10001"/> 你好', "", [], {
+      atSelf: false,
+    });
+    const next = vi.fn(async () => "next-ok");
+
+    await middleware(session, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(session.execute).not.toHaveBeenCalled();
+    expect(session.send).not.toHaveBeenCalled();
+  });
+
   it("关闭前置@允许时 @bot 别名直触发应被禁用且不吞消息", async () => {
     const { ctx, readyHandlers, matchHandlers } = createMockContext();
 

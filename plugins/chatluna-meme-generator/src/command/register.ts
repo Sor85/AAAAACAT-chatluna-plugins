@@ -312,13 +312,17 @@ export function registerCommands(ctx: Context, config: Config): void {
 
     const normalizedCommandText = leadingAtParts.commandText.trim();
     const normalizedSuffix = leadingAtParts.suffix.trim();
-    const rewrittenCommand = /^meme$/i.test(normalizedCommandText)
-      ? normalizedSuffix
-        ? `meme ${normalizedSuffix}`
-        : "meme"
-      : normalizedSuffix
-        ? `meme ${normalizedCommandText} ${normalizedSuffix}`
-        : `meme ${normalizedCommandText}`;
+    // 前置 @ 只改写显式 meme 命令，避免把普通 @ 消息当成 meme key 后吞掉。
+    if (!/^meme$/i.test(normalizedCommandText)) {
+      if (config.enableDeveloperDebugLog) {
+        logger.info("leading-at debug: pass-through non-meme command");
+      }
+      return await next();
+    }
+
+    const rewrittenCommand = normalizedSuffix
+      ? `meme ${normalizedSuffix}`
+      : "meme";
 
     if (config.enableDeveloperDebugLog) {
       logger.info(
