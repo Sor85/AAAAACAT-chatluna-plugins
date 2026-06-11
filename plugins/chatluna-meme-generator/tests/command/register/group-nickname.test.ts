@@ -23,6 +23,7 @@ vi.mock("koishi", () => ({
 
 vi.mock("../../../src/command/key-resolver", () => ({
   createMemeKeyResolver: vi.fn(() => async (key: string) => key),
+  createMemeTriggerPrefixResolver: vi.fn(() => async () => undefined),
   listDirectAliases: vi.fn(async () => ({
     entries: [],
     hasInfoFailure: false,

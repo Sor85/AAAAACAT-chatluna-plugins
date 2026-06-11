@@ -13,6 +13,9 @@ type AsyncAvatarImageMock = (...args: any[]) => Promise<AvatarImageResult>;
 type AsyncAvatarImagesMock = (...args: any[]) => Promise<GenerateImageInput[]>;
 type AsyncDisplayNameMock = (...args: any[]) => Promise<string | undefined>;
 type DisplayNameMock = (...args: any[]) => string | undefined;
+type MemeTriggerPrefixResolverMock = (
+  input: string,
+) => Promise<{ key: string; rest: string } | undefined>;
 
 vi.mock("koishi", () => ({
   h: {
@@ -21,7 +24,9 @@ vi.mock("koishi", () => ({
 }));
 
 const keyResolverMocks = vi.hoisted(() => ({
-  createMemeTriggerPrefixResolver: vi.fn(() => async () => undefined),
+  createMemeTriggerPrefixResolver: vi.fn<() => MemeTriggerPrefixResolverMock>(
+    () => async () => undefined,
+  ),
   listDirectAliases: vi.fn<() => Promise<DirectAliasListResult>>(async () => ({
     entries: [{ alias: "骑猪", keys: ["qizhu"] }],
     hasInfoFailure: false,
