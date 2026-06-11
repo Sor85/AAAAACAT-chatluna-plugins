@@ -703,7 +703,9 @@ export function registerCommands(ctx: Context, config: Config): void {
   }
 
   ctx
-    .command("meme <key:string> [...texts]", "生成 meme 图片")
+    .command("meme <key:string> [...texts]", "生成 meme 图片", {
+      captureQuote: false,
+    })
     .action(async ({ session }, key, ...texts) => {
       if (!session)
         return handleErrorReply("meme.generate", "当前上下文不可用。");

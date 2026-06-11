@@ -505,7 +505,9 @@ export function installRandomRuntime(
   };
 
   ctx
-    .command("meme.random [...texts]", "随机选择模板并生成 meme 图片")
+    .command("meme.random [...texts]", "随机选择模板并生成 meme 图片", {
+      captureQuote: false,
+    })
     .action(async ({ session }, ...texts) => {
       if (!session)
         return handleErrorReply("meme.random", "当前上下文不可用。");

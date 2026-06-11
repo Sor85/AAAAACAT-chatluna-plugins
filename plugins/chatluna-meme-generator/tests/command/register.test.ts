@@ -466,6 +466,28 @@ beforeEach(() => {
 });
 
 describe("registerCommands", () => {
+  it("生成类命令应关闭 Koishi 引用文本自动捕获", () => {
+    const { ctx } = createMockContext();
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+
+    expect(ctx.command).toHaveBeenCalledWith(
+      "meme <key:string> [...texts]",
+      "生成 meme 图片",
+      { captureQuote: false },
+    );
+    expect(ctx.command).toHaveBeenCalledWith(
+      "meme.random [...texts]",
+      "随机选择模板并生成 meme 图片",
+      { captureQuote: false },
+    );
+  });
+
   it("meme.info 应显示中文别名", async () => {
     const commandActions = new Map<
       string,
