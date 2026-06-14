@@ -9,15 +9,22 @@ import {
   MODEL_NAME_V2,
   USER_ALIAS_MODEL_NAME_V2,
 } from "../../models";
-import type { AffinityRecord, BlacklistRecord, LogFn } from "../../types";
+import type {
+  AffinityRecord,
+  BlacklistRecord,
+  LogFn,
+  RelationshipLevel,
+} from "../../types";
 
 export const DASHBOARD_EVENT = "chatluna-affinity/dashboard";
 
 export interface DashboardTopUser {
   userId: string;
   name: string;
+  avatarUrl: string | null;
   affinity: number;
   relation: string;
+  relationTone: "custom" | "low" | "medium" | "high" | "unknown";
   chatCount: number;
   lastInteractionAt: string | null;
 }
@@ -31,6 +38,7 @@ export interface DashboardBlacklistItem {
   platform: string;
   userId: string;
   name: string;
+  affinity: number | null;
   mode: "permanent" | "temporary";
   blockedAt: string | null;
   expiresAt: string | null;
@@ -72,6 +80,7 @@ interface DashboardRuntimeConfig {
   scopeId: string;
   debugLogging?: boolean;
   enableDashboard?: boolean;
+  relationshipAffinityLevels?: RelationshipLevel[];
 }
 
 interface DashboardOptions {
@@ -82,6 +91,7 @@ interface DashboardOptions {
 
 interface DashboardDataOptions {
   scopeId: string;
+  relationshipAffinityLevels?: RelationshipLevel[];
 }
 
 export interface DashboardWebuiEntry {
@@ -114,8 +124,35 @@ function getDisplayRelation(record: AffinityRecord): string {
   return record.specialRelation || record.relation || "未分组";
 }
 
+function getRelationTone(
+  record: AffinityRecord,
+  levels: RelationshipLevel[] | undefined,
+): DashboardTopUser["relationTone"] {
+  if (record.specialRelation) return "custom";
+
+  const relation = record.relation || "";
+  const orderedLevels = [...(levels || [])]
+    .filter((level) => level.relation)
+    .sort((left, right) => left.min - right.min);
+  const index = orderedLevels.findIndex((level) => level.relation === relation);
+  if (index < 0) return "unknown";
+
+  const ratio =
+    orderedLevels.length > 1 ? index / (orderedLevels.length - 1) : 1;
+  if (ratio <= 0.25) return "low";
+  if (ratio < 0.75) return "medium";
+  return "high";
+}
+
 function getDisplayName(record: AffinityRecord): string {
   return record.nickname || record.userId;
+}
+
+function getOneBotAvatarUrl(userId: string): string | null {
+  const numericId = userId.match(/^\d+$/)?.[0];
+  return numericId
+    ? `https://q1.qlogo.cn/g?b=qq&nk=${numericId}&s=640`
+    : null;
 }
 
 function getBlacklistDisplayName(record: BlacklistRecord): string {
@@ -127,6 +164,7 @@ export async function getDashboardData(
   options: DashboardDataOptions,
 ): Promise<DashboardData> {
   const scopeId = options.scopeId;
+  const relationshipAffinityLevels = options.relationshipAffinityLevels || [];
   const affinityRows = await ctx.database.get(MODEL_NAME_V2, {
     scopeId,
   });
@@ -143,6 +181,7 @@ export async function getDashboardData(
   let shortTermTotal = 0;
   let latestInteractionAt: string | null = null;
   const relationCounts = new Map<string, number>();
+  const affinityByUserId = new Map<string, number>();
 
   for (const row of affinityRows) {
     chatCount += toCount(row.chatCount);
@@ -152,6 +191,7 @@ export async function getDashboardData(
 
     const relation = getDisplayRelation(row);
     relationCounts.set(relation, (relationCounts.get(relation) || 0) + 1);
+    affinityByUserId.set(row.userId, toCount(row.affinity));
 
     const currentInteractionAt = toIsoString(row.lastInteractionAt);
     if (
@@ -168,8 +208,10 @@ export async function getDashboardData(
     .map((row) => ({
       userId: row.userId,
       name: getDisplayName(row),
+      avatarUrl: getOneBotAvatarUrl(row.userId),
       affinity: toCount(row.affinity),
       relation: getDisplayRelation(row),
+      relationTone: getRelationTone(row, relationshipAffinityLevels),
       chatCount: toCount(row.chatCount),
       lastInteractionAt: toIsoString(row.lastInteractionAt),
     }));
@@ -188,6 +230,7 @@ export async function getDashboardData(
       platform: row.platform,
       userId: row.userId,
       name: getBlacklistDisplayName(row),
+      affinity: affinityByUserId.get(row.userId) ?? null,
       mode: row.mode,
       blockedAt: toIsoString(row.blockedAt),
       expiresAt: toIsoString(row.expiresAt),
@@ -236,7 +279,11 @@ export function registerDashboardWebui(options: DashboardWebuiOptions): void {
     consoleService.addEntry(entry);
     consoleService.addListener(
       DASHBOARD_EVENT,
-      async () => getDashboardData(ctx, { scopeId: config.scopeId }),
+      async () =>
+        getDashboardData(ctx, {
+          scopeId: config.scopeId,
+          relationshipAffinityLevels: config.relationshipAffinityLevels,
+        }),
       { authority: 1 },
     );
 

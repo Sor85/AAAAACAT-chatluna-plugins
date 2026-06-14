@@ -1,5 +1,6 @@
 import { send } from "@koishijs/client";
 import { Alert } from "@heroui/react/alert";
+import { Avatar } from "@heroui/react/avatar";
 import { Button } from "@heroui/react/button";
 import { Card } from "@heroui/react/card";
 import { Chip } from "@heroui/react/chip";
@@ -56,6 +57,10 @@ function formatTime(value: string | null): string {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function getRelationClassName(tone: DashboardTopUser["relationTone"]): string {
+  return `affinity-dashboard__relation affinity-dashboard__relation--${tone}`;
 }
 
 function StatCard({
@@ -147,13 +152,31 @@ function TopUserTable({ users }: { users: DashboardTopUser[] }) {
             {users.map((user) => (
               <Table.Row id={user.userId} key={user.userId}>
                 <Table.Cell>
-                  <div className="affinity-dashboard__user">
-                    <span>{user.name}</span>
-                    <small>{user.userId}</small>
+                  <div className="affinity-dashboard__rank-user">
+                    <Avatar size="sm" variant="soft">
+                      {user.avatarUrl ? (
+                        <Avatar.Image
+                          alt={`${user.name} 的头像`}
+                          loading="lazy"
+                          src={user.avatarUrl}
+                        />
+                      ) : null}
+                      <Avatar.Fallback>
+                        {user.name.trim().slice(0, 1) || "?"}
+                      </Avatar.Fallback>
+                    </Avatar>
+                    <div className="affinity-dashboard__user">
+                      <span>{user.name}</span>
+                      <small>{user.userId}</small>
+                    </div>
                   </div>
                 </Table.Cell>
                 <Table.Cell>
-                  <Chip size="sm" variant="soft">
+                  <Chip
+                    className={getRelationClassName(user.relationTone)}
+                    size="sm"
+                    variant="soft"
+                  >
                     {user.relation}
                   </Chip>
                 </Table.Cell>
@@ -196,6 +219,10 @@ function BlacklistList({ items }: { items: DashboardBlacklistItem[] }) {
           </div>
           <div className="affinity-dashboard__blacklist-meta">
             <span>{item.platform}</span>
+            <span>
+              好感度{" "}
+              {item.affinity === null ? "暂无" : formatNumber(item.affinity)}
+            </span>
             <span>加入 {formatTime(item.blockedAt)}</span>
             {item.expiresAt ? <span>到期 {formatTime(item.expiresAt)}</span> : null}
           </div>

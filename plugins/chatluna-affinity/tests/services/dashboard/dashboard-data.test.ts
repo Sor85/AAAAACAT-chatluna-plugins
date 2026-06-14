@@ -49,7 +49,7 @@ describe("dashboard data", () => {
     const affinityRows: AffinityRecord[] = [
       {
         scopeId: "test-scope",
-        userId: "user-a",
+        userId: "10001",
         nickname: "Alice",
         affinity: 80,
         relation: "朋友",
@@ -94,7 +94,7 @@ describe("dashboard data", () => {
       {
         scopeId: "test-scope",
         platform: "onebot",
-        userId: "user-a",
+        userId: "10001",
         mode: "permanent",
         blockedAt: new Date("2026-06-04T12:00:00.000Z"),
         expiresAt: null,
@@ -130,7 +130,14 @@ describe("dashboard data", () => {
           },
         ],
       }),
-      config,
+      {
+        ...config,
+        relationshipAffinityLevels: [
+          { min: 0, max: 10, relation: "陌生" },
+          { min: 11, max: 50, relation: "朋友" },
+          { min: 51, max: 100, relation: "亲密" },
+        ],
+      },
     );
 
     assert.equal(data.totals.users, 2);
@@ -152,6 +159,7 @@ describe("dashboard data", () => {
         platform: "onebot",
         userId: "user-b",
         name: "user-b",
+        affinity: 40,
         mode: "temporary",
         blockedAt: "2026-06-05T12:00:00.000Z",
         expiresAt: "2026-06-10T00:00:00.000Z",
@@ -159,8 +167,9 @@ describe("dashboard data", () => {
       },
       {
         platform: "onebot",
-        userId: "user-a",
+        userId: "10001",
         name: "Blocked Alice",
+        affinity: 80,
         mode: "permanent",
         blockedAt: "2026-06-04T12:00:00.000Z",
         expiresAt: null,
@@ -169,9 +178,16 @@ describe("dashboard data", () => {
     ]);
     assert.deepEqual(
       data.topUsers.map((user) => user.userId),
-      ["user-a", "user-b"],
+      ["10001", "user-b"],
     );
+    assert.equal(
+      data.topUsers[0].avatarUrl,
+      "https://q1.qlogo.cn/g?b=qq&nk=10001&s=640",
+    );
+    assert.equal(data.topUsers[0].relationTone, "medium");
+    assert.equal(data.topUsers[1].avatarUrl, null);
     assert.equal(data.topUsers[1].name, "user-b");
+    assert.equal(data.topUsers[1].relationTone, "custom");
   });
 });
 

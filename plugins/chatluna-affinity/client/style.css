@@ -4,6 +4,7 @@
 @import "@heroui/styles/utilities";
 @import "@heroui/styles/variants";
 @import "@heroui/styles/components/alert.css";
+@import "@heroui/styles/components/avatar.css";
 @import "@heroui/styles/components/button.css";
 @import "@heroui/styles/components/card.css";
 @import "@heroui/styles/components/chip.css";
@@ -183,7 +184,90 @@
 }
 
 .affinity-dashboard__table {
+  width: 100%;
   min-width: 720px;
+  table-layout: fixed;
+}
+
+.affinity-dashboard__table .table__column,
+.affinity-dashboard__table .table__cell {
+  vertical-align: middle;
+}
+
+.affinity-dashboard__table .table__column:nth-child(1),
+.affinity-dashboard__table .table__cell:nth-child(1) {
+  width: 34%;
+  text-align: left;
+}
+
+.affinity-dashboard__table .table__column:nth-child(2),
+.affinity-dashboard__table .table__cell:nth-child(2) {
+  width: 14%;
+  text-align: center;
+}
+
+.affinity-dashboard__table .table__column:nth-child(3),
+.affinity-dashboard__table .table__cell:nth-child(3) {
+  width: 12%;
+  text-align: center;
+}
+
+.affinity-dashboard__table .table__column:nth-child(4),
+.affinity-dashboard__table .table__cell:nth-child(4) {
+  width: 12%;
+  text-align: center;
+}
+
+.affinity-dashboard__table .table__column:nth-child(5),
+.affinity-dashboard__table .table__cell:nth-child(5) {
+  width: 28%;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.affinity-dashboard__rank-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.affinity-dashboard__rank-user .avatar {
+  flex: 0 0 auto;
+}
+
+.affinity-dashboard__relation {
+  border: 1px solid transparent;
+}
+
+.affinity-dashboard__relation--custom {
+  border-color: #c4b5fd;
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.affinity-dashboard__relation--low {
+  border-color: #fecaca;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.affinity-dashboard__relation--medium {
+  border-color: #fde68a;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.affinity-dashboard__relation--high {
+  border-color: #bbf7d0;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.affinity-dashboard__relation--unknown {
+  border-color: #d1d5db;
+  background: #f3f4f6;
+  color: #374151;
 }
 
 .affinity-dashboard__user {

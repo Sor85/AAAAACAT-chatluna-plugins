@@ -1,8 +1,10 @@
 export interface DashboardTopUser {
   userId: string;
   name: string;
+  avatarUrl: string | null;
   affinity: number;
   relation: string;
+  relationTone: "custom" | "low" | "medium" | "high" | "unknown";
   chatCount: number;
   lastInteractionAt: string | null;
 }
@@ -16,6 +18,7 @@ export interface DashboardBlacklistItem {
   platform: string;
   userId: string;
   name: string;
+  affinity: number | null;
   mode: "permanent" | "temporary";
   blockedAt: string | null;
   expiresAt: string | null;
