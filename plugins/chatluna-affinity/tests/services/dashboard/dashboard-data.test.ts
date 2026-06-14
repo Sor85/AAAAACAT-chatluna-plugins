@@ -409,6 +409,45 @@ describe("dashboard data", () => {
       },
     ]);
   });
+
+  it("ignores alias updates when anchoring trend dates", async () => {
+    const data = await getDashboardData(
+      createContext({
+        [MODEL_NAME_V2]: [
+          {
+            scopeId: "test-scope",
+            userId: "current-a",
+            nickname: null,
+            affinity: 20,
+            relation: "陌生",
+            specialRelation: null,
+            longTermAffinity: 20,
+            shortTermAffinity: 0,
+            chatCount: 1,
+            actionStats: null,
+            lastInteractionAt: new Date("2026-06-05T12:00:00.000Z"),
+            coefficientState: null,
+          },
+        ],
+        [USER_ALIAS_MODEL_NAME_V2]: [
+          {
+            scopeId: "test-scope",
+            platform: "onebot",
+            userId: "current-a",
+            alias: "A",
+            updatedAt: new Date("2026-07-14T12:00:00.000Z"),
+          },
+        ],
+      }),
+      {
+        ...config,
+        now: new Date("2026-07-14T12:00:00.000Z"),
+      },
+    );
+
+    const latestTrendDay = data.trends.week.at(-1);
+    assert.equal(latestTrendDay?.label, "6/5");
+  });
 });
 
 describe("dashboard webui", () => {

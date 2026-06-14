@@ -392,7 +392,7 @@ function RelationshipDistribution({
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="preset">
-          <TabsList>
+          <TabsList className="self-start">
             <TabsTrigger value="preset">预设关系</TabsTrigger>
             <TabsTrigger value="custom">自定义关系</TabsTrigger>
           </TabsList>
@@ -504,10 +504,14 @@ function TopUserTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {pageUsers.map((user) => (
+          {pageUsers.map((user, index) => (
             <TableRow
               className={
-                selectedUserId === user.userId ? "bg-muted/60" : "cursor-pointer"
+                selectedUserId === user.userId
+                  ? "cursor-pointer border-0 bg-muted/70 hover:bg-muted/70"
+                  : index % 2 === 0
+                    ? "cursor-pointer border-0 bg-muted/50 hover:bg-muted/60"
+                    : "cursor-pointer border-0 bg-background hover:bg-muted/60"
               }
               key={user.userId}
               onClick={() => onSelectUser(user)}
@@ -707,7 +711,7 @@ function RankingPanel({
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="ranking">
-          <TabsList>
+          <TabsList className="self-start">
             <TabsTrigger value="ranking">好感度</TabsTrigger>
             <TabsTrigger value="blacklist">黑名单</TabsTrigger>
           </TabsList>
@@ -806,7 +810,7 @@ export function AffinityDashboard() {
 
   return (
     <section className="affinity-dashboard">
-      <Toaster position="top-right" richColors />
+      <Toaster position="bottom-right" richColors />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="grid gap-1">
           <h2 className="text-xl font-semibold leading-tight">好感度仪表盘</h2>

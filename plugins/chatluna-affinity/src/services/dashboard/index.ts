@@ -346,12 +346,10 @@ function countRowsByUpdatedAt(
 function getLatestTimestamp(
   affinityRows: AffinityRecord[],
   blacklistRows: BlacklistRecord[],
-  aliasRows: { updatedAt?: Date | string | null }[],
 ): number | null {
   const times = [
     ...affinityRows.map((row) => toTimestamp(row.lastInteractionAt)),
     ...blacklistRows.map((row) => toTimestamp(row.blockedAt)),
-    ...aliasRows.map((row) => toTimestamp(row.updatedAt)),
   ].filter((value): value is number => value !== null);
 
   if (!times.length) return null;
@@ -415,8 +413,7 @@ export async function getDashboardData(
     scopeId,
   });
   const trendAnchor = new Date(
-    getLatestTimestamp(affinityRows, blacklistRows, aliasRows) ??
-      now.getTime(),
+    getLatestTimestamp(affinityRows, blacklistRows) ?? now.getTime(),
   );
 
   let chatCount = 0;
