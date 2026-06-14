@@ -1,18 +1,29 @@
 @import "tailwindcss";
-@import "@heroui/styles/base/base.css";
-@import "@heroui/styles/themes/default";
-@import "@heroui/styles/utilities";
-@import "@heroui/styles/variants";
-@import "@heroui/styles/components/alert.css";
-@import "@heroui/styles/components/avatar.css";
-@import "@heroui/styles/components/button.css";
-@import "@heroui/styles/components/card.css";
-@import "@heroui/styles/components/chip.css";
-@import "@heroui/styles/components/label.css";
-@import "@heroui/styles/components/pagination.css";
-@import "@heroui/styles/components/progress-bar.css";
-@import "@heroui/styles/components/spinner.css";
-@import "@heroui/styles/components/table.css";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+}
 
 .page-affinity-dashboard-shell,
 .page-affinity-dashboard-shell .main-container,
@@ -22,11 +33,11 @@
 .page-affinity-dashboard .el-scrollbar__wrap,
 .page-affinity-dashboard .el-scrollbar__view,
 .page-affinity-dashboard .k-content {
-  background: #fafafa;
+  background: #f8fafc;
 }
 
 .page-affinity-dashboard .k-content {
-  max-width: 72rem;
+  max-width: 80rem;
 }
 
 .page-affinity-dashboard-shell .layout-header {
@@ -34,14 +45,35 @@
 }
 
 .affinity-dashboard {
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #0f172a;
+  --primary-foreground: #f8fafc;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #e2e8f0;
+  --accent-foreground: #0f172a;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #cbd5e1;
+  --ring: #94a3b8;
+  --chart-1: #2563eb;
+  --chart-2: #16a34a;
+  --chart-3: #d97706;
+
   box-sizing: border-box;
   display: grid;
   gap: 16px;
-  margin: 0;
-  max-width: 100%;
   min-height: calc(100vh - 6rem);
   padding: 0;
-  color: var(--foreground, #1f2937);
+  color: var(--foreground);
 }
 
 .affinity-dashboard *,
@@ -50,303 +82,89 @@
   box-sizing: border-box;
 }
 
-.affinity-dashboard__header,
-.affinity-dashboard__summary,
-.affinity-dashboard__grid {
-  min-width: 0;
-}
-
-.affinity-dashboard__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.affinity-dashboard__header h2 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 650;
-  line-height: 1.3;
-}
-
-.affinity-dashboard__header p,
 .affinity-dashboard__empty {
-  margin: 4px 0 0;
-  color: var(--muted, #6b7280);
-  font-size: 13px;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 14px;
   line-height: 1.6;
 }
 
-.affinity-dashboard__summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-}
-
-.affinity-dashboard__stat {
-  min-width: 0;
-}
-
-.affinity-dashboard__stat .card__title {
-  word-break: break-word;
-}
-
-.affinity-dashboard__stat .card__content {
-  color: var(--muted, #6b7280);
-  font-size: 13px;
-}
-
-.affinity-dashboard__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
-  gap: 12px;
-}
-
-.affinity-dashboard__blacklist {
-  display: grid;
-  gap: 10px;
-  max-height: 28rem;
-  overflow: auto;
-  padding-right: 4px;
-}
-
-.affinity-dashboard__blacklist-item {
-  border: 1px solid #d8dde6;
-  border-radius: 10px;
-  padding: 12px;
-}
-
-.affinity-dashboard__blacklist-main {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.affinity-dashboard__blacklist-user {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.affinity-dashboard__blacklist-user strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.affinity-dashboard__blacklist-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  margin-top: 8px;
-}
-
-.affinity-dashboard__blacklist-note {
-  margin: 8px 0 0;
-  color: var(--foreground, #1f2937);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.affinity-dashboard__blacklist::-webkit-scrollbar {
-  width: 8px;
-}
-
-.affinity-dashboard__blacklist::-webkit-scrollbar-thumb {
-  background: #c9d1dd;
-  border-radius: 999px;
-}
-
-.affinity-dashboard__blacklist-user span,
-.affinity-dashboard__blacklist-meta,
-.affinity-dashboard__progress-label span,
-.affinity-dashboard__user small {
-  color: var(--muted, #6b7280);
-  font-size: 12px;
-}
-
-.affinity-dashboard__relations {
-  display: grid;
-  gap: 12px;
-}
-
-.affinity-dashboard__progress {
-  width: 100%;
-}
-
-.affinity-dashboard__progress-label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 6px;
-}
-
-.affinity-dashboard__table {
-  width: 100%;
-  min-width: 720px;
-  table-layout: fixed;
-}
-
-.affinity-dashboard__table .table__column,
-.affinity-dashboard__table .table__cell {
-  vertical-align: middle;
-}
-
-.affinity-dashboard__sort-header {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.affinity-dashboard__change {
   gap: 4px;
-  width: 100%;
-}
-
-.affinity-dashboard__table
-  .table__column:nth-child(1)
-  .affinity-dashboard__sort-header {
-  justify-content: flex-start;
-}
-
-.affinity-dashboard__sort-chevron {
-  flex: 0 0 auto;
-  color: var(--foreground, #1f2937);
-  transform: rotate(90deg);
-  transition:
-    transform 120ms ease;
-}
-
-.affinity-dashboard__sort-chevron--ascending {
-  transform: rotate(-90deg);
-}
-
-.affinity-dashboard__sort-chevron--descending {
-  transform: rotate(90deg);
-}
-
-.affinity-dashboard__table .table__column:nth-child(1),
-.affinity-dashboard__table .table__cell:nth-child(1) {
-  width: 34%;
-  text-align: left;
-}
-
-.affinity-dashboard__table .table__column:nth-child(2),
-.affinity-dashboard__table .table__cell:nth-child(2) {
-  width: 14%;
-  text-align: center;
-}
-
-.affinity-dashboard__table .table__column:nth-child(3),
-.affinity-dashboard__table .table__cell:nth-child(3) {
-  width: 12%;
-  text-align: center;
-}
-
-.affinity-dashboard__table .table__column:nth-child(4),
-.affinity-dashboard__table .table__cell:nth-child(4) {
-  width: 12%;
-  text-align: center;
-}
-
-.affinity-dashboard__table .table__column:nth-child(5),
-.affinity-dashboard__table .table__cell:nth-child(5) {
-  width: 28%;
-  text-align: center;
   white-space: nowrap;
 }
 
-.affinity-dashboard__rank-user {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
+.affinity-dashboard__change svg {
+  width: 14px;
+  height: 14px;
 }
 
-.affinity-dashboard__rank-user .avatar {
-  flex: 0 0 auto;
+.affinity-dashboard__change--up {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
 }
 
-.affinity-dashboard__table-footer {
-  margin-top: 12px;
-  padding: 0;
+.affinity-dashboard__change--down {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
 }
 
-.affinity-dashboard__pagination {
-  width: 100%;
-}
-
-.affinity-dashboard__pagination-summary {
-  white-space: nowrap;
+.affinity-dashboard__change--neutral {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
 }
 
 .affinity-dashboard__relation {
-  border: 1px solid transparent;
+  max-width: 100%;
 }
 
 .affinity-dashboard__relation--custom {
   border-color: #c4b5fd;
-  background: #ede9fe;
+  background: #f5f3ff;
   color: #5b21b6;
 }
 
 .affinity-dashboard__relation--low {
   border-color: #fecaca;
-  background: #fee2e2;
+  background: #fef2f2;
   color: #991b1b;
 }
 
 .affinity-dashboard__relation--medium {
   border-color: #fde68a;
-  background: #fef3c7;
+  background: #fffbeb;
   color: #92400e;
 }
 
 .affinity-dashboard__relation--high {
   border-color: #bbf7d0;
-  background: #dcfce7;
+  background: #f0fdf4;
   color: #166534;
 }
 
 .affinity-dashboard__relation--unknown {
-  border-color: #d1d5db;
-  background: #f3f4f6;
-  color: #374151;
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
 }
 
-.affinity-dashboard__user {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
+.affinity-dashboard__mode--permanent {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
 }
 
-.affinity-dashboard__user span,
-.affinity-dashboard__user small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.affinity-dashboard__loading {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-  color: var(--muted, #6b7280);
+.affinity-dashboard__mode--temporary {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
 }
 
 @media (max-width: 720px) {
   .affinity-dashboard {
     min-height: auto;
   }
-
-  .affinity-dashboard__header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .affinity-dashboard__grid {
-    grid-template-columns: 1fr;
-  }
-
 }

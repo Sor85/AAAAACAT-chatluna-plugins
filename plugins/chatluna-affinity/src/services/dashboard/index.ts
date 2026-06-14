@@ -10,6 +10,7 @@ import {
   USER_ALIAS_MODEL_NAME_V2,
 } from "../../models";
 import type {
+  ActionStats,
   AffinityRecord,
   BlacklistRecord,
   LogFn,
@@ -17,6 +18,10 @@ import type {
 } from "../../types";
 
 export const DASHBOARD_EVENT = "chatluna-affinity/dashboard";
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_DAYS = 7;
+const MONTH_DAYS = 30;
+const HISTORY_POINT_LIMIT = 12;
 
 export interface DashboardTopUser {
   userId: string;
@@ -27,11 +32,32 @@ export interface DashboardTopUser {
   relationTone: "custom" | "low" | "medium" | "high" | "unknown";
   chatCount: number;
   lastInteractionAt: string | null;
+  historyPoints: DashboardUserHistoryPoint[];
 }
 
 export interface DashboardRelationStat {
   relation: string;
+  kind: "preset" | "custom";
   count: number;
+}
+
+export interface DashboardTrendPoint {
+  label: string;
+  users: number;
+  averageAffinity: number;
+  chatCount: number;
+}
+
+export interface DashboardMetricChange {
+  current: number;
+  previous: number;
+  percent: number | null;
+}
+
+export interface DashboardUserHistoryPoint {
+  label: string;
+  timestamp: string | null;
+  affinity: number;
 }
 
 export interface DashboardBlacklistItem {
@@ -62,6 +88,17 @@ export interface DashboardData {
     shortTermAffinity: number;
   };
   latestInteractionAt: string | null;
+  weeklyChanges: {
+    users: DashboardMetricChange;
+    averageAffinity: DashboardMetricChange;
+    chatCount: DashboardMetricChange;
+    aliases: DashboardMetricChange;
+  };
+  trends: {
+    week: DashboardTrendPoint[];
+    month: DashboardTrendPoint[];
+    all: DashboardTrendPoint[];
+  };
   relationStats: DashboardRelationStat[];
   blacklistItems: DashboardBlacklistItem[];
   topUsers: DashboardTopUser[];
@@ -92,6 +129,7 @@ interface DashboardOptions {
 interface DashboardDataOptions {
   scopeId: string;
   relationshipAffinityLevels?: RelationshipLevel[];
+  now?: Date;
 }
 
 export interface DashboardWebuiEntry {
@@ -111,6 +149,13 @@ function toIsoString(value: Date | string | null | undefined): string | null {
   return date.toISOString();
 }
 
+function toTimestamp(value: Date | string | null | undefined): number | null {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  const time = date.getTime();
+  return Number.isNaN(time) ? null : time;
+}
+
 function toCount(value: number | null | undefined): number {
   return Number.isFinite(value) ? Number(value) : 0;
 }
@@ -120,8 +165,32 @@ function roundAverage(total: number, count: number): number {
   return Math.round((total / count) * 100) / 100;
 }
 
+function roundPercent(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function createMetricChange(
+  current: number,
+  previous: number,
+): DashboardMetricChange {
+  return {
+    current,
+    previous,
+    percent:
+      previous === 0
+        ? current === 0
+          ? 0
+          : null
+        : roundPercent(((current - previous) / previous) * 100),
+  };
+}
+
 function getDisplayRelation(record: AffinityRecord): string {
   return record.specialRelation || record.relation || "未分组";
+}
+
+function getRelationKind(record: AffinityRecord): DashboardRelationStat["kind"] {
+  return record.specialRelation ? "custom" : "preset";
 }
 
 function getRelationTone(
@@ -159,11 +228,140 @@ function getBlacklistDisplayName(record: BlacklistRecord): string {
   return record.nickname || record.userId;
 }
 
+function formatTrendLabel(date: Date): string {
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+function startOfLocalDay(value: Date): Date {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+function aggregateTrendRows(
+  rows: AffinityRecord[],
+): Omit<DashboardTrendPoint, "label"> {
+  return {
+    users: rows.length,
+    averageAffinity: roundAverage(
+      rows.reduce((total, row) => total + toCount(row.affinity), 0),
+      rows.length,
+    ),
+    chatCount: rows.reduce((total, row) => total + toCount(row.chatCount), 0),
+  };
+}
+
+function createDailyTrend(
+  rows: AffinityRecord[],
+  now: Date,
+  days: number,
+): DashboardTrendPoint[] {
+  const start = startOfLocalDay(new Date(now.getTime() - (days - 1) * DAY_MS));
+
+  return Array.from({ length: days }, (_, index) => {
+    const bucketStart = start.getTime() + index * DAY_MS;
+    const bucketEnd = bucketStart + DAY_MS;
+    const bucketRows = rows.filter((row) => {
+      const time = toTimestamp(row.lastInteractionAt);
+      return time !== null && time >= bucketStart && time < bucketEnd;
+    });
+
+    return {
+      label: formatTrendLabel(new Date(bucketStart)),
+      ...aggregateTrendRows(bucketRows),
+    };
+  });
+}
+
+function createAllTrend(rows: AffinityRecord[]): DashboardTrendPoint[] {
+  const groups = new Map<string, { label: string; rows: AffinityRecord[] }>();
+
+  for (const row of rows) {
+    const time = toTimestamp(row.lastInteractionAt);
+    if (time === null) continue;
+
+    const date = new Date(time);
+    const key = `${date.getFullYear()}-${date.getMonth()}`;
+    const label = `${date.getFullYear()}/${date.getMonth() + 1}`;
+    const group = groups.get(key) || { label, rows: [] };
+    group.rows.push(row);
+    groups.set(key, group);
+  }
+
+  return [...groups.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, group]) => ({
+      label: group.label,
+      ...aggregateTrendRows(group.rows),
+    }));
+}
+
+function filterRowsByTimeWindow(
+  rows: AffinityRecord[],
+  start: number,
+  end: number,
+): AffinityRecord[] {
+  return rows.filter((row) => {
+    const time = toTimestamp(row.lastInteractionAt);
+    return time !== null && time >= start && time < end;
+  });
+}
+
+function countRowsByUpdatedAt(
+  rows: { updatedAt?: Date | string | null }[],
+  start: number,
+  end: number,
+): number {
+  return rows.filter((row) => {
+    const time = toTimestamp(row.updatedAt);
+    return time !== null && time >= start && time < end;
+  }).length;
+}
+
+function parseActionStats(value: string | null | undefined): ActionStats | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? (parsed as ActionStats) : null;
+  } catch {
+    return null;
+  }
+}
+
+function createUserHistoryPoints(
+  row: AffinityRecord,
+): DashboardUserHistoryPoint[] {
+  const stats = parseActionStats(row.actionStats);
+  const entries = [...(stats?.entries || [])]
+    .filter((entry) => Number.isFinite(Number(entry?.timestamp)))
+    .sort((left, right) => Number(left.timestamp) - Number(right.timestamp))
+    .slice(-HISTORY_POINT_LIMIT);
+
+  if (entries.length) {
+    // actionStats 只记录动作时间和方向，不保存每次变更后的好感值；这里用动作时间锚定当前值，避免伪造精确历史快照。
+    return entries.map((entry) => {
+      const date = new Date(Number(entry.timestamp));
+      return {
+        label: formatTrendLabel(date),
+        timestamp: toIsoString(date),
+        affinity: toCount(row.affinity),
+      };
+    });
+  }
+
+  return [
+    {
+      label: "当前",
+      timestamp: toIsoString(row.lastInteractionAt),
+      affinity: toCount(row.affinity),
+    },
+  ];
+}
+
 export async function getDashboardData(
   ctx: Context,
   options: DashboardDataOptions,
 ): Promise<DashboardData> {
   const scopeId = options.scopeId;
+  const now = options.now || new Date();
   const relationshipAffinityLevels = options.relationshipAffinityLevels || [];
   const affinityRows = await ctx.database.get(MODEL_NAME_V2, {
     scopeId,
@@ -180,7 +378,7 @@ export async function getDashboardData(
   let longTermTotal = 0;
   let shortTermTotal = 0;
   let latestInteractionAt: string | null = null;
-  const relationCounts = new Map<string, number>();
+  const relationCounts = new Map<string, DashboardRelationStat>();
   const affinityByUserId = new Map<string, number>();
 
   for (const row of affinityRows) {
@@ -190,7 +388,15 @@ export async function getDashboardData(
     shortTermTotal += toCount(row.shortTermAffinity);
 
     const relation = getDisplayRelation(row);
-    relationCounts.set(relation, (relationCounts.get(relation) || 0) + 1);
+    const kind = getRelationKind(row);
+    const relationKey = `${kind}:${relation}`;
+    const currentRelation = relationCounts.get(relationKey) || {
+      relation,
+      kind,
+      count: 0,
+    };
+    currentRelation.count += 1;
+    relationCounts.set(relationKey, currentRelation);
     affinityByUserId.set(row.userId, toCount(row.affinity));
 
     const currentInteractionAt = toIsoString(row.lastInteractionAt);
@@ -213,11 +419,26 @@ export async function getDashboardData(
       relationTone: getRelationTone(row, relationshipAffinityLevels),
       chatCount: toCount(row.chatCount),
       lastInteractionAt: toIsoString(row.lastInteractionAt),
+      historyPoints: createUserHistoryPoints(row),
     }));
 
-  const relationStats = [...relationCounts.entries()]
-    .map(([relation, count]) => ({ relation, count }))
+  const relationStats = [...relationCounts.values()]
     .sort((left, right) => right.count - left.count);
+
+  const currentWeekStart = now.getTime() - WEEK_DAYS * DAY_MS;
+  const previousWeekStart = now.getTime() - WEEK_DAYS * 2 * DAY_MS;
+  const currentWeekRows = filterRowsByTimeWindow(
+    affinityRows,
+    currentWeekStart,
+    now.getTime(),
+  );
+  const previousWeekRows = filterRowsByTimeWindow(
+    affinityRows,
+    previousWeekStart,
+    currentWeekStart,
+  );
+  const currentWeekTrend = aggregateTrendRows(currentWeekRows);
+  const previousWeekTrend = aggregateTrendRows(previousWeekRows);
 
   const blacklistItems = [...blacklistRows]
     .sort((left, right) => {
@@ -260,6 +481,29 @@ export async function getDashboardData(
       shortTermAffinity: roundAverage(shortTermTotal, affinityRows.length),
     },
     latestInteractionAt,
+    weeklyChanges: {
+      users: createMetricChange(
+        currentWeekTrend.users,
+        previousWeekTrend.users,
+      ),
+      averageAffinity: createMetricChange(
+        currentWeekTrend.averageAffinity,
+        previousWeekTrend.averageAffinity,
+      ),
+      chatCount: createMetricChange(
+        currentWeekTrend.chatCount,
+        previousWeekTrend.chatCount,
+      ),
+      aliases: createMetricChange(
+        countRowsByUpdatedAt(aliasRows, currentWeekStart, now.getTime()),
+        countRowsByUpdatedAt(aliasRows, previousWeekStart, currentWeekStart),
+      ),
+    },
+    trends: {
+      week: createDailyTrend(affinityRows, now, WEEK_DAYS),
+      month: createDailyTrend(affinityRows, now, MONTH_DAYS),
+      all: createAllTrend(affinityRows),
+    },
     relationStats,
     blacklistItems,
     topUsers,

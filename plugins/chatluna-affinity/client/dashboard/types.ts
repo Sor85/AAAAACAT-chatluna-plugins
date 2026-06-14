@@ -7,11 +7,32 @@ export interface DashboardTopUser {
   relationTone: "custom" | "low" | "medium" | "high" | "unknown";
   chatCount: number;
   lastInteractionAt: string | null;
+  historyPoints: DashboardUserHistoryPoint[];
 }
 
 export interface DashboardRelationStat {
   relation: string;
+  kind: "preset" | "custom";
   count: number;
+}
+
+export interface DashboardTrendPoint {
+  label: string;
+  users: number;
+  averageAffinity: number;
+  chatCount: number;
+}
+
+export interface DashboardMetricChange {
+  current: number;
+  previous: number;
+  percent: number | null;
+}
+
+export interface DashboardUserHistoryPoint {
+  label: string;
+  timestamp: string | null;
+  affinity: number;
 }
 
 export interface DashboardBlacklistItem {
@@ -42,6 +63,17 @@ export interface DashboardData {
     shortTermAffinity: number;
   };
   latestInteractionAt: string | null;
+  weeklyChanges: {
+    users: DashboardMetricChange;
+    averageAffinity: DashboardMetricChange;
+    chatCount: DashboardMetricChange;
+    aliases: DashboardMetricChange;
+  };
+  trends: {
+    week: DashboardTrendPoint[];
+    month: DashboardTrendPoint[];
+    all: DashboardTrendPoint[];
+  };
   relationStats: DashboardRelationStat[];
   blacklistItems: DashboardBlacklistItem[];
   topUsers: DashboardTopUser[];

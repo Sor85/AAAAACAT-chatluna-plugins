@@ -1,60 +1,104 @@
 import { send } from "@koishijs/client";
-import { Alert } from "@heroui/react/alert";
-import { Avatar } from "@heroui/react/avatar";
-import { Button } from "@heroui/react/button";
-import { Card } from "@heroui/react/card";
-import { Chip } from "@heroui/react/chip";
-import { Label } from "@heroui/react/label";
-import { Pagination } from "@heroui/react/pagination";
-import { ProgressBar } from "@heroui/react/progress-bar";
-import { Spinner } from "@heroui/react/spinner";
-import { Table } from "@heroui/react/table";
+import {
+  IconAlertCircle,
+  IconChevronDown,
+  IconChevronUp,
+  IconLoader2,
+  IconMinus,
+  IconRefresh,
+  IconTrendingDown,
+  IconTrendingUp,
+} from "@tabler/icons-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { toast } from "sonner";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "../components/ui/alert";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "../components/ui/avatar";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "../components/ui/chart";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
+import { Toaster } from "../components/ui/sonner";
 import type {
   DashboardBlacklistItem,
   DashboardData,
+  DashboardMetricChange,
   DashboardRelationStat,
   DashboardTopUser,
 } from "./types";
 
 const DASHBOARD_EVENT = "chatluna-affinity/dashboard";
 const TOP_USER_PAGE_SIZE = 10;
-const sortColumns = {
-  affinity: true,
-  chatCount: true,
-  lastInteractionAt: true,
-  relation: true,
-  user: true,
-};
 
-type SortColumn = keyof typeof sortColumns;
+type SortColumn = "affinity" | "chatCount" | "lastInteractionAt" | "relation" | "user";
 type SortDirection = "ascending" | "descending";
+type TrendRange = "week" | "month" | "all";
 
 interface TopUserSortDescriptor {
   column: SortColumn;
   direction: SortDirection;
 }
 
-function RefreshIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      fill="none"
-      height="16"
-      viewBox="0 0 24 24"
-      width="16"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
-      />
-    </svg>
-  );
-}
+const trendChartConfig = {
+  users: {
+    label: "用户记录",
+    color: "var(--chart-1)",
+  },
+  averageAffinity: {
+    label: "平均好感",
+    color: "var(--chart-2)",
+  },
+  chatCount: {
+    label: "互动次数",
+    color: "var(--chart-3)",
+  },
+} satisfies ChartConfig;
+
+const userHistoryChartConfig = {
+  affinity: {
+    label: "好感度",
+    color: "var(--chart-2)",
+  },
+} satisfies ChartConfig;
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat("zh-CN").format(value);
@@ -76,12 +120,38 @@ function formatTime(value: string | null): string {
   }).format(date);
 }
 
+function formatChange(change: DashboardMetricChange): string {
+  if (change.percent === null) return "上周无基准";
+  if (change.percent > 0) return `较上周 +${formatAverage(change.percent)}%`;
+  if (change.percent < 0) return `较上周 ${formatAverage(change.percent)}%`;
+  return "较上周持平";
+}
+
+function ChangeIcon({ change }: { change: DashboardMetricChange }) {
+  if (change.percent === null || change.percent === 0) {
+    return <IconMinus aria-hidden="true" />;
+  }
+  if (change.percent > 0) {
+    return <IconTrendingUp aria-hidden="true" />;
+  }
+  return <IconTrendingDown aria-hidden="true" />;
+}
+
+function getChangeClassName(change: DashboardMetricChange): string {
+  if (change.percent === null || change.percent === 0) {
+    return "affinity-dashboard__change affinity-dashboard__change--neutral";
+  }
+  return `affinity-dashboard__change affinity-dashboard__change--${
+    change.percent > 0 ? "up" : "down"
+  }`;
+}
+
 function getRelationClassName(tone: DashboardTopUser["relationTone"]): string {
   return `affinity-dashboard__relation affinity-dashboard__relation--${tone}`;
 }
 
-function isSortColumn(value: unknown): value is SortColumn {
-  return typeof value === "string" && value in sortColumns;
+function getModeClassName(mode: DashboardBlacklistItem["mode"]): string {
+  return `affinity-dashboard__mode affinity-dashboard__mode--${mode}`;
 }
 
 function getUserSortName(user: DashboardTopUser): string {
@@ -133,22 +203,44 @@ function compareTopUsers(
   return sortDescriptor.direction === "ascending" ? result : -result;
 }
 
-function SortableColumnHeader({
+function SortHeader({
   children,
-  sortDirection,
+  column,
+  sortDescriptor,
+  onSortChange,
 }: {
   children: React.ReactNode;
-  sortDirection?: SortDirection;
+  column: SortColumn;
+  sortDescriptor: TopUserSortDescriptor;
+  onSortChange: (next: TopUserSortDescriptor) => void;
 }) {
+  const active = sortDescriptor.column === column;
+  const nextDirection: SortDirection =
+    active && sortDescriptor.direction === "descending"
+      ? "ascending"
+      : "descending";
+
   return (
-    <span className="affinity-dashboard__sort-header">
+    <Button
+      className="h-auto w-full justify-start px-0 py-0 font-medium text-muted-foreground hover:bg-transparent"
+      type="button"
+      variant="ghost"
+      onClick={() =>
+        onSortChange({
+          column,
+          direction: nextDirection,
+        })
+      }
+    >
       <span>{children}</span>
-      {sortDirection ? (
-        <Pagination.NextIcon
-          className={`affinity-dashboard__sort-chevron affinity-dashboard__sort-chevron--${sortDirection}`}
-        />
+      {active ? (
+        sortDescriptor.direction === "ascending" ? (
+          <IconChevronUp aria-hidden="true" />
+        ) : (
+          <IconChevronDown aria-hidden="true" />
+        )
       ) : null}
-    </span>
+    </Button>
   );
 }
 
@@ -156,45 +248,98 @@ function StatCard({
   label,
   value,
   detail,
+  change,
 }: {
   label: string;
   value: string;
   detail: string;
+  change: DashboardMetricChange;
 }) {
   return (
-    <Card className="affinity-dashboard__stat">
-      <Card.Header>
-        <Card.Description>{label}</Card.Description>
-        <Card.Title>{value}</Card.Title>
-      </Card.Header>
-      <Card.Content>{detail}</Card.Content>
+    <Card>
+      <CardHeader className="gap-2">
+        <div className="flex items-start justify-between gap-2">
+          <CardDescription>{label}</CardDescription>
+          <Badge className={getChangeClassName(change)} variant="outline">
+            <ChangeIcon change={change} />
+            {formatChange(change)}
+          </Badge>
+        </div>
+        <CardTitle className="text-2xl">{value}</CardTitle>
+        <div className="text-sm text-muted-foreground">{detail}</div>
+      </CardHeader>
     </Card>
   );
 }
 
-function RelationProgress({
-  item,
-  total,
+function OverviewTrendChart({
+  trends,
 }: {
-  item: DashboardRelationStat;
-  total: number;
+  trends: DashboardData["trends"];
 }) {
-  const value = total > 0 ? Math.round((item.count / total) * 100) : 0;
+  const [range, setRange] = useState<TrendRange>("week");
+  const chartData = trends[range];
 
   return (
-    <ProgressBar
-      aria-label={`${item.relation} 占比`}
-      className="affinity-dashboard__progress"
-      value={value}
-    >
-      <div className="affinity-dashboard__progress-label">
-        <Label>{item.relation}</Label>
-        <span>{formatNumber(item.count)} 人</span>
-      </div>
-      <ProgressBar.Track>
-        <ProgressBar.Fill />
-      </ProgressBar.Track>
-    </ProgressBar>
+    <Card>
+      <CardHeader className="flex-row items-start justify-between gap-4">
+        <div className="grid gap-1">
+          <CardTitle>趋势概览</CardTitle>
+          <CardDescription>用户记录、平均好感与互动次数</CardDescription>
+        </div>
+        <Tabs value={range} onValueChange={(value) => setRange(value as TrendRange)}>
+          <TabsList>
+            <TabsTrigger value="week">周</TabsTrigger>
+            <TabsTrigger value="month">月</TabsTrigger>
+            <TabsTrigger value="all">总</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </CardHeader>
+      <CardContent>
+        {chartData.length ? (
+          <ChartContainer className="h-72 w-full" config={trendChartConfig}>
+            <LineChart
+              accessibilityLayer
+              data={chartData}
+              margin={{ left: 8, right: 8 }}
+            >
+              <CartesianGrid vertical={false} />
+              <XAxis
+                axisLine={false}
+                dataKey="label"
+                tickLine={false}
+                tickMargin={8}
+              />
+              <YAxis axisLine={false} tickLine={false} width={36} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Line
+                dataKey="users"
+                dot={false}
+                stroke="var(--color-users)"
+                strokeWidth={2}
+                type="monotone"
+              />
+              <Line
+                dataKey="averageAffinity"
+                dot={false}
+                stroke="var(--color-averageAffinity)"
+                strokeWidth={2}
+                type="monotone"
+              />
+              <Line
+                dataKey="chatCount"
+                dot={false}
+                stroke="var(--color-chatCount)"
+                strokeWidth={2}
+                type="monotone"
+              />
+            </LineChart>
+          </ChartContainer>
+        ) : (
+          <p className="affinity-dashboard__empty">当前 scopeId 暂无趋势数据。</p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -210,15 +355,74 @@ function RelationList({
   }
 
   return (
-    <div className="affinity-dashboard__relations">
-      {items.slice(0, 6).map((item) => (
-        <RelationProgress item={item} key={item.relation} total={total} />
-      ))}
+    <div className="grid gap-3">
+      {items.slice(0, 8).map((item) => {
+        const percent = total > 0 ? Math.round((item.count / total) * 100) : 0;
+
+        return (
+          <div className="grid gap-2" key={`${item.kind}:${item.relation}`}>
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="truncate font-medium">{item.relation}</span>
+              <span className="text-muted-foreground">
+                {formatNumber(item.count)} 人
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-muted">
+              <div
+                className="h-2 rounded-full bg-primary"
+                style={{ width: `${percent}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function TopUserTable({ users }: { users: DashboardTopUser[] }) {
+function RelationshipDistribution({
+  items,
+  total,
+}: {
+  items: DashboardRelationStat[];
+  total: number;
+}) {
+  const presetItems = items.filter((item) => item.kind === "preset");
+  const customItems = items.filter((item) => item.kind === "custom");
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>关系分布</CardTitle>
+        <CardDescription>按用户当前展示关系统计</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="preset">
+          <TabsList>
+            <TabsTrigger value="preset">预设关系</TabsTrigger>
+            <TabsTrigger value="custom">自定义关系</TabsTrigger>
+          </TabsList>
+          <TabsContent value="preset">
+            <RelationList items={presetItems} total={total} />
+          </TabsContent>
+          <TabsContent value="custom">
+            <RelationList items={customItems} total={total} />
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TopUserTable({
+  users,
+  selectedUserId,
+  onSelectUser,
+}: {
+  users: DashboardTopUser[];
+  selectedUserId: string | null;
+  onSelectUser: (user: DashboardTopUser) => void;
+}) {
   const [page, setPage] = useState(1);
   const [sortDescriptor, setSortDescriptor] =
     useState<TopUserSortDescriptor>({
@@ -227,7 +431,10 @@ function TopUserTable({ users }: { users: DashboardTopUser[] }) {
     });
 
   const sortedUsers = useMemo(
-    () => [...users].sort((left, right) => compareTopUsers(left, right, sortDescriptor)),
+    () =>
+      [...users].sort((left, right) =>
+        compareTopUsers(left, right, sortDescriptor),
+      ),
     [sortDescriptor, users],
   );
   const pageCount = Math.max(1, Math.ceil(sortedUsers.length / TOP_USER_PAGE_SIZE));
@@ -251,246 +458,326 @@ function TopUserTable({ users }: { users: DashboardTopUser[] }) {
   }
 
   return (
-    <Table variant="secondary">
-      <Table.ScrollContainer>
-        <Table.Content
-          aria-label="好感度排行"
-          className="affinity-dashboard__table"
-          sortDescriptor={sortDescriptor}
-          onSortChange={(nextDescriptor) => {
-            setSortDescriptor({
-              column: isSortColumn(nextDescriptor.column)
-                ? nextDescriptor.column
-                : "affinity",
-              direction: nextDescriptor.direction,
-            });
-            setPage(1);
-          }}
-        >
-          <Table.Header>
-            <Table.Column allowsSorting id="user" isRowHeader>
-              {({ sortDirection }) => (
-                <SortableColumnHeader sortDirection={sortDirection}>
-                  用户
-                </SortableColumnHeader>
-              )}
-            </Table.Column>
-            <Table.Column allowsSorting id="relation">
-              {({ sortDirection }) => (
-                <SortableColumnHeader sortDirection={sortDirection}>
-                  关系
-                </SortableColumnHeader>
-              )}
-            </Table.Column>
-            <Table.Column allowsSorting id="affinity">
-              {({ sortDirection }) => (
-                <SortableColumnHeader sortDirection={sortDirection}>
-                  好感度
-                </SortableColumnHeader>
-              )}
-            </Table.Column>
-            <Table.Column allowsSorting id="chatCount">
-              {({ sortDirection }) => (
-                <SortableColumnHeader sortDirection={sortDirection}>
-                  互动
-                </SortableColumnHeader>
-              )}
-            </Table.Column>
-            <Table.Column allowsSorting id="lastInteractionAt">
-              {({ sortDirection }) => (
-                <SortableColumnHeader sortDirection={sortDirection}>
-                  最后互动
-                </SortableColumnHeader>
-              )}
-            </Table.Column>
-          </Table.Header>
-          <Table.Body>
-            {pageUsers.map((user) => (
-              <Table.Row id={user.userId} key={user.userId}>
-                <Table.Cell>
-                  <div className="affinity-dashboard__rank-user">
-                    <Avatar size="sm" variant="soft">
-                      {user.avatarUrl ? (
-                        <Avatar.Image
-                          alt={`${user.name} 的头像`}
-                          loading="lazy"
-                          src={user.avatarUrl}
-                        />
-                      ) : null}
-                      <Avatar.Fallback>
-                        {user.name.trim().slice(0, 1) || "?"}
-                      </Avatar.Fallback>
-                    </Avatar>
-                    <div className="affinity-dashboard__user">
-                      <span>{user.name}</span>
-                      <small>{user.userId}</small>
-                    </div>
+    <div className="grid gap-3">
+      <Table className="min-w-[720px] table-fixed">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[34%]">
+              <SortHeader
+                column="user"
+                sortDescriptor={sortDescriptor}
+                onSortChange={setSortDescriptor}
+              >
+                用户
+              </SortHeader>
+            </TableHead>
+            <TableHead className="w-[16%]">
+              <SortHeader
+                column="relation"
+                sortDescriptor={sortDescriptor}
+                onSortChange={setSortDescriptor}
+              >
+                关系
+              </SortHeader>
+            </TableHead>
+            <TableHead className="w-[14%]">
+              <SortHeader
+                column="affinity"
+                sortDescriptor={sortDescriptor}
+                onSortChange={setSortDescriptor}
+              >
+                好感度
+              </SortHeader>
+            </TableHead>
+            <TableHead className="w-[14%]">
+              <SortHeader
+                column="chatCount"
+                sortDescriptor={sortDescriptor}
+                onSortChange={setSortDescriptor}
+              >
+                互动
+              </SortHeader>
+            </TableHead>
+            <TableHead className="w-[22%]">
+              <SortHeader
+                column="lastInteractionAt"
+                sortDescriptor={sortDescriptor}
+                onSortChange={setSortDescriptor}
+              >
+                最后互动
+              </SortHeader>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {pageUsers.map((user) => (
+            <TableRow
+              className={
+                selectedUserId === user.userId ? "bg-muted/60" : "cursor-pointer"
+              }
+              key={user.userId}
+              onClick={() => onSelectUser(user)}
+            >
+              <TableCell>
+                <div className="flex min-w-0 items-center gap-2">
+                  <Avatar>
+                    {user.avatarUrl ? (
+                      <AvatarImage
+                        alt={`${user.name} 的头像`}
+                        loading="lazy"
+                        src={user.avatarUrl}
+                      />
+                    ) : null}
+                    <AvatarFallback>
+                      {user.name.trim().slice(0, 1) || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="grid min-w-0 gap-0.5">
+                    <span className="truncate font-medium">{user.name}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {user.userId}
+                    </span>
                   </div>
-                </Table.Cell>
-                <Table.Cell>
-                  <Chip
-                    className={getRelationClassName(user.relationTone)}
-                    size="sm"
-                    variant="soft"
-                  >
-                    {user.relation}
-                  </Chip>
-                </Table.Cell>
-                <Table.Cell>{formatNumber(user.affinity)}</Table.Cell>
-                <Table.Cell>{formatNumber(user.chatCount)}</Table.Cell>
-                <Table.Cell>{formatTime(user.lastInteractionAt)}</Table.Cell>
-              </Table.Row>
-            ))}
-          </Table.Body>
-        </Table.Content>
-      </Table.ScrollContainer>
+                </div>
+              </TableCell>
+              <TableCell>
+                <Badge
+                  className={getRelationClassName(user.relationTone)}
+                  variant="outline"
+                >
+                  {user.relation}
+                </Badge>
+              </TableCell>
+              <TableCell>{formatNumber(user.affinity)}</TableCell>
+              <TableCell>{formatNumber(user.chatCount)}</TableCell>
+              <TableCell className="whitespace-nowrap">
+                {formatTime(user.lastInteractionAt)}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
       {pageCount > 1 ? (
-        <Table.Footer className="affinity-dashboard__table-footer">
-          <Pagination className="affinity-dashboard__pagination" size="sm">
-            <Pagination.Summary className="affinity-dashboard__pagination-summary">
-              第 {formatNumber(page)} / {formatNumber(pageCount)} 页，显示{" "}
-              {formatNumber(startRank)}-{formatNumber(endRank)} /{" "}
-              {formatNumber(sortedUsers.length)}
-            </Pagination.Summary>
-            <Pagination.Content>
-              <Pagination.Item>
-                <Pagination.Previous
-                  isDisabled={page === 1}
-                  onPress={() => setPage((currentPage) => currentPage - 1)}
-                >
-                  <Pagination.PreviousIcon />
-                  上一页
-                </Pagination.Previous>
-              </Pagination.Item>
-              <Pagination.Item>
-                <Pagination.Link isActive>{formatNumber(page)}</Pagination.Link>
-              </Pagination.Item>
-              <Pagination.Item>
-                <Pagination.Next
-                  isDisabled={page === pageCount}
-                  onPress={() => setPage((currentPage) => currentPage + 1)}
-                >
-                  下一页
-                  <Pagination.NextIcon />
-                </Pagination.Next>
-              </Pagination.Item>
-            </Pagination.Content>
-          </Pagination>
-        </Table.Footer>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+          <span>
+            第 {formatNumber(page)} / {formatNumber(pageCount)} 页，显示{" "}
+            {formatNumber(startRank)}-{formatNumber(endRank)} /{" "}
+            {formatNumber(sortedUsers.length)}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              disabled={page === 1}
+              size="sm"
+              type="button"
+              variant="outline"
+              onClick={() => setPage((currentPage) => currentPage - 1)}
+            >
+              上一页
+            </Button>
+            <Button
+              disabled={page === pageCount}
+              size="sm"
+              type="button"
+              variant="outline"
+              onClick={() => setPage((currentPage) => currentPage + 1)}
+            >
+              下一页
+            </Button>
+          </div>
+        </div>
       ) : null}
-    </Table>
+    </div>
   );
 }
 
-function BlacklistList({ items }: { items: DashboardBlacklistItem[] }) {
+function BlacklistTable({ items }: { items: DashboardBlacklistItem[] }) {
   if (!items.length) {
     return <p className="affinity-dashboard__empty">当前 scopeId 暂无黑名单记录。</p>;
   }
 
   return (
-    <div className="affinity-dashboard__blacklist">
-      {items.map((item) => (
-        <div
-          className="affinity-dashboard__blacklist-item"
-          key={`${item.mode}:${item.platform}:${item.userId}`}
-        >
-          <div className="affinity-dashboard__blacklist-main">
-            <div className="affinity-dashboard__blacklist-user">
-              <strong>{item.name}</strong>
-              <span>{item.userId}</span>
-            </div>
-            <Chip
-              color={item.mode === "permanent" ? "danger" : "warning"}
-              size="sm"
-              variant="soft"
-            >
-              {item.mode === "permanent" ? "永久" : "临时"}
-            </Chip>
-          </div>
-          <div className="affinity-dashboard__blacklist-meta">
-            <span>{item.platform}</span>
-            <span>
-              好感度{" "}
+    <Table className="min-w-[720px] table-fixed">
+      <TableHeader>
+        <TableRow>
+          <TableHead className="w-[28%]">用户</TableHead>
+          <TableHead className="w-[12%]">模式</TableHead>
+          <TableHead className="w-[12%]">平台</TableHead>
+          <TableHead className="w-[14%]">好感度</TableHead>
+          <TableHead className="w-[17%]">加入时间</TableHead>
+          <TableHead className="w-[17%]">到期时间</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {items.map((item) => (
+          <TableRow key={`${item.mode}:${item.platform}:${item.userId}`}>
+            <TableCell>
+              <div className="grid min-w-0 gap-0.5">
+                <span className="truncate font-medium">{item.name}</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {item.userId}
+                </span>
+                {item.note ? (
+                  <span className="truncate text-xs text-muted-foreground">
+                    {item.note}
+                  </span>
+                ) : null}
+              </div>
+            </TableCell>
+            <TableCell>
+              <Badge className={getModeClassName(item.mode)} variant="outline">
+                {item.mode === "permanent" ? "永久" : "临时"}
+              </Badge>
+            </TableCell>
+            <TableCell>{item.platform}</TableCell>
+            <TableCell>
               {item.affinity === null ? "暂无" : formatNumber(item.affinity)}
-            </span>
-            <span>加入 {formatTime(item.blockedAt)}</span>
-            {item.expiresAt ? <span>到期 {formatTime(item.expiresAt)}</span> : null}
-          </div>
-          {item.note ? (
-            <p className="affinity-dashboard__blacklist-note">{item.note}</p>
-          ) : null}
+            </TableCell>
+            <TableCell className="whitespace-nowrap">
+              {formatTime(item.blockedAt)}
+            </TableCell>
+            <TableCell className="whitespace-nowrap">
+              {formatTime(item.expiresAt)}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+function UserHistoryChart({ user }: { user: DashboardTopUser | null }) {
+  if (!user) {
+    return (
+      <div className="border-t pt-4">
+        <p className="affinity-dashboard__empty">点击排行中的用户查看单人曲线。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-3 border-t pt-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="grid gap-1">
+          <h3 className="text-sm font-medium">{user.name} 的好感度历史</h3>
+          <p className="text-sm text-muted-foreground">{user.userId}</p>
         </div>
-      ))}
+        <Badge className={getRelationClassName(user.relationTone)} variant="outline">
+          {user.relation}
+        </Badge>
+      </div>
+      <ChartContainer className="h-56 w-full" config={userHistoryChartConfig}>
+        <LineChart
+          accessibilityLayer
+          data={user.historyPoints}
+          margin={{ left: 8, right: 8 }}
+        >
+          <CartesianGrid vertical={false} />
+          <XAxis axisLine={false} dataKey="label" tickLine={false} tickMargin={8} />
+          <YAxis axisLine={false} tickLine={false} width={36} />
+          <ChartTooltip content={<ChartTooltipContent />} />
+          <Line
+            dataKey="affinity"
+            dot={{ fill: "var(--color-affinity)" }}
+            stroke="var(--color-affinity)"
+            strokeWidth={2}
+            type="monotone"
+          />
+        </LineChart>
+      </ChartContainer>
     </div>
   );
 }
 
-function DashboardContent({ data }: { data: DashboardData }) {
-  const activeRelationStats = useMemo(
-    () => data.relationStats.filter((item) => item.count > 0),
-    [data.relationStats],
+function RankingPanel({
+  data,
+}: {
+  data: DashboardData;
+}) {
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(
+    data.topUsers[0]?.userId ?? null,
   );
 
+  useEffect(() => {
+    setSelectedUserId((current) =>
+      current && data.topUsers.some((user) => user.userId === current)
+        ? current
+        : data.topUsers[0]?.userId ?? null,
+    );
+  }, [data.topUsers]);
+
+  const selectedUser =
+    data.topUsers.find((user) => user.userId === selectedUserId) ?? null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>好感度排行</CardTitle>
+        <CardDescription>默认按好感度从高到低排序，每页 10 名</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="ranking">
+          <TabsList>
+            <TabsTrigger value="ranking">好感度</TabsTrigger>
+            <TabsTrigger value="blacklist">黑名单</TabsTrigger>
+          </TabsList>
+          <TabsContent value="ranking">
+            <div className="grid gap-4">
+              <TopUserTable
+                selectedUserId={selectedUserId}
+                users={data.topUsers}
+                onSelectUser={(user) => setSelectedUserId(user.userId)}
+              />
+              <UserHistoryChart user={selectedUser} />
+            </div>
+          </TabsContent>
+          <TabsContent value="blacklist">
+            <BlacklistTable items={data.blacklistItems} />
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DashboardContent({ data }: { data: DashboardData }) {
   return (
     <>
-      <div className="affinity-dashboard__summary">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
+          change={data.weeklyChanges.users}
           detail={`黑名单 ${formatNumber(data.totals.blacklisted)} 人`}
           label="用户记录"
           value={formatNumber(data.totals.users)}
         />
         <StatCard
+          change={data.weeklyChanges.averageAffinity}
           detail={`长期均值 ${formatAverage(data.averages.longTermAffinity)}`}
           label="平均好感度"
           value={formatAverage(data.averages.affinity)}
         />
         <StatCard
+          change={data.weeklyChanges.chatCount}
           detail={`短期均值 ${formatAverage(data.averages.shortTermAffinity)}`}
           label="互动次数"
           value={formatNumber(data.totals.chatCount)}
         />
         <StatCard
+          change={data.weeklyChanges.aliases}
           detail={`最近互动 ${formatTime(data.latestInteractionAt)}`}
           label="昵称记录"
           value={formatNumber(data.totals.aliases)}
         />
       </div>
 
-      <div className="affinity-dashboard__grid">
-        <Card>
-          <Card.Header>
-            <Card.Title>黑名单列表</Card.Title>
-            <Card.Description>
-              当前 scopeId 下最近的 {formatNumber(data.blacklistItems.length)} 条记录
-            </Card.Description>
-          </Card.Header>
-          <Card.Content>
-            <BlacklistList items={data.blacklistItems} />
-          </Card.Content>
-        </Card>
-
-        <Card>
-          <Card.Header>
-            <Card.Title>关系分布</Card.Title>
-            <Card.Description>按用户当前展示关系统计</Card.Description>
-          </Card.Header>
-          <Card.Content>
-            <RelationList items={activeRelationStats} total={data.totals.users} />
-          </Card.Content>
-        </Card>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <OverviewTrendChart trends={data.trends} />
+        <RelationshipDistribution
+          items={data.relationStats}
+          total={data.totals.users}
+        />
       </div>
 
-      <Card>
-        <Card.Header>
-          <Card.Title>好感度排行</Card.Title>
-          <Card.Description>
-            默认按好感度从高到低排序，每页 10 名
-          </Card.Description>
-        </Card.Header>
-        <Card.Content>
-          <TopUserTable users={data.topUsers} />
-        </Card.Content>
-      </Card>
+      <RankingPanel data={data} />
     </>
   );
 }
@@ -500,14 +787,23 @@ export function AffinityDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (showToast = false) => {
     setLoading(true);
     setError(null);
     try {
       const nextData = await send(DASHBOARD_EVENT);
       setData(nextData as DashboardData);
+      if (showToast) {
+        toast.success("仪表盘已刷新");
+      }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
+      const message = reason instanceof Error ? reason.message : String(reason);
+      setError(message);
+      if (showToast) {
+        toast.error("刷新失败", {
+          description: message,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -519,31 +815,38 @@ export function AffinityDashboard() {
 
   return (
     <section className="affinity-dashboard">
-      <div className="affinity-dashboard__header">
-        <div>
-          <h2>好感度仪表盘</h2>
-          <p>当前 scopeId 下的真实统计数据</p>
+      <Toaster position="top-right" richColors />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="grid gap-1">
+          <h2 className="text-xl font-semibold leading-tight">好感度仪表盘</h2>
+          <p className="text-sm text-muted-foreground">
+            当前 scopeId 下的真实统计数据
+          </p>
         </div>
-        <Button isDisabled={loading} size="sm" variant="secondary" onPress={load}>
-          <RefreshIcon />
+        <Button disabled={loading} size="sm" type="button" onClick={() => void load(true)}>
+          {loading ? (
+            <IconLoader2 aria-hidden="true" className="animate-spin" />
+          ) : (
+            <IconRefresh aria-hidden="true" />
+          )}
           刷新
         </Button>
       </div>
 
       {loading && !data ? (
-        <Card className="affinity-dashboard__loading">
-          <Spinner color="accent" />
-          <span>正在读取仪表盘数据</span>
+        <Card>
+          <CardContent className="flex items-center gap-2 pt-4 text-sm text-muted-foreground">
+            <IconLoader2 aria-hidden="true" className="animate-spin" />
+            <span>正在读取仪表盘数据</span>
+          </CardContent>
         </Card>
       ) : null}
 
       {error ? (
-        <Alert status="danger">
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Title>仪表盘数据读取失败</Alert.Title>
-            <Alert.Description>{error}</Alert.Description>
-          </Alert.Content>
+        <Alert variant="destructive">
+          <IconAlertCircle aria-hidden="true" />
+          <AlertTitle>仪表盘数据读取失败</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
 

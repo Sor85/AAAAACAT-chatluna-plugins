@@ -43,6 +43,14 @@ describe("dashboard data", () => {
     assert.deepEqual(data.relationStats, []);
     assert.deepEqual(data.blacklistItems, []);
     assert.deepEqual(data.topUsers, []);
+    assert.equal(data.trends.week.length, 7);
+    assert.equal(data.trends.month.length, 30);
+    assert.deepEqual(data.trends.all, []);
+    assert.deepEqual(data.weeklyChanges.users, {
+      current: 0,
+      previous: 0,
+      percent: 0,
+    });
   });
 
   it("returns full sorted ranking for frontend pagination", async () => {
@@ -187,8 +195,8 @@ describe("dashboard data", () => {
     assert.equal(data.averages.shortTermAffinity, 2.5);
     assert.equal(data.latestInteractionAt, "2026-06-02T12:00:00.000Z");
     assert.deepEqual(data.relationStats, [
-      { relation: "朋友", count: 1 },
-      { relation: "重点观察", count: 1 },
+      { relation: "朋友", count: 1, kind: "preset" },
+      { relation: "重点观察", count: 1, kind: "custom" },
     ]);
     assert.deepEqual(data.blacklistItems, [
       {
@@ -221,9 +229,150 @@ describe("dashboard data", () => {
       "https://q1.qlogo.cn/g?b=qq&nk=10001&s=640",
     );
     assert.equal(data.topUsers[0].relationTone, "medium");
+    assert.deepEqual(data.topUsers[0].historyPoints, [
+      {
+        label: "当前",
+        timestamp: "2026-06-01T12:00:00.000Z",
+        affinity: 80,
+      },
+    ]);
     assert.equal(data.topUsers[1].avatarUrl, null);
     assert.equal(data.topUsers[1].name, "user-b");
     assert.equal(data.topUsers[1].relationTone, "custom");
+  });
+
+  it("builds trend series and weekly comparisons from current scope rows", async () => {
+    const affinityRows: AffinityRecord[] = [
+      {
+        scopeId: "test-scope",
+        userId: "current-a",
+        nickname: "Current A",
+        affinity: 70,
+        relation: "朋友",
+        specialRelation: null,
+        longTermAffinity: 68,
+        shortTermAffinity: 2,
+        chatCount: 10,
+        actionStats: JSON.stringify({
+          total: 2,
+          counts: { increase: 1, decrease: 1 },
+          entries: [
+            { action: "increase", timestamp: Date.parse("2026-06-12T12:00:00.000Z") },
+            { action: "decrease", timestamp: Date.parse("2026-06-13T12:00:00.000Z") },
+          ],
+        }),
+        lastInteractionAt: new Date("2026-06-13T12:00:00.000Z"),
+        coefficientState: null,
+      },
+      {
+        scopeId: "test-scope",
+        userId: "current-b",
+        nickname: null,
+        affinity: 30,
+        relation: "陌生",
+        specialRelation: null,
+        longTermAffinity: 30,
+        shortTermAffinity: 0,
+        chatCount: 4,
+        actionStats: null,
+        lastInteractionAt: new Date("2026-06-10T12:00:00.000Z"),
+        coefficientState: null,
+      },
+      {
+        scopeId: "test-scope",
+        userId: "previous-a",
+        nickname: null,
+        affinity: 50,
+        relation: "朋友",
+        specialRelation: null,
+        longTermAffinity: 50,
+        shortTermAffinity: 0,
+        chatCount: 6,
+        actionStats: null,
+        lastInteractionAt: new Date("2026-06-03T12:00:00.000Z"),
+        coefficientState: null,
+      },
+      {
+        scopeId: "other-scope",
+        userId: "other",
+        nickname: null,
+        affinity: 100,
+        relation: "亲密",
+        specialRelation: null,
+        longTermAffinity: 100,
+        shortTermAffinity: 0,
+        chatCount: 99,
+        actionStats: null,
+        lastInteractionAt: new Date("2026-06-13T12:00:00.000Z"),
+        coefficientState: null,
+      },
+    ];
+    const data = await getDashboardData(
+      createContext({
+        [MODEL_NAME_V2]: affinityRows,
+        [USER_ALIAS_MODEL_NAME_V2]: [
+          {
+            scopeId: "test-scope",
+            platform: "onebot",
+            userId: "current-a",
+            alias: "A",
+            updatedAt: new Date("2026-06-12T12:00:00.000Z"),
+          },
+          {
+            scopeId: "test-scope",
+            platform: "onebot",
+            userId: "previous-a",
+            alias: "P",
+            updatedAt: new Date("2026-06-03T12:00:00.000Z"),
+          },
+        ],
+      }),
+      {
+        ...config,
+        now: new Date("2026-06-14T12:00:00.000Z"),
+      },
+    );
+
+    assert.deepEqual(data.weeklyChanges.users, {
+      current: 2,
+      previous: 1,
+      percent: 100,
+    });
+    assert.deepEqual(data.weeklyChanges.averageAffinity, {
+      current: 50,
+      previous: 50,
+      percent: 0,
+    });
+    assert.deepEqual(data.weeklyChanges.chatCount, {
+      current: 14,
+      previous: 6,
+      percent: 133.33,
+    });
+    assert.deepEqual(data.weeklyChanges.aliases, {
+      current: 1,
+      previous: 1,
+      percent: 0,
+    });
+
+    const currentDay = data.trends.week.find((point) => point.label === "6/13");
+    assert.deepEqual(currentDay, {
+      label: "6/13",
+      users: 1,
+      averageAffinity: 70,
+      chatCount: 10,
+    });
+    assert.deepEqual(data.topUsers[0].historyPoints, [
+      {
+        label: "6/12",
+        timestamp: "2026-06-12T12:00:00.000Z",
+        affinity: 70,
+      },
+      {
+        label: "6/13",
+        timestamp: "2026-06-13T12:00:00.000Z",
+        affinity: 70,
+      },
+    ]);
   });
 });
 
