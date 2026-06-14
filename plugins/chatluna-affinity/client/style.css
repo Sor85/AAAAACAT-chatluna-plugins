@@ -1,4 +1,9 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "@heroui/styles/base";
+@import "@heroui/styles/themes/default";
+@import "@heroui/styles/utilities";
+@import "@heroui/styles/components/tooltip.css";
 
 @theme inline {
   --color-background: var(--background);

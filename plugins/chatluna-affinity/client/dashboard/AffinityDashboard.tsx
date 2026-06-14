@@ -1,4 +1,5 @@
 import { send } from "@koishijs/client";
+import { Tooltip } from "@heroui/react/tooltip";
 import {
   IconAlertCircle,
   IconChevronDown,
@@ -9,7 +10,14 @@ import {
   IconTrendingDown,
   IconTrendingUp,
 } from "@tabler/icons-react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   CartesianGrid,
   Line,
@@ -214,6 +222,58 @@ function getRelationBadgeClassName(
     case "unknown":
       return "border-muted bg-muted text-muted-foreground hover:bg-muted";
   }
+}
+
+function OverflowTooltip({
+  children,
+  content,
+  className,
+}: {
+  children: React.ReactNode;
+  content: string;
+  className?: string;
+}) {
+  const triggerRef = useRef<HTMLDivElement | null>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+
+  useLayoutEffect(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+
+    const checkOverflow = () => {
+      const target =
+        trigger.firstElementChild instanceof HTMLElement
+          ? trigger.firstElementChild
+          : trigger;
+
+      setIsOverflowing(
+        target.scrollWidth > target.clientWidth ||
+          trigger.scrollWidth > trigger.clientWidth,
+      );
+    };
+
+    checkOverflow();
+    const resizeObserver = new ResizeObserver(checkOverflow);
+    resizeObserver.observe(trigger);
+
+    return () => resizeObserver.disconnect();
+  }, [content]);
+
+  return (
+    <Tooltip closeDelay={0} delay={0} isDisabled={!isOverflowing}>
+      <Tooltip.Trigger
+        ref={triggerRef}
+        className={
+          className
+            ? `inline-flex min-w-0 max-w-full ${className}`
+            : "inline-flex min-w-0 max-w-full"
+        }
+      >
+        {children}
+      </Tooltip.Trigger>
+      <Tooltip.Content showArrow>{content}</Tooltip.Content>
+    </Tooltip>
+  );
 }
 
 function SortHeader({
@@ -549,6 +609,9 @@ function TopUserTable({
         <TableBody>
           {pageUsers.map((user, index) => {
             const selected = selectedUserId === user.userId;
+            const affinity = formatNumber(user.affinity);
+            const chatCount = formatNumber(user.chatCount);
+            const lastInteractionAt = formatTime(user.lastInteractionAt);
             const rowClassName = selected
               ? "cursor-pointer border-0 bg-muted/70 hover:bg-muted/70"
               : index % 2 === 0
@@ -576,31 +639,41 @@ function TopUserTable({
                         </AvatarFallback>
                       </Avatar>
                       <div className="grid min-w-0 gap-0.5">
-                        <span className="truncate font-medium">{user.name}</span>
+                        <OverflowTooltip content={user.name}>
+                          <span className="block truncate font-medium">
+                            {user.name}
+                          </span>
+                        </OverflowTooltip>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell className="text-left">
-                    <span className="block truncate text-muted-foreground">
-                      {user.userId}
-                    </span>
+                    <OverflowTooltip content={user.userId}>
+                      <span className="block truncate text-muted-foreground">
+                        {user.userId}
+                      </span>
+                    </OverflowTooltip>
                   </TableCell>
                   <TableCell className="text-left">
-                    <Badge
-                      className={getRelationBadgeClassName(user.relationTone)}
-                      variant="outline"
-                    >
-                      {user.relation}
-                    </Badge>
+                    <OverflowTooltip content={user.relation}>
+                      <Badge
+                        className={`max-w-full truncate ${getRelationBadgeClassName(user.relationTone)}`}
+                        variant="outline"
+                      >
+                        {user.relation}
+                      </Badge>
+                    </OverflowTooltip>
                   </TableCell>
                   <TableCell className="text-left">
-                    {formatNumber(user.affinity)}
+                    <OverflowTooltip content={affinity}>{affinity}</OverflowTooltip>
                   </TableCell>
                   <TableCell className="text-left">
-                    {formatNumber(user.chatCount)}
+                    <OverflowTooltip content={chatCount}>{chatCount}</OverflowTooltip>
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-left">
-                    {formatTime(user.lastInteractionAt)}
+                    <OverflowTooltip content={lastInteractionAt}>
+                      {lastInteractionAt}
+                    </OverflowTooltip>
                   </TableCell>
                 </TableRow>
                 {selected ? (
