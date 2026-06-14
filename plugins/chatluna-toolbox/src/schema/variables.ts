@@ -100,4 +100,4 @@ export const VariablesSchema = Schema.object({
     groupShutList: { variableName: "groupShutList" },
     random: { variableName: "random", min: 0, max: 100 },
   })
-  .description("其他变量");
+  .description("变量");

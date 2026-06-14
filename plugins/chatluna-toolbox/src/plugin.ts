@@ -69,7 +69,7 @@ export function apply(ctx: Context, config: Config): void {
       ? registerXmlTools({ ctx, config, protocol, log })
       : null;
     if (characterCtx && xmlRuntime?.start()) {
-      log("info", "XML 工具已启用");
+      log("info", "Character XML 工具已启用");
     }
 
     log("info", "toolbox 初始化完成");
@@ -106,7 +106,7 @@ export function apply(ctx: Context, config: Config): void {
       });
       if (!xmlRuntime) return;
       const started = xmlRuntime.start();
-      if (started) log("info", "XML 工具已启用");
+      if (started) log("info", "Character XML 工具已启用");
     });
   }
 

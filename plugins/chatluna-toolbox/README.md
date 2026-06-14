@@ -3,7 +3,7 @@
 为 ChatLuna 提供可组合的工具能力，当前包含三类功能：
 
 - 原生工具（Native Tools）
-- XML 工具（XML Actions）
+- Character XML 工具（XML Actions）
 - 变量扩展（Variables）
 
 插件目标是把常用的群聊动作能力（如戳一戳、消息表情、撤回消息）和上下文变量能力拆分为可配置模块，便于在 Koishi + ChatLuna 场景中按需启用。
@@ -21,7 +21,7 @@
 
 QQ 头像工具会把 HTTP/HTTPS 图片先转为 OneBot `base64://` 文件再提交，避免 OneBot 端无法访问 Koishi 临时图片地址。
 
-### 2) XML 工具
+### 2) Character XML 工具
 支持从模型输出中解析 XML 动作标签并执行：
 
 - `<poke id="..."/>`
@@ -49,11 +49,11 @@ QQ 头像工具会把 HTTP/HTTPS 图片先转为 OneBot `base64://` 文件再提
 
 - 开启一个 OneBot 协议（NapCat 或 LLBot）
 - 按需开启原生工具
-- 按需开启 XML 工具
+- 按需开启 Character XML 工具
 - 按需配置变量项
 
 ### 3. 配置 XML 参考提示词
-在 `XML 工具` 分组中找到 `参考提示词`，可直接使用默认模板，或根据你的 Bot 规则进行调整。
+在 `Character XML 工具` 分组中找到 `参考提示词`，可直接使用默认模板，或根据你的 Bot 规则进行调整。
 
 ### 4. 构建
 

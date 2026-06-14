@@ -70,4 +70,4 @@ export const XmlToolsSchema = Schema.object({
     .role("textarea")
     .default(DEFAULT_XML_REFERENCE_PROMPT)
     .description("模型回复 XML 参考提示词。自行写入提示词中，不会自动注入；若开启“将 XML 工具注入实验性[工具调用回复](https://chatluna.chat/ecosystem/other/character.html#%E9%A2%84%E8%AE%BE)的参数中”，则无需增加额外提示词"),
-}).description("XML 工具");
+}).description("Character XML 工具");
