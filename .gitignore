@@ -25,3 +25,9 @@ packages/*/lib
 !.claude/AGENTS.md
 *.log
 .vitest
+
+## trellis
+.codex
+.trellis
+.agents
+AGENTS.md

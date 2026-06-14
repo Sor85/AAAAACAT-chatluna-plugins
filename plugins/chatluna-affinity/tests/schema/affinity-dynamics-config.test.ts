@@ -79,6 +79,12 @@ test("AffinitySchema 不为 affinityDynamics 写入完整对象级默认值", ()
   );
 });
 
+test("OtherSettingsSchema 默认开启控制台仪表盘", () => {
+  const { OtherSettingsSchema } = loadPlugin();
+
+  assert.equal(OtherSettingsSchema.dict.enableDashboard.meta.default, true);
+});
+
 test("resolveShortTermConfig 在 affinityDynamics 缺失时返回稳定默认值", () => {
   const { resolveShortTermConfig } = loadPlugin();
 

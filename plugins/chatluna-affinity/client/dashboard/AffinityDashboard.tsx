@@ -1,0 +1,303 @@
+import { send } from "@koishijs/client";
+import { Alert } from "@heroui/react/alert";
+import { Button } from "@heroui/react/button";
+import { Card } from "@heroui/react/card";
+import { Chip } from "@heroui/react/chip";
+import { Label } from "@heroui/react/label";
+import { ProgressBar } from "@heroui/react/progress-bar";
+import { Spinner } from "@heroui/react/spinner";
+import { Table } from "@heroui/react/table";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import type { DashboardData, DashboardRelationStat, DashboardTopUser } from "./types";
+
+const DASHBOARD_EVENT = "chatluna-affinity/dashboard";
+
+function RefreshIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="16"
+      viewBox="0 0 24 24"
+      width="16"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat("zh-CN").format(value);
+}
+
+function formatAverage(value: number): string {
+  return new Intl.NumberFormat("zh-CN", {
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatTime(value: string | null): string {
+  if (!value) return "暂无";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "暂无";
+  return new Intl.DateTimeFormat("zh-CN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function StatCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <Card className="affinity-dashboard__stat">
+      <Card.Header>
+        <Card.Description>{label}</Card.Description>
+        <Card.Title>{value}</Card.Title>
+      </Card.Header>
+      <Card.Content>{detail}</Card.Content>
+    </Card>
+  );
+}
+
+function RelationProgress({
+  item,
+  total,
+}: {
+  item: DashboardRelationStat;
+  total: number;
+}) {
+  const value = total > 0 ? Math.round((item.count / total) * 100) : 0;
+
+  return (
+    <ProgressBar
+      aria-label={`${item.relation} 占比`}
+      className="affinity-dashboard__progress"
+      value={value}
+    >
+      <div className="affinity-dashboard__progress-label">
+        <Label>{item.relation}</Label>
+        <span>{formatNumber(item.count)} 人</span>
+      </div>
+      <ProgressBar.Track>
+        <ProgressBar.Fill />
+      </ProgressBar.Track>
+    </ProgressBar>
+  );
+}
+
+function RelationList({
+  items,
+  total,
+}: {
+  items: DashboardRelationStat[];
+  total: number;
+}) {
+  if (!items.length) {
+    return <p className="affinity-dashboard__empty">当前 scopeId 暂无关系数据。</p>;
+  }
+
+  return (
+    <div className="affinity-dashboard__relations">
+      {items.slice(0, 6).map((item) => (
+        <RelationProgress item={item} key={item.relation} total={total} />
+      ))}
+    </div>
+  );
+}
+
+function TopUserTable({ users }: { users: DashboardTopUser[] }) {
+  if (!users.length) {
+    return <p className="affinity-dashboard__empty">当前 scopeId 暂无好感度记录。</p>;
+  }
+
+  return (
+    <Table>
+      <Table.ScrollContainer>
+        <Table.Content
+          aria-label="好感度排行"
+          className="affinity-dashboard__table"
+        >
+          <Table.Header>
+            <Table.Column isRowHeader>用户</Table.Column>
+            <Table.Column>关系</Table.Column>
+            <Table.Column>好感度</Table.Column>
+            <Table.Column>互动</Table.Column>
+            <Table.Column>最后互动</Table.Column>
+          </Table.Header>
+          <Table.Body>
+            {users.map((user) => (
+              <Table.Row id={user.userId} key={user.userId}>
+                <Table.Cell>
+                  <div className="affinity-dashboard__user">
+                    <span>{user.name}</span>
+                    <small>{user.userId}</small>
+                  </div>
+                </Table.Cell>
+                <Table.Cell>
+                  <Chip size="sm" variant="soft">
+                    {user.relation}
+                  </Chip>
+                </Table.Cell>
+                <Table.Cell>{formatNumber(user.affinity)}</Table.Cell>
+                <Table.Cell>{formatNumber(user.chatCount)}</Table.Cell>
+                <Table.Cell>{formatTime(user.lastInteractionAt)}</Table.Cell>
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </Table.Content>
+      </Table.ScrollContainer>
+    </Table>
+  );
+}
+
+function DashboardContent({ data }: { data: DashboardData }) {
+  const activeRelationStats = useMemo(
+    () => data.relationStats.filter((item) => item.count > 0),
+    [data.relationStats],
+  );
+
+  return (
+    <>
+      <div className="affinity-dashboard__summary">
+        <StatCard
+          detail={`黑名单 ${formatNumber(data.totals.blacklisted)} 人`}
+          label="用户记录"
+          value={formatNumber(data.totals.users)}
+        />
+        <StatCard
+          detail={`长期均值 ${formatAverage(data.averages.longTermAffinity)}`}
+          label="平均好感度"
+          value={formatAverage(data.averages.affinity)}
+        />
+        <StatCard
+          detail={`短期均值 ${formatAverage(data.averages.shortTermAffinity)}`}
+          label="互动次数"
+          value={formatNumber(data.totals.chatCount)}
+        />
+        <StatCard
+          detail={`最近互动 ${formatTime(data.latestInteractionAt)}`}
+          label="昵称记录"
+          value={formatNumber(data.totals.aliases)}
+        />
+      </div>
+
+      <div className="affinity-dashboard__grid">
+        <Card>
+          <Card.Header>
+            <Card.Title>作用域状态</Card.Title>
+            <Card.Description>当前插件实例的数据隔离范围</Card.Description>
+          </Card.Header>
+          <Card.Content className="affinity-dashboard__scope">
+            <div>
+              <span>scopeId</span>
+              <strong>{data.scopeId}</strong>
+            </div>
+            <div>
+              <span>永久黑名单</span>
+              <strong>{formatNumber(data.totals.permanentBlacklisted)}</strong>
+            </div>
+            <div>
+              <span>临时黑名单</span>
+              <strong>{formatNumber(data.totals.temporaryBlacklisted)}</strong>
+            </div>
+            <div>
+              <span>生成时间</span>
+              <strong>{formatTime(data.generatedAt)}</strong>
+            </div>
+          </Card.Content>
+        </Card>
+
+        <Card>
+          <Card.Header>
+            <Card.Title>关系分布</Card.Title>
+            <Card.Description>按用户当前展示关系统计</Card.Description>
+          </Card.Header>
+          <Card.Content>
+            <RelationList items={activeRelationStats} total={data.totals.users} />
+          </Card.Content>
+        </Card>
+      </div>
+
+      <Card>
+        <Card.Header>
+          <Card.Title>好感度排行</Card.Title>
+          <Card.Description>按当前好感度取前 10 名</Card.Description>
+        </Card.Header>
+        <Card.Content>
+          <TopUserTable users={data.topUsers} />
+        </Card.Content>
+      </Card>
+    </>
+  );
+}
+
+export function AffinityDashboard() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const nextData = await send(DASHBOARD_EVENT);
+      setData(nextData as DashboardData);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return (
+    <section className="affinity-dashboard">
+      <div className="affinity-dashboard__header">
+        <div>
+          <h2>好感度仪表盘</h2>
+          <p>当前 scopeId 下的真实统计数据</p>
+        </div>
+        <Button isDisabled={loading} size="sm" variant="secondary" onPress={load}>
+          <RefreshIcon />
+          刷新
+        </Button>
+      </div>
+
+      {loading && !data ? (
+        <Card className="affinity-dashboard__loading">
+          <Spinner color="accent" />
+          <span>正在读取仪表盘数据</span>
+        </Card>
+      ) : null}
+
+      {error ? (
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>仪表盘数据读取失败</Alert.Title>
+            <Alert.Description>{error}</Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : null}
+
+      {data ? <DashboardContent data={data} /> : null}
+    </section>
+  );
+}

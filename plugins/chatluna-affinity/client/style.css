@@ -1,0 +1,175 @@
+@import "tailwindcss";
+@import "@heroui/styles/base/base.css";
+@import "@heroui/styles/themes/default";
+@import "@heroui/styles/utilities";
+@import "@heroui/styles/variants";
+@import "@heroui/styles/components/alert.css";
+@import "@heroui/styles/components/button.css";
+@import "@heroui/styles/components/card.css";
+@import "@heroui/styles/components/chip.css";
+@import "@heroui/styles/components/label.css";
+@import "@heroui/styles/components/progress-bar.css";
+@import "@heroui/styles/components/spinner.css";
+@import "@heroui/styles/components/table.css";
+
+.page-affinity-dashboard .k-content {
+  max-width: 72rem;
+}
+
+.affinity-dashboard {
+  box-sizing: border-box;
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  max-width: 100%;
+  min-height: calc(100vh - 6rem);
+  padding: 0;
+  color: var(--foreground, #1f2937);
+}
+
+.affinity-dashboard *,
+.affinity-dashboard *::before,
+.affinity-dashboard *::after {
+  box-sizing: border-box;
+}
+
+.affinity-dashboard__header,
+.affinity-dashboard__summary,
+.affinity-dashboard__grid {
+  min-width: 0;
+}
+
+.affinity-dashboard__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.affinity-dashboard__header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.affinity-dashboard__header p,
+.affinity-dashboard__empty {
+  margin: 4px 0 0;
+  color: var(--muted, #6b7280);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.affinity-dashboard__summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.affinity-dashboard__stat {
+  min-width: 0;
+}
+
+.affinity-dashboard__stat .card__title {
+  word-break: break-word;
+}
+
+.affinity-dashboard__stat .card__content {
+  color: var(--muted, #6b7280);
+  font-size: 13px;
+}
+
+.affinity-dashboard__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 12px;
+}
+
+.affinity-dashboard__scope {
+  display: grid;
+  gap: 10px;
+}
+
+.affinity-dashboard__scope > div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.affinity-dashboard__scope span,
+.affinity-dashboard__progress-label span,
+.affinity-dashboard__user small {
+  color: var(--muted, #6b7280);
+  font-size: 12px;
+}
+
+.affinity-dashboard__scope strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.affinity-dashboard__relations {
+  display: grid;
+  gap: 12px;
+}
+
+.affinity-dashboard__progress {
+  width: 100%;
+}
+
+.affinity-dashboard__progress-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.affinity-dashboard__table {
+  min-width: 720px;
+}
+
+.affinity-dashboard__user {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.affinity-dashboard__user span,
+.affinity-dashboard__user small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.affinity-dashboard__loading {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted, #6b7280);
+}
+
+@media (max-width: 720px) {
+  .affinity-dashboard {
+    min-height: auto;
+  }
+
+  .affinity-dashboard__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .affinity-dashboard__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .affinity-dashboard__scope > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

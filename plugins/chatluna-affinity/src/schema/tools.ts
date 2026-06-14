@@ -104,6 +104,9 @@ export const VariableSettingsSchema = Schema.object({
 }).description("变量设置");
 
 export const OtherSettingsSchema = Schema.object({
+  enableDashboard: Schema.boolean()
+    .default(true)
+    .description("在 Koishi 控制台侧栏显示好感度仪表盘"),
   rankRenderAsImage: Schema.boolean()
     .default(false)
     .description("将好感度排行渲染为图片"),

@@ -27,6 +27,27 @@
     "type": "git",
     "url": "https://github.com/Sor85/AAAAACAT-chatluna-plugins.git"
   },
+  "koishi": {
+    "browser": true,
+    "public": [
+      "dist"
+    ],
+    "description": {
+      "zh": "ChatLuna Character 好感度系统，提供好感度、关系、黑名单变量与控制台仪表盘"
+    },
+    "service": {
+      "required": [
+        "chatluna",
+        "database"
+      ],
+      "optional": [
+        "puppeteer",
+        "console",
+        "chatluna_group_analysis",
+        "chatluna_character"
+      ]
+    }
+  },
   "dependencies": {},
   "peerDependencies": {
     "koishi": "^4.18.7",
@@ -50,15 +71,23 @@
     }
   },
   "devDependencies": {
+    "@heroui/react": "^3.0.5",
+    "@heroui/styles": "^3.0.5",
     "@koishijs/client": "^5.30.0",
     "@types/node": "^22.10.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@tailwindcss/vite": "^4.3.1",
     "@vitejs/plugin-vue": "^6.0.2",
     "shared-chatluna-xmltools": "workspace:*",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "rimraf": "^5.0.5",
     "sass": "^1.77.0",
     "shared-nav": "workspace:*",
     "tsup": "^8.0.0",
     "typescript": "^5.7.2",
+    "tailwindcss": "^4.0.0",
     "vite": "^6.0.0",
     "vue": "^3.5.21",
     "tsx": "^4.20.6"
