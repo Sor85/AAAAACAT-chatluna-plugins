@@ -45,6 +45,42 @@ describe("dashboard data", () => {
     assert.deepEqual(data.topUsers, []);
   });
 
+  it("returns full sorted ranking for frontend pagination", async () => {
+    const affinityRows: AffinityRecord[] = Array.from(
+      { length: 12 },
+      (_, index) => ({
+        scopeId: "test-scope",
+        userId: `user-${String(index + 1).padStart(2, "0")}`,
+        nickname: null,
+        affinity: index + 1,
+        relation: "陌生",
+        specialRelation: null,
+        longTermAffinity: index + 1,
+        shortTermAffinity: 0,
+        chatCount: index + 1,
+        actionStats: null,
+        lastInteractionAt: null,
+        coefficientState: null,
+      }),
+    );
+    const data = await getDashboardData(
+      createContext({
+        [MODEL_NAME_V2]: affinityRows,
+      }),
+      config,
+    );
+
+    assert.equal(data.topUsers.length, 12);
+    assert.deepEqual(
+      data.topUsers.slice(0, 3).map((user) => user.userId),
+      ["user-12", "user-11", "user-10"],
+    );
+    assert.deepEqual(
+      data.topUsers.slice(-2).map((user) => user.userId),
+      ["user-02", "user-01"],
+    );
+  });
+
   it("aggregates current scope rows only", async () => {
     const affinityRows: AffinityRecord[] = [
       {

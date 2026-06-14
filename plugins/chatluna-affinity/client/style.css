@@ -9,6 +9,7 @@
 @import "@heroui/styles/components/card.css";
 @import "@heroui/styles/components/chip.css";
 @import "@heroui/styles/components/label.css";
+@import "@heroui/styles/components/pagination.css";
 @import "@heroui/styles/components/progress-bar.css";
 @import "@heroui/styles/components/spinner.css";
 @import "@heroui/styles/components/table.css";
@@ -194,6 +195,36 @@
   vertical-align: middle;
 }
 
+.affinity-dashboard__sort-header {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.affinity-dashboard__table
+  .table__column:nth-child(1)
+  .affinity-dashboard__sort-header {
+  justify-content: flex-start;
+}
+
+.affinity-dashboard__sort-chevron {
+  flex: 0 0 auto;
+  color: var(--foreground, #1f2937);
+  transform: rotate(90deg);
+  transition:
+    transform 120ms ease;
+}
+
+.affinity-dashboard__sort-chevron--ascending {
+  transform: rotate(-90deg);
+}
+
+.affinity-dashboard__sort-chevron--descending {
+  transform: rotate(90deg);
+}
+
 .affinity-dashboard__table .table__column:nth-child(1),
 .affinity-dashboard__table .table__cell:nth-child(1) {
   width: 34%;
@@ -234,6 +265,19 @@
 
 .affinity-dashboard__rank-user .avatar {
   flex: 0 0 auto;
+}
+
+.affinity-dashboard__table-footer {
+  margin-top: 12px;
+  padding: 0;
+}
+
+.affinity-dashboard__pagination {
+  width: 100%;
+}
+
+.affinity-dashboard__pagination-summary {
+  white-space: nowrap;
 }
 
 .affinity-dashboard__relation {

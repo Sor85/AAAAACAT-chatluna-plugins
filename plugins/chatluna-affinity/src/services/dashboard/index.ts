@@ -204,7 +204,6 @@ export async function getDashboardData(
 
   const topUsers = [...affinityRows]
     .sort((left, right) => right.affinity - left.affinity)
-    .slice(0, 10)
     .map((row) => ({
       userId: row.userId,
       name: getDisplayName(row),

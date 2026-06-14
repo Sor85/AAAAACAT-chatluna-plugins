@@ -5,6 +5,7 @@ import { Button } from "@heroui/react/button";
 import { Card } from "@heroui/react/card";
 import { Chip } from "@heroui/react/chip";
 import { Label } from "@heroui/react/label";
+import { Pagination } from "@heroui/react/pagination";
 import { ProgressBar } from "@heroui/react/progress-bar";
 import { Spinner } from "@heroui/react/spinner";
 import { Table } from "@heroui/react/table";
@@ -17,6 +18,22 @@ import type {
 } from "./types";
 
 const DASHBOARD_EVENT = "chatluna-affinity/dashboard";
+const TOP_USER_PAGE_SIZE = 10;
+const sortColumns = {
+  affinity: true,
+  chatCount: true,
+  lastInteractionAt: true,
+  relation: true,
+  user: true,
+};
+
+type SortColumn = keyof typeof sortColumns;
+type SortDirection = "ascending" | "descending";
+
+interface TopUserSortDescriptor {
+  column: SortColumn;
+  direction: SortDirection;
+}
 
 function RefreshIcon() {
   return (
@@ -61,6 +78,78 @@ function formatTime(value: string | null): string {
 
 function getRelationClassName(tone: DashboardTopUser["relationTone"]): string {
   return `affinity-dashboard__relation affinity-dashboard__relation--${tone}`;
+}
+
+function isSortColumn(value: unknown): value is SortColumn {
+  return typeof value === "string" && value in sortColumns;
+}
+
+function getUserSortName(user: DashboardTopUser): string {
+  return `${user.name}\n${user.userId}`;
+}
+
+function getInteractionTimestamp(user: DashboardTopUser): number {
+  if (!user.lastInteractionAt) return Number.NEGATIVE_INFINITY;
+  const value = new Date(user.lastInteractionAt).getTime();
+  return Number.isNaN(value) ? Number.NEGATIVE_INFINITY : value;
+}
+
+function compareText(left: string, right: string): number {
+  return left.localeCompare(right, "zh-CN", {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
+function compareTopUsers(
+  left: DashboardTopUser,
+  right: DashboardTopUser,
+  sortDescriptor: TopUserSortDescriptor,
+): number {
+  let result = 0;
+
+  switch (sortDescriptor.column) {
+    case "user":
+      result = compareText(getUserSortName(left), getUserSortName(right));
+      break;
+    case "relation":
+      result = compareText(left.relation, right.relation);
+      break;
+    case "affinity":
+      result = left.affinity - right.affinity;
+      break;
+    case "chatCount":
+      result = left.chatCount - right.chatCount;
+      break;
+    case "lastInteractionAt":
+      result = getInteractionTimestamp(left) - getInteractionTimestamp(right);
+      break;
+  }
+
+  if (result === 0) {
+    result = compareText(left.userId, right.userId);
+  }
+
+  return sortDescriptor.direction === "ascending" ? result : -result;
+}
+
+function SortableColumnHeader({
+  children,
+  sortDirection,
+}: {
+  children: React.ReactNode;
+  sortDirection?: SortDirection;
+}) {
+  return (
+    <span className="affinity-dashboard__sort-header">
+      <span>{children}</span>
+      {sortDirection ? (
+        <Pagination.NextIcon
+          className={`affinity-dashboard__sort-chevron affinity-dashboard__sort-chevron--${sortDirection}`}
+        />
+      ) : null}
+    </span>
+  );
 }
 
 function StatCard({
@@ -130,26 +219,93 @@ function RelationList({
 }
 
 function TopUserTable({ users }: { users: DashboardTopUser[] }) {
+  const [page, setPage] = useState(1);
+  const [sortDescriptor, setSortDescriptor] =
+    useState<TopUserSortDescriptor>({
+      column: "affinity",
+      direction: "descending",
+    });
+
+  const sortedUsers = useMemo(
+    () => [...users].sort((left, right) => compareTopUsers(left, right, sortDescriptor)),
+    [sortDescriptor, users],
+  );
+  const pageCount = Math.max(1, Math.ceil(sortedUsers.length / TOP_USER_PAGE_SIZE));
+  const pageUsers = useMemo(() => {
+    const start = (page - 1) * TOP_USER_PAGE_SIZE;
+    return sortedUsers.slice(start, start + TOP_USER_PAGE_SIZE);
+  }, [page, sortedUsers]);
+  const startRank = (page - 1) * TOP_USER_PAGE_SIZE + 1;
+  const endRank = Math.min(page * TOP_USER_PAGE_SIZE, sortedUsers.length);
+
+  useEffect(() => {
+    setPage(1);
+  }, [users]);
+
+  useEffect(() => {
+    setPage((currentPage) => Math.min(currentPage, pageCount));
+  }, [pageCount]);
+
   if (!users.length) {
     return <p className="affinity-dashboard__empty">当前 scopeId 暂无好感度记录。</p>;
   }
 
   return (
-    <Table>
+    <Table variant="secondary">
       <Table.ScrollContainer>
         <Table.Content
           aria-label="好感度排行"
           className="affinity-dashboard__table"
+          sortDescriptor={sortDescriptor}
+          onSortChange={(nextDescriptor) => {
+            setSortDescriptor({
+              column: isSortColumn(nextDescriptor.column)
+                ? nextDescriptor.column
+                : "affinity",
+              direction: nextDescriptor.direction,
+            });
+            setPage(1);
+          }}
         >
           <Table.Header>
-            <Table.Column isRowHeader>用户</Table.Column>
-            <Table.Column>关系</Table.Column>
-            <Table.Column>好感度</Table.Column>
-            <Table.Column>互动</Table.Column>
-            <Table.Column>最后互动</Table.Column>
+            <Table.Column allowsSorting id="user" isRowHeader>
+              {({ sortDirection }) => (
+                <SortableColumnHeader sortDirection={sortDirection}>
+                  用户
+                </SortableColumnHeader>
+              )}
+            </Table.Column>
+            <Table.Column allowsSorting id="relation">
+              {({ sortDirection }) => (
+                <SortableColumnHeader sortDirection={sortDirection}>
+                  关系
+                </SortableColumnHeader>
+              )}
+            </Table.Column>
+            <Table.Column allowsSorting id="affinity">
+              {({ sortDirection }) => (
+                <SortableColumnHeader sortDirection={sortDirection}>
+                  好感度
+                </SortableColumnHeader>
+              )}
+            </Table.Column>
+            <Table.Column allowsSorting id="chatCount">
+              {({ sortDirection }) => (
+                <SortableColumnHeader sortDirection={sortDirection}>
+                  互动
+                </SortableColumnHeader>
+              )}
+            </Table.Column>
+            <Table.Column allowsSorting id="lastInteractionAt">
+              {({ sortDirection }) => (
+                <SortableColumnHeader sortDirection={sortDirection}>
+                  最后互动
+                </SortableColumnHeader>
+              )}
+            </Table.Column>
           </Table.Header>
           <Table.Body>
-            {users.map((user) => (
+            {pageUsers.map((user) => (
               <Table.Row id={user.userId} key={user.userId}>
                 <Table.Cell>
                   <div className="affinity-dashboard__rank-user">
@@ -188,6 +344,40 @@ function TopUserTable({ users }: { users: DashboardTopUser[] }) {
           </Table.Body>
         </Table.Content>
       </Table.ScrollContainer>
+      {pageCount > 1 ? (
+        <Table.Footer className="affinity-dashboard__table-footer">
+          <Pagination className="affinity-dashboard__pagination" size="sm">
+            <Pagination.Summary className="affinity-dashboard__pagination-summary">
+              第 {formatNumber(page)} / {formatNumber(pageCount)} 页，显示{" "}
+              {formatNumber(startRank)}-{formatNumber(endRank)} /{" "}
+              {formatNumber(sortedUsers.length)}
+            </Pagination.Summary>
+            <Pagination.Content>
+              <Pagination.Item>
+                <Pagination.Previous
+                  isDisabled={page === 1}
+                  onPress={() => setPage((currentPage) => currentPage - 1)}
+                >
+                  <Pagination.PreviousIcon />
+                  上一页
+                </Pagination.Previous>
+              </Pagination.Item>
+              <Pagination.Item>
+                <Pagination.Link isActive>{formatNumber(page)}</Pagination.Link>
+              </Pagination.Item>
+              <Pagination.Item>
+                <Pagination.Next
+                  isDisabled={page === pageCount}
+                  onPress={() => setPage((currentPage) => currentPage + 1)}
+                >
+                  下一页
+                  <Pagination.NextIcon />
+                </Pagination.Next>
+              </Pagination.Item>
+            </Pagination.Content>
+          </Pagination>
+        </Table.Footer>
+      ) : null}
     </Table>
   );
 }
@@ -293,7 +483,9 @@ function DashboardContent({ data }: { data: DashboardData }) {
       <Card>
         <Card.Header>
           <Card.Title>好感度排行</Card.Title>
-          <Card.Description>按当前好感度取前 10 名</Card.Description>
+          <Card.Description>
+            默认按好感度从高到低排序，每页 10 名
+          </Card.Description>
         </Card.Header>
         <Card.Content>
           <TopUserTable users={data.topUsers} />
