@@ -69,7 +69,13 @@ import type {
 const DASHBOARD_EVENT = "chatluna-affinity/dashboard";
 const TOP_USER_PAGE_SIZE = 10;
 
-type SortColumn = "affinity" | "chatCount" | "lastInteractionAt" | "relation" | "user";
+type SortColumn =
+  | "affinity"
+  | "chatCount"
+  | "lastInteractionAt"
+  | "relation"
+  | "user"
+  | "userId";
 type SortDirection = "ascending" | "descending";
 type TrendRange = "week" | "month" | "all";
 
@@ -142,7 +148,7 @@ function ChangeIcon({ change }: { change: DashboardMetricChange }) {
 }
 
 function getUserSortName(user: DashboardTopUser): string {
-  return `${user.name}\n${user.userId}`;
+  return user.name;
 }
 
 function getInteractionTimestamp(user: DashboardTopUser): number {
@@ -169,6 +175,9 @@ function compareTopUsers(
     case "user":
       result = compareText(getUserSortName(left), getUserSortName(right));
       break;
+    case "userId":
+      result = compareText(left.userId, right.userId);
+      break;
     case "relation":
       result = compareText(left.relation, right.relation);
       break;
@@ -188,6 +197,23 @@ function compareTopUsers(
   }
 
   return sortDescriptor.direction === "ascending" ? result : -result;
+}
+
+function getRelationBadgeClassName(
+  tone: DashboardTopUser["relationTone"],
+): string {
+  switch (tone) {
+    case "low":
+      return "border-slate-200 bg-slate-100 text-slate-900 hover:bg-slate-100";
+    case "medium":
+      return "border-sky-200 bg-sky-100 text-sky-900 hover:bg-sky-100";
+    case "high":
+      return "border-emerald-200 bg-emerald-100 text-emerald-900 hover:bg-emerald-100";
+    case "custom":
+      return "border-amber-200 bg-amber-100 text-amber-900 hover:bg-amber-100";
+    case "unknown":
+      return "border-muted bg-muted text-muted-foreground hover:bg-muted";
+  }
 }
 
 function SortHeader({
@@ -453,12 +479,13 @@ function TopUserTable({
 
   return (
     <div className="grid gap-3">
-      <Table className="min-w-[760px] table-fixed">
+      <Table className="min-w-[880px] table-fixed">
         <colgroup>
-          <col className="w-[34%]" />
+          <col className="w-[28%]" />
           <col className="w-[16%]" />
           <col className="w-[14%]" />
-          <col className="w-[14%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
           <col className="w-[22%]" />
         </colgroup>
         <TableHeader>
@@ -470,6 +497,15 @@ function TopUserTable({
                 onSortChange={setSortDescriptor}
               >
                 用户
+              </SortHeader>
+            </TableHead>
+            <TableHead>
+              <SortHeader
+                column="userId"
+                sortDescriptor={sortDescriptor}
+                onSortChange={setSortDescriptor}
+              >
+                QQ号
               </SortHeader>
             </TableHead>
             <TableHead>
@@ -541,14 +577,19 @@ function TopUserTable({
                       </Avatar>
                       <div className="grid min-w-0 gap-0.5">
                         <span className="truncate font-medium">{user.name}</span>
-                        <span className="truncate text-xs text-muted-foreground">
-                          {user.userId}
-                        </span>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={user.relationTone === "custom" ? "secondary" : "outline"}>
+                    <span className="truncate text-muted-foreground">
+                      {user.userId}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      className={getRelationBadgeClassName(user.relationTone)}
+                      variant="outline"
+                    >
                       {user.relation}
                     </Badge>
                   </TableCell>
@@ -560,7 +601,7 @@ function TopUserTable({
                 </TableRow>
                 {selected ? (
                   <TableRow className="border-0 bg-muted/70 hover:bg-muted/70">
-                    <TableCell colSpan={5}>
+                    <TableCell colSpan={6}>
                       <UserHistoryChart user={user} />
                     </TableCell>
                   </TableRow>
@@ -609,18 +650,20 @@ function BlacklistTable({ items }: { items: DashboardBlacklistItem[] }) {
   }
 
   return (
-    <Table className="min-w-[760px] table-fixed">
+    <Table className="min-w-[880px] table-fixed">
       <colgroup>
-        <col className="w-[28%]" />
+        <col className="w-[26%]" />
+        <col className="w-[16%]" />
         <col className="w-[12%]" />
-        <col className="w-[12%]" />
+        <col className="w-[10%]" />
         <col className="w-[14%]" />
-        <col className="w-[17%]" />
-        <col className="w-[17%]" />
+        <col className="w-[11%]" />
+        <col className="w-[11%]" />
       </colgroup>
       <TableHeader>
         <TableRow>
           <TableHead>用户</TableHead>
+          <TableHead>QQ号</TableHead>
           <TableHead>模式</TableHead>
           <TableHead>平台</TableHead>
           <TableHead>好感度</TableHead>
@@ -654,9 +697,6 @@ function BlacklistTable({ items }: { items: DashboardBlacklistItem[] }) {
                 </Avatar>
                 <div className="grid min-w-0 gap-0.5">
                   <span className="truncate font-medium">{item.name}</span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {item.userId}
-                  </span>
                   {item.note ? (
                     <span className="truncate text-xs text-muted-foreground">
                       {item.note}
@@ -664,6 +704,11 @@ function BlacklistTable({ items }: { items: DashboardBlacklistItem[] }) {
                   ) : null}
                 </div>
               </div>
+            </TableCell>
+            <TableCell>
+              <span className="truncate text-muted-foreground">
+                {item.userId}
+              </span>
             </TableCell>
             <TableCell>
               <Badge variant={item.mode === "permanent" ? "destructive" : "secondary"}>
@@ -695,7 +740,10 @@ function UserHistoryChart({ user }: { user: DashboardTopUser }) {
           <h3 className="text-sm font-medium">{user.name} 的好感度历史</h3>
           <p className="text-sm text-muted-foreground">{user.userId}</p>
         </div>
-        <Badge variant={user.relationTone === "custom" ? "secondary" : "outline"}>
+        <Badge
+          className={getRelationBadgeClassName(user.relationTone)}
+          variant="outline"
+        >
           {user.relation}
         </Badge>
       </div>
@@ -845,7 +893,7 @@ export function AffinityDashboard() {
 
   return (
     <section className="affinity-dashboard">
-      <Toaster position="bottom-right" richColors />
+      <Toaster position="bottom-center" richColors />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="grid gap-1">
           <h2 className="text-xl font-semibold leading-tight">好感度仪表盘</h2>
