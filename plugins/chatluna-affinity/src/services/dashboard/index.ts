@@ -46,6 +46,7 @@ export interface DashboardTrendPoint {
   users: number;
   averageAffinity: number;
   chatCount: number;
+  blacklisted: number;
 }
 
 export interface DashboardMetricChange {
@@ -238,6 +239,7 @@ function startOfLocalDay(value: Date): Date {
 
 function aggregateTrendRows(
   rows: AffinityRecord[],
+  blacklistRows: BlacklistRecord[],
 ): Omit<DashboardTrendPoint, "label"> {
   return {
     users: rows.length,
@@ -246,15 +248,18 @@ function aggregateTrendRows(
       rows.length,
     ),
     chatCount: rows.reduce((total, row) => total + toCount(row.chatCount), 0),
+    blacklisted: blacklistRows.length,
   };
 }
 
 function createDailyTrend(
   rows: AffinityRecord[],
-  now: Date,
+  blacklistRows: BlacklistRecord[],
+  anchor: Date,
   days: number,
 ): DashboardTrendPoint[] {
-  const start = startOfLocalDay(new Date(now.getTime() - (days - 1) * DAY_MS));
+  const end = startOfLocalDay(anchor).getTime() + DAY_MS;
+  const start = new Date(end - days * DAY_MS);
 
   return Array.from({ length: days }, (_, index) => {
     const bucketStart = start.getTime() + index * DAY_MS;
@@ -263,16 +268,26 @@ function createDailyTrend(
       const time = toTimestamp(row.lastInteractionAt);
       return time !== null && time >= bucketStart && time < bucketEnd;
     });
+    const bucketBlacklistRows = blacklistRows.filter((row) => {
+      const time = toTimestamp(row.blockedAt);
+      return time !== null && time >= bucketStart && time < bucketEnd;
+    });
 
     return {
       label: formatTrendLabel(new Date(bucketStart)),
-      ...aggregateTrendRows(bucketRows),
+      ...aggregateTrendRows(bucketRows, bucketBlacklistRows),
     };
   });
 }
 
-function createAllTrend(rows: AffinityRecord[]): DashboardTrendPoint[] {
-  const groups = new Map<string, { label: string; rows: AffinityRecord[] }>();
+function createAllTrend(
+  rows: AffinityRecord[],
+  blacklistRows: BlacklistRecord[],
+): DashboardTrendPoint[] {
+  const groups = new Map<
+    string,
+    { label: string; rows: AffinityRecord[]; blacklistRows: BlacklistRecord[] }
+  >();
 
   for (const row of rows) {
     const time = toTimestamp(row.lastInteractionAt);
@@ -281,8 +296,20 @@ function createAllTrend(rows: AffinityRecord[]): DashboardTrendPoint[] {
     const date = new Date(time);
     const key = `${date.getFullYear()}-${date.getMonth()}`;
     const label = `${date.getFullYear()}/${date.getMonth() + 1}`;
-    const group = groups.get(key) || { label, rows: [] };
+    const group = groups.get(key) || { label, rows: [], blacklistRows: [] };
     group.rows.push(row);
+    groups.set(key, group);
+  }
+
+  for (const row of blacklistRows) {
+    const time = toTimestamp(row.blockedAt);
+    if (time === null) continue;
+
+    const date = new Date(time);
+    const key = `${date.getFullYear()}-${date.getMonth()}`;
+    const label = `${date.getFullYear()}/${date.getMonth() + 1}`;
+    const group = groups.get(key) || { label, rows: [], blacklistRows: [] };
+    group.blacklistRows.push(row);
     groups.set(key, group);
   }
 
@@ -290,7 +317,7 @@ function createAllTrend(rows: AffinityRecord[]): DashboardTrendPoint[] {
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([, group]) => ({
       label: group.label,
-      ...aggregateTrendRows(group.rows),
+      ...aggregateTrendRows(group.rows, group.blacklistRows),
     }));
 }
 
@@ -314,6 +341,21 @@ function countRowsByUpdatedAt(
     const time = toTimestamp(row.updatedAt);
     return time !== null && time >= start && time < end;
   }).length;
+}
+
+function getLatestTimestamp(
+  affinityRows: AffinityRecord[],
+  blacklistRows: BlacklistRecord[],
+  aliasRows: { updatedAt?: Date | string | null }[],
+): number | null {
+  const times = [
+    ...affinityRows.map((row) => toTimestamp(row.lastInteractionAt)),
+    ...blacklistRows.map((row) => toTimestamp(row.blockedAt)),
+    ...aliasRows.map((row) => toTimestamp(row.updatedAt)),
+  ].filter((value): value is number => value !== null);
+
+  if (!times.length) return null;
+  return Math.max(...times);
 }
 
 function parseActionStats(value: string | null | undefined): ActionStats | null {
@@ -372,6 +414,10 @@ export async function getDashboardData(
   const aliasRows = await ctx.database.get(USER_ALIAS_MODEL_NAME_V2, {
     scopeId,
   });
+  const trendAnchor = new Date(
+    getLatestTimestamp(affinityRows, blacklistRows, aliasRows) ??
+      now.getTime(),
+  );
 
   let chatCount = 0;
   let affinityTotal = 0;
@@ -425,20 +471,35 @@ export async function getDashboardData(
   const relationStats = [...relationCounts.values()]
     .sort((left, right) => right.count - left.count);
 
-  const currentWeekStart = now.getTime() - WEEK_DAYS * DAY_MS;
-  const previousWeekStart = now.getTime() - WEEK_DAYS * 2 * DAY_MS;
+  const currentWeekEnd = startOfLocalDay(trendAnchor).getTime() + DAY_MS;
+  const currentWeekStart = currentWeekEnd - WEEK_DAYS * DAY_MS;
+  const previousWeekStart = currentWeekStart - WEEK_DAYS * DAY_MS;
   const currentWeekRows = filterRowsByTimeWindow(
     affinityRows,
     currentWeekStart,
-    now.getTime(),
+    currentWeekEnd,
   );
   const previousWeekRows = filterRowsByTimeWindow(
     affinityRows,
     previousWeekStart,
     currentWeekStart,
   );
-  const currentWeekTrend = aggregateTrendRows(currentWeekRows);
-  const previousWeekTrend = aggregateTrendRows(previousWeekRows);
+  const currentWeekBlacklistRows = blacklistRows.filter((row) => {
+    const time = toTimestamp(row.blockedAt);
+    return time !== null && time >= currentWeekStart && time < currentWeekEnd;
+  });
+  const previousWeekBlacklistRows = blacklistRows.filter((row) => {
+    const time = toTimestamp(row.blockedAt);
+    return time !== null && time >= previousWeekStart && time < currentWeekStart;
+  });
+  const currentWeekTrend = aggregateTrendRows(
+    currentWeekRows,
+    currentWeekBlacklistRows,
+  );
+  const previousWeekTrend = aggregateTrendRows(
+    previousWeekRows,
+    previousWeekBlacklistRows,
+  );
 
   const blacklistItems = [...blacklistRows]
     .sort((left, right) => {
@@ -495,14 +556,24 @@ export async function getDashboardData(
         previousWeekTrend.chatCount,
       ),
       aliases: createMetricChange(
-        countRowsByUpdatedAt(aliasRows, currentWeekStart, now.getTime()),
+        countRowsByUpdatedAt(aliasRows, currentWeekStart, currentWeekEnd),
         countRowsByUpdatedAt(aliasRows, previousWeekStart, currentWeekStart),
       ),
     },
     trends: {
-      week: createDailyTrend(affinityRows, now, WEEK_DAYS),
-      month: createDailyTrend(affinityRows, now, MONTH_DAYS),
-      all: createAllTrend(affinityRows),
+      week: createDailyTrend(
+        affinityRows,
+        blacklistRows,
+        trendAnchor,
+        WEEK_DAYS,
+      ),
+      month: createDailyTrend(
+        affinityRows,
+        blacklistRows,
+        trendAnchor,
+        MONTH_DAYS,
+      ),
+      all: createAllTrend(affinityRows, blacklistRows),
     },
     relationStats,
     blacklistItems,

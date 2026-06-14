@@ -21,6 +21,7 @@ export interface DashboardTrendPoint {
   users: number;
   averageAffinity: number;
   chatCount: number;
+  blacklisted: number;
 }
 
 export interface DashboardMetricChange {

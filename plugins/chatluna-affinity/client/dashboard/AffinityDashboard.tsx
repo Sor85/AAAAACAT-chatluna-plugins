@@ -91,6 +91,10 @@ const trendChartConfig = {
     label: "互动次数",
     color: "var(--chart-3)",
   },
+  blacklisted: {
+    label: "黑名单",
+    color: "var(--chart-4)",
+  },
 } satisfies ChartConfig;
 
 const userHistoryChartConfig = {
@@ -135,23 +139,6 @@ function ChangeIcon({ change }: { change: DashboardMetricChange }) {
     return <IconTrendingUp aria-hidden="true" />;
   }
   return <IconTrendingDown aria-hidden="true" />;
-}
-
-function getChangeClassName(change: DashboardMetricChange): string {
-  if (change.percent === null || change.percent === 0) {
-    return "affinity-dashboard__change affinity-dashboard__change--neutral";
-  }
-  return `affinity-dashboard__change affinity-dashboard__change--${
-    change.percent > 0 ? "up" : "down"
-  }`;
-}
-
-function getRelationClassName(tone: DashboardTopUser["relationTone"]): string {
-  return `affinity-dashboard__relation affinity-dashboard__relation--${tone}`;
-}
-
-function getModeClassName(mode: DashboardBlacklistItem["mode"]): string {
-  return `affinity-dashboard__mode affinity-dashboard__mode--${mode}`;
 }
 
 function getUserSortName(user: DashboardTopUser): string {
@@ -260,7 +247,7 @@ function StatCard({
       <CardHeader className="gap-2">
         <div className="flex items-start justify-between gap-2">
           <CardDescription>{label}</CardDescription>
-          <Badge className={getChangeClassName(change)} variant="outline">
+          <Badge className="gap-1" variant="outline">
             <ChangeIcon change={change} />
             {formatChange(change)}
           </Badge>
@@ -285,7 +272,7 @@ function OverviewTrendChart({
       <CardHeader className="flex-row items-start justify-between gap-4">
         <div className="grid gap-1">
           <CardTitle>趋势概览</CardTitle>
-          <CardDescription>用户记录、平均好感与互动次数</CardDescription>
+          <CardDescription>用户记录、平均好感、互动次数与黑名单</CardDescription>
         </div>
         <Tabs value={range} onValueChange={(value) => setRange(value as TrendRange)}>
           <TabsList>
@@ -330,6 +317,13 @@ function OverviewTrendChart({
                 dataKey="chatCount"
                 dot={false}
                 stroke="var(--color-chatCount)"
+                strokeWidth={2}
+                type="monotone"
+              />
+              <Line
+                dataKey="blacklisted"
+                dot={false}
+                stroke="var(--color-blacklisted)"
                 strokeWidth={2}
                 type="monotone"
               />
@@ -541,10 +535,7 @@ function TopUserTable({
                 </div>
               </TableCell>
               <TableCell>
-                <Badge
-                  className={getRelationClassName(user.relationTone)}
-                  variant="outline"
-                >
+                <Badge variant={user.relationTone === "custom" ? "secondary" : "outline"}>
                   {user.relation}
                 </Badge>
               </TableCell>
@@ -624,7 +615,7 @@ function BlacklistTable({ items }: { items: DashboardBlacklistItem[] }) {
               </div>
             </TableCell>
             <TableCell>
-              <Badge className={getModeClassName(item.mode)} variant="outline">
+              <Badge variant={item.mode === "permanent" ? "destructive" : "secondary"}>
                 {item.mode === "permanent" ? "永久" : "临时"}
               </Badge>
             </TableCell>
@@ -661,7 +652,7 @@ function UserHistoryChart({ user }: { user: DashboardTopUser | null }) {
           <h3 className="text-sm font-medium">{user.name} 的好感度历史</h3>
           <p className="text-sm text-muted-foreground">{user.userId}</p>
         </div>
-        <Badge className={getRelationClassName(user.relationTone)} variant="outline">
+        <Badge variant={user.relationTone === "custom" ? "secondary" : "outline"}>
           {user.relation}
         </Badge>
       </div>

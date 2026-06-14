@@ -67,6 +67,7 @@
   --chart-1: #2563eb;
   --chart-2: #16a34a;
   --chart-3: #d97706;
+  --chart-4: #dc2626;
 
   box-sizing: border-box;
   display: grid;
@@ -87,80 +88,6 @@
   color: var(--muted-foreground);
   font-size: 14px;
   line-height: 1.6;
-}
-
-.affinity-dashboard__change {
-  gap: 4px;
-  white-space: nowrap;
-}
-
-.affinity-dashboard__change svg {
-  width: 14px;
-  height: 14px;
-}
-
-.affinity-dashboard__change--up {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
-  color: #166534;
-}
-
-.affinity-dashboard__change--down {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #991b1b;
-}
-
-.affinity-dashboard__change--neutral {
-  border-color: #cbd5e1;
-  background: #f8fafc;
-  color: #475569;
-}
-
-.affinity-dashboard__relation {
-  max-width: 100%;
-}
-
-.affinity-dashboard__relation--custom {
-  border-color: #c4b5fd;
-  background: #f5f3ff;
-  color: #5b21b6;
-}
-
-.affinity-dashboard__relation--low {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #991b1b;
-}
-
-.affinity-dashboard__relation--medium {
-  border-color: #fde68a;
-  background: #fffbeb;
-  color: #92400e;
-}
-
-.affinity-dashboard__relation--high {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
-  color: #166534;
-}
-
-.affinity-dashboard__relation--unknown {
-  border-color: #cbd5e1;
-  background: #f8fafc;
-  color: #334155;
-}
-
-.affinity-dashboard__mode--permanent {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #991b1b;
-}
-
-.affinity-dashboard__mode--temporary {
-  border-color: #fed7aa;
-  background: #fff7ed;
-  color: #9a3412;
 }
 
 @media (max-width: 720px) {

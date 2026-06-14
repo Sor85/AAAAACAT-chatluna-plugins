@@ -310,6 +310,32 @@ describe("dashboard data", () => {
     const data = await getDashboardData(
       createContext({
         [MODEL_NAME_V2]: affinityRows,
+        [BLACKLIST_MODEL_NAME_V2]: [
+          {
+            scopeId: "test-scope",
+            platform: "onebot",
+            userId: "blocked-current",
+            mode: "temporary",
+            blockedAt: new Date("2026-06-11T12:00:00.000Z"),
+            expiresAt: null,
+            nickname: null,
+            note: null,
+            durationHours: 24,
+            penalty: 5,
+          },
+          {
+            scopeId: "test-scope",
+            platform: "onebot",
+            userId: "blocked-previous",
+            mode: "permanent",
+            blockedAt: new Date("2026-06-02T12:00:00.000Z"),
+            expiresAt: null,
+            nickname: null,
+            note: null,
+            durationHours: null,
+            penalty: null,
+          },
+        ],
         [USER_ALIAS_MODEL_NAME_V2]: [
           {
             scopeId: "test-scope",
@@ -329,7 +355,7 @@ describe("dashboard data", () => {
       }),
       {
         ...config,
-        now: new Date("2026-06-14T12:00:00.000Z"),
+        now: new Date("2026-07-14T12:00:00.000Z"),
       },
     );
 
@@ -360,6 +386,15 @@ describe("dashboard data", () => {
       users: 1,
       averageAffinity: 70,
       chatCount: 10,
+      blacklisted: 0,
+    });
+    const blacklistDay = data.trends.week.find((point) => point.label === "6/11");
+    assert.deepEqual(blacklistDay, {
+      label: "6/11",
+      users: 0,
+      averageAffinity: 0,
+      chatCount: 0,
+      blacklisted: 1,
     });
     assert.deepEqual(data.topUsers[0].historyPoints, [
       {
