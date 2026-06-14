@@ -479,13 +479,13 @@ function TopUserTable({
 
   return (
     <div className="grid gap-3">
-      <Table className="min-w-[880px] table-fixed">
+      <Table className="min-w-[960px] table-fixed">
         <colgroup>
-          <col className="w-[28%]" />
-          <col className="w-[16%]" />
-          <col className="w-[14%]" />
-          <col className="w-[10%]" />
-          <col className="w-[10%]" />
+          <col className="w-[26%]" />
+          <col className="w-[17%]" />
+          <col className="w-[13%]" />
+          <col className="w-[11%]" />
+          <col className="w-[11%]" />
           <col className="w-[22%]" />
         </colgroup>
         <TableHeader>
@@ -561,7 +561,7 @@ function TopUserTable({
                   className={rowClassName}
                   onClick={() => onSelectUser(user)}
                 >
-                  <TableCell>
+                  <TableCell className="text-left">
                     <div className="flex min-w-0 items-center gap-2">
                       <Avatar>
                         {user.avatarUrl ? (
@@ -580,12 +580,12 @@ function TopUserTable({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <span className="truncate text-muted-foreground">
+                  <TableCell className="text-left">
+                    <span className="block truncate text-muted-foreground">
                       {user.userId}
                     </span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-left">
                     <Badge
                       className={getRelationBadgeClassName(user.relationTone)}
                       variant="outline"
@@ -593,9 +593,13 @@ function TopUserTable({
                       {user.relation}
                     </Badge>
                   </TableCell>
-                  <TableCell>{formatNumber(user.affinity)}</TableCell>
-                  <TableCell>{formatNumber(user.chatCount)}</TableCell>
-                  <TableCell className="whitespace-nowrap">
+                  <TableCell className="text-left">
+                    {formatNumber(user.affinity)}
+                  </TableCell>
+                  <TableCell className="text-left">
+                    {formatNumber(user.chatCount)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-left">
                     {formatTime(user.lastInteractionAt)}
                   </TableCell>
                 </TableRow>
@@ -650,20 +654,22 @@ function BlacklistTable({ items }: { items: DashboardBlacklistItem[] }) {
   }
 
   return (
-    <Table className="min-w-[880px] table-fixed">
+    <Table className="min-w-[1280px] table-fixed">
       <colgroup>
-        <col className="w-[26%]" />
-        <col className="w-[16%]" />
-        <col className="w-[12%]" />
-        <col className="w-[10%]" />
-        <col className="w-[14%]" />
-        <col className="w-[11%]" />
-        <col className="w-[11%]" />
+        <col className="w-[18%]" />
+        <col className="w-[13%]" />
+        <col className="w-[18%]" />
+        <col className="w-[8%]" />
+        <col className="w-[8%]" />
+        <col className="w-[8%]" />
+        <col className="w-[13.5%]" />
+        <col className="w-[13.5%]" />
       </colgroup>
       <TableHeader>
         <TableRow>
           <TableHead>用户</TableHead>
           <TableHead>QQ号</TableHead>
+          <TableHead>理由</TableHead>
           <TableHead>模式</TableHead>
           <TableHead>平台</TableHead>
           <TableHead>好感度</TableHead>
@@ -681,7 +687,7 @@ function BlacklistTable({ items }: { items: DashboardBlacklistItem[] }) {
             }
             key={`${item.mode}:${item.platform}:${item.userId}`}
           >
-            <TableCell>
+            <TableCell className="text-left">
               <div className="flex min-w-0 items-center gap-2">
                 <Avatar>
                   {item.avatarUrl ? (
@@ -697,32 +703,32 @@ function BlacklistTable({ items }: { items: DashboardBlacklistItem[] }) {
                 </Avatar>
                 <div className="grid min-w-0 gap-0.5">
                   <span className="truncate font-medium">{item.name}</span>
-                  {item.note ? (
-                    <span className="truncate text-xs text-muted-foreground">
-                      {item.note}
-                    </span>
-                  ) : null}
                 </div>
               </div>
             </TableCell>
-            <TableCell>
-              <span className="truncate text-muted-foreground">
+            <TableCell className="text-left">
+              <span className="block truncate text-muted-foreground">
                 {item.userId}
               </span>
             </TableCell>
-            <TableCell>
+            <TableCell className="text-left">
+              <span className="block truncate text-muted-foreground">
+                {item.note || "暂无"}
+              </span>
+            </TableCell>
+            <TableCell className="text-left">
               <Badge variant={item.mode === "permanent" ? "destructive" : "secondary"}>
                 {item.mode === "permanent" ? "永久" : "临时"}
               </Badge>
             </TableCell>
-            <TableCell>{item.platform}</TableCell>
-            <TableCell>
+            <TableCell className="text-left">{item.platform}</TableCell>
+            <TableCell className="text-left">
               {item.affinity === null ? "暂无" : formatNumber(item.affinity)}
             </TableCell>
-            <TableCell className="whitespace-nowrap">
+            <TableCell className="whitespace-nowrap text-left">
               {formatTime(item.blockedAt)}
             </TableCell>
-            <TableCell className="whitespace-nowrap">
+            <TableCell className="whitespace-nowrap text-left">
               {formatTime(item.expiresAt)}
             </TableCell>
           </TableRow>
