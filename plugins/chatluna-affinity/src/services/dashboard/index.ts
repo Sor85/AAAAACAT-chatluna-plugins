@@ -9,7 +9,7 @@ import {
   MODEL_NAME_V2,
   USER_ALIAS_MODEL_NAME_V2,
 } from "../../models";
-import type { AffinityRecord, LogFn } from "../../types";
+import type { AffinityRecord, BlacklistRecord, LogFn } from "../../types";
 
 export const DASHBOARD_EVENT = "chatluna-affinity/dashboard";
 
@@ -25,6 +25,16 @@ export interface DashboardTopUser {
 export interface DashboardRelationStat {
   relation: string;
   count: number;
+}
+
+export interface DashboardBlacklistItem {
+  platform: string;
+  userId: string;
+  name: string;
+  mode: "permanent" | "temporary";
+  blockedAt: string | null;
+  expiresAt: string | null;
+  note: string;
 }
 
 export interface DashboardData {
@@ -45,6 +55,7 @@ export interface DashboardData {
   };
   latestInteractionAt: string | null;
   relationStats: DashboardRelationStat[];
+  blacklistItems: DashboardBlacklistItem[];
   topUsers: DashboardTopUser[];
 }
 
@@ -107,6 +118,10 @@ function getDisplayName(record: AffinityRecord): string {
   return record.nickname || record.userId;
 }
 
+function getBlacklistDisplayName(record: BlacklistRecord): string {
+  return record.nickname || record.userId;
+}
+
 export async function getDashboardData(
   ctx: Context,
   options: DashboardDataOptions,
@@ -163,6 +178,22 @@ export async function getDashboardData(
     .map(([relation, count]) => ({ relation, count }))
     .sort((left, right) => right.count - left.count);
 
+  const blacklistItems = [...blacklistRows]
+    .sort((left, right) => {
+      const leftTime = toIsoString(left.blockedAt) || "";
+      const rightTime = toIsoString(right.blockedAt) || "";
+      return rightTime.localeCompare(leftTime);
+    })
+    .map((row) => ({
+      platform: row.platform,
+      userId: row.userId,
+      name: getBlacklistDisplayName(row),
+      mode: row.mode,
+      blockedAt: toIsoString(row.blockedAt),
+      expiresAt: toIsoString(row.expiresAt),
+      note: row.note || "",
+    }));
+
   const permanentBlacklisted = blacklistRows.filter(
     (row) => row.mode === "permanent",
   ).length;
@@ -188,6 +219,7 @@ export async function getDashboardData(
     },
     latestInteractionAt,
     relationStats,
+    blacklistItems,
     topUsers,
   };
 }

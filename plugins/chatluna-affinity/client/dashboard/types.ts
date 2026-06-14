@@ -12,6 +12,16 @@ export interface DashboardRelationStat {
   count: number;
 }
 
+export interface DashboardBlacklistItem {
+  platform: string;
+  userId: string;
+  name: string;
+  mode: "permanent" | "temporary";
+  blockedAt: string | null;
+  expiresAt: string | null;
+  note: string;
+}
+
 export interface DashboardData {
   scopeId: string;
   generatedAt: string;
@@ -30,5 +40,6 @@ export interface DashboardData {
   };
   latestInteractionAt: string | null;
   relationStats: DashboardRelationStat[];
+  blacklistItems: DashboardBlacklistItem[];
   topUsers: DashboardTopUser[];
 }

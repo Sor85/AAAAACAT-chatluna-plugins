@@ -8,7 +8,12 @@ import { ProgressBar } from "@heroui/react/progress-bar";
 import { Spinner } from "@heroui/react/spinner";
 import { Table } from "@heroui/react/table";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import type { DashboardData, DashboardRelationStat, DashboardTopUser } from "./types";
+import type {
+  DashboardBlacklistItem,
+  DashboardData,
+  DashboardRelationStat,
+  DashboardTopUser,
+} from "./types";
 
 const DASHBOARD_EVENT = "chatluna-affinity/dashboard";
 
@@ -164,6 +169,45 @@ function TopUserTable({ users }: { users: DashboardTopUser[] }) {
   );
 }
 
+function BlacklistList({ items }: { items: DashboardBlacklistItem[] }) {
+  if (!items.length) {
+    return <p className="affinity-dashboard__empty">当前 scopeId 暂无黑名单记录。</p>;
+  }
+
+  return (
+    <div className="affinity-dashboard__blacklist">
+      {items.map((item) => (
+        <div
+          className="affinity-dashboard__blacklist-item"
+          key={`${item.mode}:${item.platform}:${item.userId}`}
+        >
+          <div className="affinity-dashboard__blacklist-main">
+            <div className="affinity-dashboard__blacklist-user">
+              <strong>{item.name}</strong>
+              <span>{item.userId}</span>
+            </div>
+            <Chip
+              color={item.mode === "permanent" ? "danger" : "warning"}
+              size="sm"
+              variant="soft"
+            >
+              {item.mode === "permanent" ? "永久" : "临时"}
+            </Chip>
+          </div>
+          <div className="affinity-dashboard__blacklist-meta">
+            <span>{item.platform}</span>
+            <span>加入 {formatTime(item.blockedAt)}</span>
+            {item.expiresAt ? <span>到期 {formatTime(item.expiresAt)}</span> : null}
+          </div>
+          {item.note ? (
+            <p className="affinity-dashboard__blacklist-note">{item.note}</p>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DashboardContent({ data }: { data: DashboardData }) {
   const activeRelationStats = useMemo(
     () => data.relationStats.filter((item) => item.count > 0),
@@ -198,26 +242,13 @@ function DashboardContent({ data }: { data: DashboardData }) {
       <div className="affinity-dashboard__grid">
         <Card>
           <Card.Header>
-            <Card.Title>作用域状态</Card.Title>
-            <Card.Description>当前插件实例的数据隔离范围</Card.Description>
+            <Card.Title>黑名单列表</Card.Title>
+            <Card.Description>
+              当前 scopeId 下最近的 {formatNumber(data.blacklistItems.length)} 条记录
+            </Card.Description>
           </Card.Header>
-          <Card.Content className="affinity-dashboard__scope">
-            <div>
-              <span>scopeId</span>
-              <strong>{data.scopeId}</strong>
-            </div>
-            <div>
-              <span>永久黑名单</span>
-              <strong>{formatNumber(data.totals.permanentBlacklisted)}</strong>
-            </div>
-            <div>
-              <span>临时黑名单</span>
-              <strong>{formatNumber(data.totals.temporaryBlacklisted)}</strong>
-            </div>
-            <div>
-              <span>生成时间</span>
-              <strong>{formatTime(data.generatedAt)}</strong>
-            </div>
+          <Card.Content>
+            <BlacklistList items={data.blacklistItems} />
           </Card.Content>
         </Card>
 

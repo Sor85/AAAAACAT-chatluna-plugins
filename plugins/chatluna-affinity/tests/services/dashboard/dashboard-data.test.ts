@@ -41,6 +41,7 @@ describe("dashboard data", () => {
     assert.equal(data.totals.aliases, 0);
     assert.equal(data.averages.affinity, 0);
     assert.deepEqual(data.relationStats, []);
+    assert.deepEqual(data.blacklistItems, []);
     assert.deepEqual(data.topUsers, []);
   });
 
@@ -95,10 +96,10 @@ describe("dashboard data", () => {
         platform: "onebot",
         userId: "user-a",
         mode: "permanent",
-        blockedAt: new Date(),
+        blockedAt: new Date("2026-06-04T12:00:00.000Z"),
         expiresAt: null,
-        nickname: null,
-        note: null,
+        nickname: "Blocked Alice",
+        note: "bad actor",
         durationHours: null,
         penalty: null,
       },
@@ -107,7 +108,7 @@ describe("dashboard data", () => {
         platform: "onebot",
         userId: "user-b",
         mode: "temporary",
-        blockedAt: new Date(),
+        blockedAt: new Date("2026-06-05T12:00:00.000Z"),
         expiresAt: new Date("2026-06-10T00:00:00.000Z"),
         nickname: null,
         note: null,
@@ -145,6 +146,26 @@ describe("dashboard data", () => {
     assert.deepEqual(data.relationStats, [
       { relation: "朋友", count: 1 },
       { relation: "重点观察", count: 1 },
+    ]);
+    assert.deepEqual(data.blacklistItems, [
+      {
+        platform: "onebot",
+        userId: "user-b",
+        name: "user-b",
+        mode: "temporary",
+        blockedAt: "2026-06-05T12:00:00.000Z",
+        expiresAt: "2026-06-10T00:00:00.000Z",
+        note: "",
+      },
+      {
+        platform: "onebot",
+        userId: "user-a",
+        name: "Blocked Alice",
+        mode: "permanent",
+        blockedAt: "2026-06-04T12:00:00.000Z",
+        expiresAt: null,
+        note: "bad actor",
+      },
     ]);
     assert.deepEqual(
       data.topUsers.map((user) => user.userId),

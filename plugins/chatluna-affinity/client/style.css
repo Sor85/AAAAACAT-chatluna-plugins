@@ -101,30 +101,68 @@
   gap: 12px;
 }
 
-.affinity-dashboard__scope {
+.affinity-dashboard__blacklist {
   display: grid;
+  gap: 10px;
+  max-height: 28rem;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.affinity-dashboard__blacklist-item {
+  border: 1px solid #d8dde6;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.affinity-dashboard__blacklist-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 10px;
 }
 
-.affinity-dashboard__scope > div {
+.affinity-dashboard__blacklist-user {
   display: grid;
-  grid-template-columns: 92px minmax(0, 1fr);
-  gap: 10px;
-  align-items: baseline;
+  gap: 2px;
   min-width: 0;
 }
 
-.affinity-dashboard__scope span,
+.affinity-dashboard__blacklist-user strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.affinity-dashboard__blacklist-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 8px;
+}
+
+.affinity-dashboard__blacklist-note {
+  margin: 8px 0 0;
+  color: var(--foreground, #1f2937);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.affinity-dashboard__blacklist::-webkit-scrollbar {
+  width: 8px;
+}
+
+.affinity-dashboard__blacklist::-webkit-scrollbar-thumb {
+  background: #c9d1dd;
+  border-radius: 999px;
+}
+
+.affinity-dashboard__blacklist-user span,
+.affinity-dashboard__blacklist-meta,
 .affinity-dashboard__progress-label span,
 .affinity-dashboard__user small {
   color: var(--muted, #6b7280);
   font-size: 12px;
-}
-
-.affinity-dashboard__scope strong {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-weight: 600;
 }
 
 .affinity-dashboard__relations {
@@ -183,8 +221,4 @@
     grid-template-columns: 1fr;
   }
 
-  .affinity-dashboard__scope > div {
-    grid-template-columns: 1fr;
-    gap: 2px;
-  }
 }
