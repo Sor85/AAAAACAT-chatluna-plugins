@@ -65,6 +65,7 @@ export interface DashboardBlacklistItem {
   platform: string;
   userId: string;
   name: string;
+  avatarUrl: string | null;
   affinity: number | null;
   mode: "permanent" | "temporary";
   blockedAt: string | null;
@@ -508,6 +509,7 @@ export async function getDashboardData(
       platform: row.platform,
       userId: row.userId,
       name: getBlacklistDisplayName(row),
+      avatarUrl: getOneBotAvatarUrl(row.userId),
       affinity: affinityByUserId.get(row.userId) ?? null,
       mode: row.mode,
       blockedAt: toIsoString(row.blockedAt),

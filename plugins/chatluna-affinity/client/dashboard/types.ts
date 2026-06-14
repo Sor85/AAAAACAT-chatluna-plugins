@@ -40,6 +40,7 @@ export interface DashboardBlacklistItem {
   platform: string;
   userId: string;
   name: string;
+  avatarUrl: string | null;
   affinity: number | null;
   mode: "permanent" | "temporary";
   blockedAt: string | null;

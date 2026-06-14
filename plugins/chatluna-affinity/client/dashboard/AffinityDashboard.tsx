@@ -453,10 +453,17 @@ function TopUserTable({
 
   return (
     <div className="grid gap-3">
-      <Table className="min-w-[720px] table-fixed">
+      <Table className="min-w-[760px] table-fixed">
+        <colgroup>
+          <col className="w-[34%]" />
+          <col className="w-[16%]" />
+          <col className="w-[14%]" />
+          <col className="w-[14%]" />
+          <col className="w-[22%]" />
+        </colgroup>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[34%]">
+            <TableHead>
               <SortHeader
                 column="user"
                 sortDescriptor={sortDescriptor}
@@ -465,7 +472,7 @@ function TopUserTable({
                 用户
               </SortHeader>
             </TableHead>
-            <TableHead className="w-[16%]">
+            <TableHead>
               <SortHeader
                 column="relation"
                 sortDescriptor={sortDescriptor}
@@ -474,7 +481,7 @@ function TopUserTable({
                 关系
               </SortHeader>
             </TableHead>
-            <TableHead className="w-[14%]">
+            <TableHead>
               <SortHeader
                 column="affinity"
                 sortDescriptor={sortDescriptor}
@@ -483,7 +490,7 @@ function TopUserTable({
                 好感度
               </SortHeader>
             </TableHead>
-            <TableHead className="w-[14%]">
+            <TableHead>
               <SortHeader
                 column="chatCount"
                 sortDescriptor={sortDescriptor}
@@ -492,7 +499,7 @@ function TopUserTable({
                 互动
               </SortHeader>
             </TableHead>
-            <TableHead className="w-[22%]">
+            <TableHead>
               <SortHeader
                 column="lastInteractionAt"
                 sortDescriptor={sortDescriptor}
@@ -504,52 +511,63 @@ function TopUserTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {pageUsers.map((user, index) => (
-            <TableRow
-              className={
-                selectedUserId === user.userId
-                  ? "cursor-pointer border-0 bg-muted/70 hover:bg-muted/70"
-                  : index % 2 === 0
-                    ? "cursor-pointer border-0 bg-muted/50 hover:bg-muted/60"
-                    : "cursor-pointer border-0 bg-background hover:bg-muted/60"
-              }
-              key={user.userId}
-              onClick={() => onSelectUser(user)}
-            >
-              <TableCell>
-                <div className="flex min-w-0 items-center gap-2">
-                  <Avatar>
-                    {user.avatarUrl ? (
-                      <AvatarImage
-                        alt={`${user.name} 的头像`}
-                        loading="lazy"
-                        src={user.avatarUrl}
-                      />
-                    ) : null}
-                    <AvatarFallback>
-                      {user.name.trim().slice(0, 1) || "?"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="grid min-w-0 gap-0.5">
-                    <span className="truncate font-medium">{user.name}</span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {user.userId}
-                    </span>
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <Badge variant={user.relationTone === "custom" ? "secondary" : "outline"}>
-                  {user.relation}
-                </Badge>
-              </TableCell>
-              <TableCell>{formatNumber(user.affinity)}</TableCell>
-              <TableCell>{formatNumber(user.chatCount)}</TableCell>
-              <TableCell className="whitespace-nowrap">
-                {formatTime(user.lastInteractionAt)}
-              </TableCell>
-            </TableRow>
-          ))}
+          {pageUsers.map((user, index) => {
+            const selected = selectedUserId === user.userId;
+            const rowClassName = selected
+              ? "cursor-pointer border-0 bg-muted/70 hover:bg-muted/70"
+              : index % 2 === 0
+                ? "cursor-pointer border-0 bg-muted/50 hover:bg-muted/60"
+                : "cursor-pointer border-0 bg-background hover:bg-muted/60";
+
+            return (
+              <React.Fragment key={user.userId}>
+                <TableRow
+                  className={rowClassName}
+                  onClick={() => onSelectUser(user)}
+                >
+                  <TableCell>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Avatar>
+                        {user.avatarUrl ? (
+                          <AvatarImage
+                            alt={`${user.name} 的头像`}
+                            loading="lazy"
+                            src={user.avatarUrl}
+                          />
+                        ) : null}
+                        <AvatarFallback>
+                          {user.name.trim().slice(0, 1) || "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="grid min-w-0 gap-0.5">
+                        <span className="truncate font-medium">{user.name}</span>
+                        <span className="truncate text-xs text-muted-foreground">
+                          {user.userId}
+                        </span>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={user.relationTone === "custom" ? "secondary" : "outline"}>
+                      {user.relation}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{formatNumber(user.affinity)}</TableCell>
+                  <TableCell>{formatNumber(user.chatCount)}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {formatTime(user.lastInteractionAt)}
+                  </TableCell>
+                </TableRow>
+                {selected ? (
+                  <TableRow className="border-0 bg-muted/70 hover:bg-muted/70">
+                    <TableCell colSpan={5}>
+                      <UserHistoryChart user={user} />
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </React.Fragment>
+            );
+          })}
         </TableBody>
       </Table>
       {pageCount > 1 ? (
@@ -591,31 +609,60 @@ function BlacklistTable({ items }: { items: DashboardBlacklistItem[] }) {
   }
 
   return (
-    <Table className="min-w-[720px] table-fixed">
+    <Table className="min-w-[760px] table-fixed">
+      <colgroup>
+        <col className="w-[28%]" />
+        <col className="w-[12%]" />
+        <col className="w-[12%]" />
+        <col className="w-[14%]" />
+        <col className="w-[17%]" />
+        <col className="w-[17%]" />
+      </colgroup>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[28%]">用户</TableHead>
-          <TableHead className="w-[12%]">模式</TableHead>
-          <TableHead className="w-[12%]">平台</TableHead>
-          <TableHead className="w-[14%]">好感度</TableHead>
-          <TableHead className="w-[17%]">加入时间</TableHead>
-          <TableHead className="w-[17%]">到期时间</TableHead>
+          <TableHead>用户</TableHead>
+          <TableHead>模式</TableHead>
+          <TableHead>平台</TableHead>
+          <TableHead>好感度</TableHead>
+          <TableHead>加入时间</TableHead>
+          <TableHead>到期时间</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {items.map((item) => (
-          <TableRow key={`${item.mode}:${item.platform}:${item.userId}`}>
+        {items.map((item, index) => (
+          <TableRow
+            className={
+              index % 2 === 0
+                ? "border-0 bg-muted/50 hover:bg-muted/60"
+                : "border-0 bg-background hover:bg-muted/60"
+            }
+            key={`${item.mode}:${item.platform}:${item.userId}`}
+          >
             <TableCell>
-              <div className="grid min-w-0 gap-0.5">
-                <span className="truncate font-medium">{item.name}</span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {item.userId}
-                </span>
-                {item.note ? (
+              <div className="flex min-w-0 items-center gap-2">
+                <Avatar>
+                  {item.avatarUrl ? (
+                    <AvatarImage
+                      alt={`${item.name} 的头像`}
+                      loading="lazy"
+                      src={item.avatarUrl}
+                    />
+                  ) : null}
+                  <AvatarFallback>
+                    {item.name.trim().slice(0, 1) || "?"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="grid min-w-0 gap-0.5">
+                  <span className="truncate font-medium">{item.name}</span>
                   <span className="truncate text-xs text-muted-foreground">
-                    {item.note}
+                    {item.userId}
                   </span>
-                ) : null}
+                  {item.note ? (
+                    <span className="truncate text-xs text-muted-foreground">
+                      {item.note}
+                    </span>
+                  ) : null}
+                </div>
               </div>
             </TableCell>
             <TableCell>
@@ -640,17 +687,9 @@ function BlacklistTable({ items }: { items: DashboardBlacklistItem[] }) {
   );
 }
 
-function UserHistoryChart({ user }: { user: DashboardTopUser | null }) {
-  if (!user) {
-    return (
-      <div className="border-t pt-4">
-        <p className="affinity-dashboard__empty">点击排行中的用户查看单人曲线。</p>
-      </div>
-    );
-  }
-
+function UserHistoryChart({ user }: { user: DashboardTopUser }) {
   return (
-    <div className="grid gap-3 border-t pt-4">
+    <div className="grid gap-3 py-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="grid gap-1">
           <h3 className="text-sm font-medium">{user.name} 的好感度历史</h3>
@@ -688,20 +727,13 @@ function RankingPanel({
 }: {
   data: DashboardData;
 }) {
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(
-    data.topUsers[0]?.userId ?? null,
-  );
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   useEffect(() => {
     setSelectedUserId((current) =>
-      current && data.topUsers.some((user) => user.userId === current)
-        ? current
-        : data.topUsers[0]?.userId ?? null,
+      current && data.topUsers.some((user) => user.userId === current) ? current : null,
     );
   }, [data.topUsers]);
-
-  const selectedUser =
-    data.topUsers.find((user) => user.userId === selectedUserId) ?? null;
 
   return (
     <Card>
@@ -720,9 +752,12 @@ function RankingPanel({
               <TopUserTable
                 selectedUserId={selectedUserId}
                 users={data.topUsers}
-                onSelectUser={(user) => setSelectedUserId(user.userId)}
+                onSelectUser={(user) =>
+                  setSelectedUserId((current) =>
+                    current === user.userId ? null : user.userId,
+                  )
+                }
               />
-              <UserHistoryChart user={selectedUser} />
             </div>
           </TabsContent>
           <TabsContent value="blacklist">
