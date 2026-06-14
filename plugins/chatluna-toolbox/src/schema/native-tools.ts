@@ -118,7 +118,7 @@ const NativeToolAdvancedSettingsSchema = Schema.object({
 export const NativeToolsSchema = Schema.intersect([
   Schema.object({
     enabledNativeTools: EnabledNativeToolsSchema,
-  }),
+  }).description(""),
   NativeToolAdvancedSettingsSchema,
 ])
   .description("原生工具");
