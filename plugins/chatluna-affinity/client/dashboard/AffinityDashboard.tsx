@@ -265,8 +265,8 @@ function OverflowTooltip({
         ref={triggerRef}
         className={
           className
-            ? `inline-flex min-w-0 max-w-full ${className}`
-            : "inline-flex min-w-0 max-w-full"
+            ? `block w-full min-w-0 ${className}`
+            : "block w-full min-w-0"
         }
       >
         {children}
@@ -727,7 +727,7 @@ function BlacklistTable({ items }: { items: DashboardBlacklistItem[] }) {
   }
 
   return (
-    <Table className="min-w-[1280px] table-fixed">
+    <Table className="table-fixed">
       <colgroup>
         <col className="w-[18%]" />
         <col className="w-[13%]" />
@@ -775,34 +775,56 @@ function BlacklistTable({ items }: { items: DashboardBlacklistItem[] }) {
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid min-w-0 gap-0.5">
-                  <span className="truncate font-medium">{item.name}</span>
+                  <OverflowTooltip content={item.name}>
+                    <span className="block truncate font-medium">
+                      {item.name}
+                    </span>
+                  </OverflowTooltip>
                 </div>
               </div>
             </TableCell>
             <TableCell className="text-left">
-              <span className="block truncate text-muted-foreground">
-                {item.userId}
-              </span>
+              <OverflowTooltip content={item.userId}>
+                <span className="block truncate text-muted-foreground">
+                  {item.userId}
+                </span>
+              </OverflowTooltip>
             </TableCell>
             <TableCell className="text-left">
-              <span className="block truncate text-muted-foreground">
-                {item.note || "暂无"}
-              </span>
+              <OverflowTooltip content={item.note || "暂无"}>
+                <span className="block truncate text-muted-foreground">
+                  {item.note || "暂无"}
+                </span>
+              </OverflowTooltip>
             </TableCell>
             <TableCell className="text-left">
               <Badge variant={item.mode === "permanent" ? "destructive" : "secondary"}>
                 {item.mode === "permanent" ? "永久" : "临时"}
               </Badge>
             </TableCell>
-            <TableCell className="text-left">{item.platform}</TableCell>
             <TableCell className="text-left">
-              {item.affinity === null ? "暂无" : formatNumber(item.affinity)}
+              <OverflowTooltip content={item.platform}>
+                <span className="block truncate">{item.platform}</span>
+              </OverflowTooltip>
+            </TableCell>
+            <TableCell className="text-left">
+              <OverflowTooltip
+                content={item.affinity === null ? "暂无" : formatNumber(item.affinity)}
+              >
+                <span className="block truncate">
+                  {item.affinity === null ? "暂无" : formatNumber(item.affinity)}
+                </span>
+              </OverflowTooltip>
             </TableCell>
             <TableCell className="whitespace-nowrap text-left">
-              {formatTime(item.blockedAt)}
+              <OverflowTooltip content={formatTime(item.blockedAt)}>
+                <span className="block truncate">{formatTime(item.blockedAt)}</span>
+              </OverflowTooltip>
             </TableCell>
             <TableCell className="whitespace-nowrap text-left">
-              {formatTime(item.expiresAt)}
+              <OverflowTooltip content={formatTime(item.expiresAt)}>
+                <span className="block truncate">{formatTime(item.expiresAt)}</span>
+              </OverflowTooltip>
             </TableCell>
           </TableRow>
         ))}
