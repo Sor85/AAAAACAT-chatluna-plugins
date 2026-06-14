@@ -12,8 +12,23 @@
 @import "@heroui/styles/components/spinner.css";
 @import "@heroui/styles/components/table.css";
 
+.page-affinity-dashboard-shell,
+.page-affinity-dashboard-shell .main-container,
+.page-affinity-dashboard-shell .layout-header,
+.page-affinity-dashboard,
+.page-affinity-dashboard .el-scrollbar,
+.page-affinity-dashboard .el-scrollbar__wrap,
+.page-affinity-dashboard .el-scrollbar__view,
+.page-affinity-dashboard .k-content {
+  background: #fafafa;
+}
+
 .page-affinity-dashboard .k-content {
   max-width: 72rem;
+}
+
+.page-affinity-dashboard-shell .layout-header {
+  display: none;
 }
 
 .affinity-dashboard {

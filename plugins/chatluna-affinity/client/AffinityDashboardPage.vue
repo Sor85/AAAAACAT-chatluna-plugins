@@ -3,7 +3,7 @@
   作为 Koishi ctx.page 的 Vue 外壳挂载 React 仪表盘
 -->
 <template>
-    <k-layout main="page-affinity-dashboard">
+    <k-layout container="page-affinity-dashboard-shell" main="page-affinity-dashboard">
         <k-content>
             <div ref="dashboardRoot" />
         </k-content>

@@ -14,7 +14,7 @@ export default (ctx: Context) => {
         path: '/chatluna-affinity/dashboard',
         name: '好感度仪表盘',
         desc: '查看当前 scopeId 的好感度统计',
-        icon: 'activity:default',
+        icon: 'star-empty',
         order: 560,
         authority: 1,
         component: AffinityDashboardPage,
