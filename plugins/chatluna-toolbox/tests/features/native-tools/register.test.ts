@@ -27,6 +27,7 @@ const TOOL_DEFAULT_AVAILABILITY = {
 function createConfig(overrides: Partial<Config> = {}): Config {
   return {
     oneBotProtocol: "napcat",
+    enabledNativeTools: [],
     poke: {
       enabled: false,
       toolName: "poke_user",
@@ -98,26 +99,28 @@ describe("resolveOneBotProtocol", () => {
 });
 
 describe("registerNativeTools", () => {
-  it("按嵌套配置注册启用的原生工具", () => {
+  it("按复选框列表注册启用的原生工具", () => {
     const registerTool = vi.fn();
     const config = createConfig({
+      enabledNativeTools: [
+        "poke",
+        "setGroupBan",
+        "setGroupSpecialTitle",
+        "setMsgEmoji",
+      ],
       poke: {
-        enabled: true,
         toolName: "custom_poke",
         description: "custom poke description",
       },
       setMsgEmoji: {
-        enabled: true,
         toolName: "custom_emoji",
         description: "custom emoji description",
       },
       setGroupBan: {
-        enabled: true,
         toolName: "custom_ban",
         description: "custom ban description",
       },
       setGroupSpecialTitle: {
-        enabled: true,
         toolName: "custom_title",
         description: "custom title description",
       },
@@ -192,8 +195,8 @@ describe("registerNativeTools", () => {
   it("将自定义描述注入最终工具对象", () => {
     const registerTool = vi.fn();
     const config = createConfig({
+      enabledNativeTools: ["poke"],
       poke: {
-        enabled: true,
         toolName: "custom_poke",
         description: "poke custom description",
       },
@@ -215,8 +218,8 @@ describe("registerNativeTools", () => {
   it("在工具名为空白时回退到默认名称", () => {
     const registerTool = vi.fn();
     const config = createConfig({
+      enabledNativeTools: ["poke"],
       poke: {
-        enabled: true,
         toolName: "   ",
         description: DEFAULT_POKE_TOOL_DESCRIPTION,
       },
@@ -248,8 +251,8 @@ describe("registerNativeTools", () => {
   it("在描述为空白时回退到默认描述", () => {
     const registerTool = vi.fn();
     const config = createConfig({
+      enabledNativeTools: ["setMsgEmoji"],
       setMsgEmoji: {
-        enabled: true,
         toolName: "set_msg_emoji",
         description: "   ",
       },
@@ -271,43 +274,45 @@ describe("registerNativeTools", () => {
   it("按约定写入各工具标签", () => {
     const registerTool = vi.fn();
     const config = createConfig({
+      enabledNativeTools: [
+        "poke",
+        "setSelfProfile",
+        "setQQAvatar",
+        "setGroupCard",
+        "setGroupBan",
+        "setGroupSpecialTitle",
+        "setMsgEmoji",
+        "deleteMessage",
+      ],
       poke: {
-        enabled: true,
         toolName: "poke_user",
         description: DEFAULT_POKE_TOOL_DESCRIPTION,
       },
       setSelfProfile: {
-        enabled: true,
         toolName: "set_self_profile",
         description: DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION,
       },
       setQQAvatar: {
-        enabled: true,
         toolName: "set_qq_avatar",
         description: DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION,
       },
       setGroupCard: {
-        enabled: true,
         toolName: "set_group_card",
         description: DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION,
       },
       setGroupBan: {
-        enabled: true,
         toolName: "set_group_ban",
         description: DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
       },
       setGroupSpecialTitle: {
-        enabled: true,
         toolName: "set_group_special_title",
         description: DEFAULT_SET_GROUP_SPECIAL_TITLE_TOOL_DESCRIPTION,
       },
       setMsgEmoji: {
-        enabled: true,
         toolName: "set_msg_emoji",
         description: DEFAULT_SET_MSG_EMOJI_TOOL_DESCRIPTION,
       },
       deleteMessage: {
-        enabled: true,
         toolName: "delete_msg",
         description: DEFAULT_DELETE_MESSAGE_TOOL_DESCRIPTION,
       },
@@ -333,6 +338,34 @@ describe("registerNativeTools", () => {
     expect(registrationsByName.get("set_self_profile").meta.tags).toEqual([]);
     expect(registrationsByName.get("set_qq_avatar").meta.tags).toEqual(["profile"]);
   });
+
+  it("兼容旧版嵌套 enabled 配置", () => {
+    const registerTool = vi.fn();
+    const config = createConfig({
+      enabledNativeTools: undefined,
+      poke: {
+        enabled: true,
+        toolName: "custom_poke",
+        description: "custom poke description",
+      },
+    });
+
+    registerNativeTools({
+      ctx: {} as never,
+      config,
+      plugin: { registerTool },
+      protocol: "napcat",
+    });
+
+    expect(registerTool).toHaveBeenCalledTimes(1);
+    expect(registerTool).toHaveBeenCalledWith(
+      "custom_poke",
+      expect.objectContaining({
+        description: "custom poke description",
+      }),
+    );
+  });
+
   it("忽略未启用的原生工具", () => {
     const registerTool = vi.fn();
 

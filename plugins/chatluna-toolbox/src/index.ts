@@ -32,3 +32,11 @@ export * from "./features/variables/providers/group-shut-list";
 export * from "./features/variables/providers/random";
 export * from "./helpers";
 export * from "./constants";
+
+export const usage = `
+## 使用说明
+
+Character XML 工具仅供 [koishi-plugin-chatluna-character](https://github.com/ChatLunaLab/chatluna-character) 使用；如果你只安装了 ChatLuna 主插件，请不要开启这一项。
+
+如果你不确定当前环境是否需要这组能力，优先保持关闭，按 README 的说明逐项启用即可。
+`;
