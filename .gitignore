@@ -28,6 +28,6 @@ packages/*/lib
 
 ## trellis
 .codex
-.trellis
+.claude
 .agents
 AGENTS.md
