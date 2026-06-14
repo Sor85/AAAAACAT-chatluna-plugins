@@ -4,7 +4,12 @@
  */
 
 import type { Session } from "koishi";
-import type { Config, LogFn, OneBotProtocol } from "../../types";
+import type {
+  Config,
+  LogFn,
+  NativeToolKey,
+  OneBotProtocol,
+} from "../../types";
 import {
   DEFAULT_DELETE_MESSAGE_TOOL_DESCRIPTION,
   DEFAULT_POKE_TOOL_DESCRIPTION,
@@ -82,6 +87,15 @@ function resolveToolDescription(value: string, fallback: string): string {
   return trimmedValue || fallback;
 }
 
+function isNativeToolEnabled(config: Config, toolKey: NativeToolKey): boolean {
+  // 新版配置使用集中复选框；旧配置只存在各工具内的 enabled，缺省时继续读取旧字段。
+  if (config.enabledNativeTools) {
+    return config.enabledNativeTools.includes(toolKey);
+  }
+
+  return config[toolKey].enabled ?? false;
+}
+
 export function resolveOneBotProtocol(
   config: Config,
   log?: LogFn,
@@ -92,7 +106,7 @@ export function resolveOneBotProtocol(
 export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
   const { ctx, config, plugin, protocol, log } = deps;
 
-  if (config.poke.enabled) {
+  if (isNativeToolEnabled(config, "poke")) {
     const toolName = resolveToolName(config.poke.toolName, "poke_user");
     const description = resolveToolDescription(
       config.poke.description,
@@ -109,7 +123,7 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
     log?.("info", `戳一戳工具已注册: ${toolName}`);
   }
 
-  if (config.setSelfProfile.enabled) {
+  if (isNativeToolEnabled(config, "setSelfProfile")) {
     const toolName = resolveToolName(
       config.setSelfProfile.toolName,
       "set_self_profile",
@@ -129,7 +143,7 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
     log?.("info", `设置资料工具已注册: ${toolName}`);
   }
 
-  if (config.setQQAvatar.enabled) {
+  if (isNativeToolEnabled(config, "setQQAvatar")) {
     const toolName = resolveToolName(
       config.setQQAvatar.toolName,
       "set_qq_avatar",
@@ -149,7 +163,7 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
     log?.("info", `QQ 头像工具已注册: ${toolName}`);
   }
 
-  if (config.setGroupCard.enabled) {
+  if (isNativeToolEnabled(config, "setGroupCard")) {
     const toolName = resolveToolName(
       config.setGroupCard.toolName,
       "set_group_card",
@@ -169,7 +183,7 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
     log?.("info", `群昵称工具已注册: ${toolName}`);
   }
 
-  if (config.setGroupBan.enabled) {
+  if (isNativeToolEnabled(config, "setGroupBan")) {
     const toolName = resolveToolName(
       config.setGroupBan.toolName,
       "set_group_ban",
@@ -189,7 +203,7 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
     log?.("info", `群成员禁言工具已注册: ${toolName}`);
   }
 
-  if (config.setGroupSpecialTitle.enabled) {
+  if (isNativeToolEnabled(config, "setGroupSpecialTitle")) {
     const toolName = resolveToolName(
       config.setGroupSpecialTitle.toolName,
       "set_group_special_title",
@@ -214,7 +228,7 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
     log?.("info", `群专属头衔工具已注册: ${toolName}`);
   }
 
-  if (config.setMsgEmoji.enabled) {
+  if (isNativeToolEnabled(config, "setMsgEmoji")) {
     const toolName = resolveToolName(
       config.setMsgEmoji.toolName,
       "set_msg_emoji",
@@ -234,7 +248,7 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
     log?.("info", `消息表情工具已注册: ${toolName}`);
   }
 
-  if (config.deleteMessage.enabled) {
+  if (isNativeToolEnabled(config, "deleteMessage")) {
     const toolName = resolveToolName(
       config.deleteMessage.toolName,
       "delete_msg",

@@ -5,14 +5,25 @@
 
 export type OneBotProtocol = "napcat" | "llbot";
 
+export type NativeToolKey =
+  | "poke"
+  | "setSelfProfile"
+  | "setQQAvatar"
+  | "setGroupCard"
+  | "setGroupBan"
+  | "setGroupSpecialTitle"
+  | "setMsgEmoji"
+  | "deleteMessage";
+
 export interface NativeToolItemConfig {
-  enabled: boolean;
+  enabled?: boolean;
   toolName: string;
   description: string;
 }
 
 export interface NativeToolsConfig {
   oneBotProtocol: OneBotProtocol;
+  enabledNativeTools?: NativeToolKey[];
   poke: NativeToolItemConfig;
   setSelfProfile: NativeToolItemConfig;
   setQQAvatar: NativeToolItemConfig;
