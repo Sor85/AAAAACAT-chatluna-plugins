@@ -7,10 +7,15 @@ import {
 } from "../../../src/services/dashboard";
 import {
   BLACKLIST_MODEL_NAME_V2,
+  DASHBOARD_SNAPSHOT_MODEL_NAME,
   MODEL_NAME_V2,
   USER_ALIAS_MODEL_NAME_V2,
 } from "../../../src/models";
-import type { AffinityRecord, BlacklistRecord } from "../../../src/types";
+import type {
+  AffinityRecord,
+  BlacklistRecord,
+  DashboardSnapshotRecord,
+} from "../../../src/types";
 
 const config = {
   scopeId: "test-scope",
@@ -26,6 +31,20 @@ function createContext(tables: Record<string, unknown[]>) {
             ([key, value]) => (row as Record<string, unknown>)[key] === value,
           ),
         );
+      },
+      async upsert(model: string, rows: Record<string, unknown>[]) {
+        const table = (tables[model] ||= []);
+        for (const row of rows) {
+          if (model === DASHBOARD_SNAPSHOT_MODEL_NAME) {
+            const index = table.findIndex(
+              (item) =>
+                (item as Record<string, unknown>).scopeId === row.scopeId &&
+                (item as Record<string, unknown>).date === row.date,
+            );
+            if (index >= 0) table[index] = row;
+            else table.push(row);
+          }
+        }
       },
     },
   } as never;
@@ -243,7 +262,7 @@ describe("dashboard data", () => {
     assert.equal(data.topUsers[1].relationTone, "custom");
   });
 
-  it("builds trend series and weekly comparisons from current scope rows", async () => {
+  it("builds trend series and weekly comparisons from snapshots", async () => {
     const affinityRows: AffinityRecord[] = [
       {
         scopeId: "test-scope",
@@ -259,8 +278,14 @@ describe("dashboard data", () => {
           total: 2,
           counts: { increase: 1, decrease: 1 },
           entries: [
-            { action: "increase", timestamp: Date.parse("2026-06-12T12:00:00.000Z") },
-            { action: "decrease", timestamp: Date.parse("2026-06-13T12:00:00.000Z") },
+            {
+              action: "increase",
+              timestamp: Date.parse("2026-06-12T12:00:00.000Z"),
+            },
+            {
+              action: "decrease",
+              timestamp: Date.parse("2026-06-13T12:00:00.000Z"),
+            },
           ],
         }),
         lastInteractionAt: new Date("2026-06-13T12:00:00.000Z"),
@@ -281,20 +306,6 @@ describe("dashboard data", () => {
         coefficientState: null,
       },
       {
-        scopeId: "test-scope",
-        userId: "previous-a",
-        nickname: null,
-        affinity: 50,
-        relation: "朋友",
-        specialRelation: null,
-        longTermAffinity: 50,
-        shortTermAffinity: 0,
-        chatCount: 6,
-        actionStats: null,
-        lastInteractionAt: new Date("2026-06-03T12:00:00.000Z"),
-        coefficientState: null,
-      },
-      {
         scopeId: "other-scope",
         userId: "other",
         nickname: null,
@@ -307,6 +318,28 @@ describe("dashboard data", () => {
         actionStats: null,
         lastInteractionAt: new Date("2026-06-13T12:00:00.000Z"),
         coefficientState: null,
+      },
+    ];
+    const snapshotRows: DashboardSnapshotRecord[] = [
+      {
+        scopeId: "test-scope",
+        date: "2026-06-03",
+        recordedAt: new Date("2026-06-03T12:00:00.000Z"),
+        users: 1,
+        affinityTotal: 50,
+        chatCount: 6,
+        blacklisted: 0,
+        aliases: 1,
+      },
+      {
+        scopeId: "test-scope",
+        date: "2026-06-13",
+        recordedAt: new Date("2026-06-13T00:00:00.000Z"),
+        users: 1,
+        affinityTotal: 20,
+        chatCount: 2,
+        blacklisted: 0,
+        aliases: 0,
       },
     ];
     const data = await getDashboardData(
@@ -325,18 +358,6 @@ describe("dashboard data", () => {
             durationHours: 24,
             penalty: 5,
           },
-          {
-            scopeId: "test-scope",
-            platform: "onebot",
-            userId: "blocked-previous",
-            mode: "permanent",
-            blockedAt: new Date("2026-06-02T12:00:00.000Z"),
-            expiresAt: null,
-            nickname: null,
-            note: null,
-            durationHours: null,
-            penalty: null,
-          },
         ],
         [USER_ALIAS_MODEL_NAME_V2]: [
           {
@@ -346,21 +367,28 @@ describe("dashboard data", () => {
             alias: "A",
             updatedAt: new Date("2026-06-12T12:00:00.000Z"),
           },
-          {
-            scopeId: "test-scope",
-            platform: "onebot",
-            userId: "previous-a",
-            alias: "P",
-            updatedAt: new Date("2026-06-03T12:00:00.000Z"),
-          },
         ],
+        [DASHBOARD_SNAPSHOT_MODEL_NAME]: snapshotRows,
       }),
       {
         ...config,
-        now: new Date("2026-07-14T12:00:00.000Z"),
+        now: new Date("2026-06-13T12:00:00.000Z"),
       },
     );
 
+    assert.deepEqual(
+      snapshotRows.find((row) => row.date === "2026-06-13"),
+      {
+        scopeId: "test-scope",
+        date: "2026-06-13",
+        recordedAt: new Date("2026-06-13T12:00:00.000Z"),
+        users: 2,
+        affinityTotal: 100,
+        chatCount: 14,
+        blacklisted: 1,
+        aliases: 1,
+      },
+    );
     assert.deepEqual(data.weeklyChanges.users, {
       current: 2,
       previous: 1,
@@ -385,19 +413,30 @@ describe("dashboard data", () => {
     const currentDay = data.trends.week.find((point) => point.label === "6/13");
     assert.deepEqual(currentDay, {
       label: "6/13",
-      users: 1,
-      averageAffinity: 70,
-      chatCount: 10,
-      blacklisted: 0,
+      users: 2,
+      averageAffinity: 50,
+      chatCount: 14,
+      blacklisted: 1,
     });
-    const blacklistDay = data.trends.week.find((point) => point.label === "6/11");
-    assert.deepEqual(blacklistDay, {
-      label: "6/11",
+    const interactionDay = data.trends.week.find(
+      (point) => point.label === "6/10",
+    );
+    assert.deepEqual(interactionDay, {
+      label: "6/10",
       users: 0,
       averageAffinity: 0,
       chatCount: 0,
-      blacklisted: 1,
+      blacklisted: 0,
     });
+    assert.deepEqual(data.trends.all, [
+      {
+        label: "2026/6",
+        users: 2,
+        averageAffinity: 50,
+        chatCount: 14,
+        blacklisted: 1,
+      },
+    ]);
     assert.deepEqual(data.topUsers[0].historyPoints, [
       {
         label: "6/12",
@@ -412,7 +451,7 @@ describe("dashboard data", () => {
     ]);
   });
 
-  it("ignores alias updates when anchoring trend dates", async () => {
+  it("anchors trend dates to the recorded snapshot date", async () => {
     const data = await getDashboardData(
       createContext({
         [MODEL_NAME_V2]: [
@@ -448,7 +487,13 @@ describe("dashboard data", () => {
     );
 
     const latestTrendDay = data.trends.week.at(-1);
-    assert.equal(latestTrendDay?.label, "6/5");
+    assert.deepEqual(latestTrendDay, {
+      label: "7/14",
+      users: 1,
+      averageAffinity: 20,
+      chatCount: 1,
+      blacklisted: 0,
+    });
   });
 });
 
