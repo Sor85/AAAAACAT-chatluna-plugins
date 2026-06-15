@@ -10,12 +10,12 @@ import {
   USER_ALIAS_MODEL_NAME_V2,
 } from "../../models";
 import type {
-  ActionStats,
   AffinityRecord,
   BlacklistRecord,
   DashboardSnapshotRecord,
   LogFn,
   RelationshipLevel,
+  UserAffinitySnapshotRecord,
 } from "../../types";
 import {
   formatSnapshotDate,
@@ -354,35 +354,28 @@ function snapshotAverage(snapshot: DashboardSnapshotRecord | null): number {
   return roundAverage(toCount(snapshot.affinityTotal), toCount(snapshot.users));
 }
 
-function parseActionStats(value: string | null | undefined): ActionStats | null {
-  if (!value) return null;
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === "object" ? (parsed as ActionStats) : null;
-  } catch {
-    return null;
-  }
-}
-
 function createUserHistoryPoints(
   row: AffinityRecord,
+  snapshots: UserAffinitySnapshotRecord[],
 ): DashboardUserHistoryPoint[] {
-  const stats = parseActionStats(row.actionStats);
-  const entries = [...(stats?.entries || [])]
-    .filter((entry) => Number.isFinite(Number(entry?.timestamp)))
-    .sort((left, right) => Number(left.timestamp) - Number(right.timestamp))
-    .slice(-HISTORY_POINT_LIMIT);
-
-  if (entries.length) {
-    // actionStats 只记录动作时间和方向，不保存每次变更后的好感值；这里用动作时间锚定当前值，避免伪造精确历史快照。
-    return entries.map((entry) => {
-      const date = new Date(Number(entry.timestamp));
+  const points = snapshots
+    .map((snapshot) => {
+      const date = parseSnapshotDate(snapshot.date);
+      if (!date) return null;
       return {
         label: formatTrendLabel(date),
-        timestamp: toIsoString(date),
-        affinity: toCount(row.affinity),
+        timestamp: toIsoString(snapshot.recordedAt) || toIsoString(date),
+        affinity: toCount(snapshot.affinity),
       };
-    });
+    })
+    .filter((point): point is DashboardUserHistoryPoint => point !== null)
+    .sort((left, right) =>
+      String(left.timestamp).localeCompare(String(right.timestamp)),
+    )
+    .slice(-HISTORY_POINT_LIMIT);
+
+  if (points.length) {
+    return points;
   }
 
   return [
@@ -392,6 +385,18 @@ function createUserHistoryPoints(
       affinity: toCount(row.affinity),
     },
   ];
+}
+
+function groupUserSnapshots(
+  snapshots: UserAffinitySnapshotRecord[],
+): Map<string, UserAffinitySnapshotRecord[]> {
+  const grouped = new Map<string, UserAffinitySnapshotRecord[]>();
+  for (const snapshot of snapshots) {
+    const rows = grouped.get(snapshot.userId) || [];
+    rows.push(snapshot);
+    grouped.set(snapshot.userId, rows);
+  }
+  return grouped;
 }
 
 export async function getDashboardData(
@@ -410,11 +415,13 @@ export async function getDashboardData(
   const aliasRows = await ctx.database.get(USER_ALIAS_MODEL_NAME_V2, {
     scopeId,
   });
-  const snapshotRows = await recordDashboardSnapshot(ctx, {
+  const recordedSnapshots = await recordDashboardSnapshot(ctx, {
     scopeId,
     now,
     source: { affinityRows, blacklistRows, aliasRows },
   });
+  const snapshotRows = recordedSnapshots.dashboardSnapshots;
+  const userSnapshotRows = recordedSnapshots.userAffinitySnapshots;
   const trendAnchor = getLatestSnapshotDate(snapshotRows) || now;
 
   let chatCount = 0;
@@ -424,6 +431,7 @@ export async function getDashboardData(
   let latestInteractionAt: string | null = null;
   const relationCounts = new Map<string, DashboardRelationStat>();
   const affinityByUserId = new Map<string, number>();
+  const userSnapshotsByUserId = groupUserSnapshots(userSnapshotRows);
 
   for (const row of affinityRows) {
     chatCount += toCount(row.chatCount);
@@ -463,7 +471,10 @@ export async function getDashboardData(
       relationTone: getRelationTone(row, relationshipAffinityLevels),
       chatCount: toCount(row.chatCount),
       lastInteractionAt: toIsoString(row.lastInteractionAt),
-      historyPoints: createUserHistoryPoints(row),
+      historyPoints: createUserHistoryPoints(
+        row,
+        userSnapshotsByUserId.get(row.userId) || [],
+      ),
     }));
 
   const relationStats = [...relationCounts.values()]

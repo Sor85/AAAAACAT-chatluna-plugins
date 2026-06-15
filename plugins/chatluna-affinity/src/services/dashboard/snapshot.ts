@@ -7,12 +7,14 @@ import {
   BLACKLIST_MODEL_NAME_V2,
   DASHBOARD_SNAPSHOT_MODEL_NAME,
   MODEL_NAME_V2,
+  USER_AFFINITY_SNAPSHOT_MODEL_NAME,
   USER_ALIAS_MODEL_NAME_V2,
 } from "../../models";
 import type {
   AffinityRecord,
   BlacklistRecord,
   DashboardSnapshotRecord,
+  UserAffinitySnapshotRecord,
   UserAliasRecord,
 } from "../../types";
 
@@ -20,6 +22,11 @@ export interface DashboardSnapshotSource {
   affinityRows: AffinityRecord[];
   blacklistRows: BlacklistRecord[];
   aliasRows: UserAliasRecord[];
+}
+
+export interface RecordedDashboardSnapshots {
+  dashboardSnapshots: DashboardSnapshotRecord[];
+  userAffinitySnapshots: UserAffinitySnapshotRecord[];
 }
 
 export function formatSnapshotDate(value: Date): string {
@@ -85,6 +92,21 @@ export function createDashboardSnapshot(
   };
 }
 
+export function createUserAffinitySnapshots(
+  scopeId: string,
+  now: Date,
+  source: DashboardSnapshotSource,
+): UserAffinitySnapshotRecord[] {
+  const date = formatSnapshotDate(now);
+  return source.affinityRows.map((row) => ({
+    scopeId,
+    userId: row.userId,
+    date,
+    recordedAt: now,
+    affinity: Number(row.affinity || 0),
+  }));
+}
+
 function hasSnapshotSourceData(source: DashboardSnapshotSource): boolean {
   return (
     source.affinityRows.length > 0 ||
@@ -105,6 +127,25 @@ export function mergeDashboardSnapshot(
   ];
 }
 
+export function mergeUserAffinitySnapshots(
+  rows: UserAffinitySnapshotRecord[],
+  snapshots: UserAffinitySnapshotRecord[],
+): UserAffinitySnapshotRecord[] {
+  const snapshotKeys = new Set(
+    snapshots.map(
+      (snapshot) =>
+        `${snapshot.scopeId}:${snapshot.userId}:${snapshot.date}`,
+    ),
+  );
+
+  return [
+    ...rows.filter(
+      (row) => !snapshotKeys.has(`${row.scopeId}:${row.userId}:${row.date}`),
+    ),
+    ...snapshots,
+  ];
+}
+
 export async function recordDashboardSnapshot(
   ctx: Context,
   options: {
@@ -112,10 +153,13 @@ export async function recordDashboardSnapshot(
     now?: Date;
     source?: DashboardSnapshotSource;
     existingSnapshots?: DashboardSnapshotRecord[];
+    existingUserAffinitySnapshots?: UserAffinitySnapshotRecord[];
   },
-): Promise<DashboardSnapshotRecord[]> {
+): Promise<RecordedDashboardSnapshots> {
   const scopeId = options.scopeId.trim();
-  if (!scopeId) return [];
+  if (!scopeId) {
+    return { dashboardSnapshots: [], userAffinitySnapshots: [] };
+  }
 
   const now = options.now || new Date();
   const source =
@@ -123,13 +167,30 @@ export async function recordDashboardSnapshot(
   const existingSnapshots =
     options.existingSnapshots ||
     (await ctx.database.get(DASHBOARD_SNAPSHOT_MODEL_NAME, { scopeId }));
+  const existingUserAffinitySnapshots =
+    options.existingUserAffinitySnapshots ||
+    (await ctx.database.get(USER_AFFINITY_SNAPSHOT_MODEL_NAME, { scopeId }));
 
   if (!hasSnapshotSourceData(source) && existingSnapshots.length === 0) {
-    return existingSnapshots;
+    return {
+      dashboardSnapshots: existingSnapshots,
+      userAffinitySnapshots: existingUserAffinitySnapshots,
+    };
   }
 
   const snapshot = createDashboardSnapshot(scopeId, now, source);
+  const userSnapshots = createUserAffinitySnapshots(scopeId, now, source);
   // 旧实现把当前状态表的 lastInteractionAt 当历史分桶，刷新当天快照后，趋势/周对比才能只依赖真实记录过的日期。
   await ctx.database.upsert(DASHBOARD_SNAPSHOT_MODEL_NAME, [snapshot]);
-  return mergeDashboardSnapshot(existingSnapshots, snapshot);
+  if (userSnapshots.length > 0) {
+    await ctx.database.upsert(USER_AFFINITY_SNAPSHOT_MODEL_NAME, userSnapshots);
+  }
+
+  return {
+    dashboardSnapshots: mergeDashboardSnapshot(existingSnapshots, snapshot),
+    userAffinitySnapshots: mergeUserAffinitySnapshots(
+      existingUserAffinitySnapshots,
+      userSnapshots,
+    ),
+  };
 }

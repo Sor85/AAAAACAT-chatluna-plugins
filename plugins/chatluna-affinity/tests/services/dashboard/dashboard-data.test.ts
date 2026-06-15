@@ -9,12 +9,14 @@ import {
   BLACKLIST_MODEL_NAME_V2,
   DASHBOARD_SNAPSHOT_MODEL_NAME,
   MODEL_NAME_V2,
+  USER_AFFINITY_SNAPSHOT_MODEL_NAME,
   USER_ALIAS_MODEL_NAME_V2,
 } from "../../../src/models";
 import type {
   AffinityRecord,
   BlacklistRecord,
   DashboardSnapshotRecord,
+  UserAffinitySnapshotRecord,
 } from "../../../src/types";
 
 const config = {
@@ -39,6 +41,15 @@ function createContext(tables: Record<string, unknown[]>) {
             const index = table.findIndex(
               (item) =>
                 (item as Record<string, unknown>).scopeId === row.scopeId &&
+                (item as Record<string, unknown>).date === row.date,
+            );
+            if (index >= 0) table[index] = row;
+            else table.push(row);
+          } else if (model === USER_AFFINITY_SNAPSHOT_MODEL_NAME) {
+            const index = table.findIndex(
+              (item) =>
+                (item as Record<string, unknown>).scopeId === row.scopeId &&
+                (item as Record<string, unknown>).userId === row.userId &&
                 (item as Record<string, unknown>).date === row.date,
             );
             if (index >= 0) table[index] = row;
@@ -195,6 +206,7 @@ describe("dashboard data", () => {
       }),
       {
         ...config,
+        now: new Date("2026-06-06T12:00:00.000Z"),
         relationshipAffinityLevels: [
           { min: 0, max: 10, relation: "陌生" },
           { min: 11, max: 50, relation: "朋友" },
@@ -252,8 +264,8 @@ describe("dashboard data", () => {
     assert.equal(data.topUsers[0].relationTone, "medium");
     assert.deepEqual(data.topUsers[0].historyPoints, [
       {
-        label: "当前",
-        timestamp: "2026-06-01T12:00:00.000Z",
+        label: "6/6",
+        timestamp: "2026-06-06T12:00:00.000Z",
         affinity: 80,
       },
     ]);
@@ -342,6 +354,22 @@ describe("dashboard data", () => {
         aliases: 0,
       },
     ];
+    const userSnapshotRows: UserAffinitySnapshotRecord[] = [
+      {
+        scopeId: "test-scope",
+        userId: "current-a",
+        date: "2026-06-03",
+        recordedAt: new Date("2026-06-03T12:00:00.000Z"),
+        affinity: 50,
+      },
+      {
+        scopeId: "other-scope",
+        userId: "current-a",
+        date: "2026-06-03",
+        recordedAt: new Date("2026-06-03T12:00:00.000Z"),
+        affinity: 99,
+      },
+    ];
     const data = await getDashboardData(
       createContext({
         [MODEL_NAME_V2]: affinityRows,
@@ -369,6 +397,7 @@ describe("dashboard data", () => {
           },
         ],
         [DASHBOARD_SNAPSHOT_MODEL_NAME]: snapshotRows,
+        [USER_AFFINITY_SNAPSHOT_MODEL_NAME]: userSnapshotRows,
       }),
       {
         ...config,
@@ -387,6 +416,18 @@ describe("dashboard data", () => {
         chatCount: 14,
         blacklisted: 1,
         aliases: 1,
+      },
+    );
+    assert.deepEqual(
+      userSnapshotRows.find(
+        (row) => row.userId === "current-a" && row.date === "2026-06-13",
+      ),
+      {
+        scopeId: "test-scope",
+        userId: "current-a",
+        date: "2026-06-13",
+        recordedAt: new Date("2026-06-13T12:00:00.000Z"),
+        affinity: 70,
       },
     );
     assert.deepEqual(data.weeklyChanges.users, {
@@ -439,9 +480,9 @@ describe("dashboard data", () => {
     ]);
     assert.deepEqual(data.topUsers[0].historyPoints, [
       {
-        label: "6/12",
-        timestamp: "2026-06-12T12:00:00.000Z",
-        affinity: 70,
+        label: "6/3",
+        timestamp: "2026-06-03T12:00:00.000Z",
+        affinity: 50,
       },
       {
         label: "6/13",

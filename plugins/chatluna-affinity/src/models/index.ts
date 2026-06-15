@@ -19,6 +19,7 @@ import { extendMigrationModel, MIGRATION_MODEL_NAME } from "./migration";
 import {
   extendDashboardSnapshotModel,
   DASHBOARD_SNAPSHOT_MODEL_NAME,
+  USER_AFFINITY_SNAPSHOT_MODEL_NAME,
 } from "./dashboard-snapshot";
 
 export {
@@ -30,6 +31,7 @@ export {
   USER_ALIAS_MODEL_NAME_V2,
   MIGRATION_MODEL_NAME,
   DASHBOARD_SNAPSHOT_MODEL_NAME,
+  USER_AFFINITY_SNAPSHOT_MODEL_NAME,
 };
 
 export function registerModels(ctx: Context): void {

@@ -9,6 +9,7 @@ import {
   MODEL_NAME_V2,
   BLACKLIST_MODEL_NAME_V2,
   DASHBOARD_SNAPSHOT_MODEL_NAME,
+  USER_AFFINITY_SNAPSHOT_MODEL_NAME,
   USER_ALIAS_MODEL_NAME_V2,
 } from "../models";
 
@@ -43,6 +44,9 @@ export function registerClearAllCommand(deps: CommandDependencies) {
             scopeId: config.scopeId,
           });
           await ctx.database.remove(DASHBOARD_SNAPSHOT_MODEL_NAME, {
+            scopeId: config.scopeId,
+          });
+          await ctx.database.remove(USER_AFFINITY_SNAPSHOT_MODEL_NAME, {
             scopeId: config.scopeId,
           });
           cache.clearAll?.();

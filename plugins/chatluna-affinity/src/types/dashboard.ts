@@ -12,3 +12,11 @@ export interface DashboardSnapshotRecord {
   blacklisted: number;
   aliases: number;
 }
+
+export interface UserAffinitySnapshotRecord {
+  scopeId: string;
+  userId: string;
+  date: string;
+  recordedAt: Date;
+  affinity: number;
+}
