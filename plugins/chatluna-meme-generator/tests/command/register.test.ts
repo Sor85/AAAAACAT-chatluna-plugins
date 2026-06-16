@@ -319,6 +319,7 @@ function createBaseConfig(overrides: Partial<Config> = {}): Config {
     allowMentionPrefixDirectAliasTrigger: false,
     allowLeadingAtBeforeCommand: false,
     enableDeveloperDebugLog: false,
+    randomOutputMemeKey: "",
     enableMemeXmlTool: false,
     injectMemeXmlToolAsReplyTool: false,
     enableRandomDedupeWithinHours: false,
@@ -2458,6 +2459,56 @@ describe("registerCommands", () => {
       expect.anything(),
     );
     randomSpy.mockRestore();
+  });
+
+  it("meme.random 设置固定输出 key 时应只生成指定模板", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["random-a", "random-b"]);
+    getInfoMock.mockImplementation(async (key: string) =>
+      createRandomMemeInfo(key, {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 1,
+        default_texts: [],
+      }),
+    );
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        randomOutputMemeKey: " fixed-key ",
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const randomAction = commandActions.get("meme.random [...texts]");
+    expect(randomAction).toBeDefined();
+
+    const result = await randomAction!({
+      session: createSession("meme.random"),
+    });
+
+    expect(result).toBeTruthy();
+    expect(getInfoMock).toHaveBeenCalledWith("fixed-key");
+    expect(generateMock).toHaveBeenCalledWith("fixed-key", [], [], {});
+    expect(generateMock).not.toHaveBeenCalledWith(
+      "random-a",
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+    );
   });
 
   it("meme.random 开启去重时桶耗尽后应直接切换到仍有候选的其他桶", async () => {

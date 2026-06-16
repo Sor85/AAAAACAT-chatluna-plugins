@@ -43,6 +43,7 @@ export interface Config {
   allowMentionPrefixDirectAliasTrigger: boolean;
   allowLeadingAtBeforeCommand: boolean;
   enableDeveloperDebugLog: boolean;
+  randomOutputMemeKey: string;
   enableMemeXmlTool: boolean;
   injectMemeXmlToolAsReplyTool: boolean;
   memeXmlReferencePrompt?: string;
@@ -89,6 +90,7 @@ export const defaultConfig: Config = {
   allowMentionPrefixDirectAliasTrigger: false,
   allowLeadingAtBeforeCommand: false,
   enableDeveloperDebugLog: false,
+  randomOutputMemeKey: "",
   enableMemeXmlTool: false,
   injectMemeXmlToolAsReplyTool: false,
   memeXmlReferencePrompt: `## 动作指令
@@ -288,10 +290,16 @@ const runtimeSchema = Schema.object({
   renderMemeListAsImage: Schema.boolean()
     .default(defaultConfig.renderMemeListAsImage)
     .description("`meme.list`是否以图片形式输出"),
+}).description("其他设置");
+
+const developerSchema = Schema.object({
   enableDeveloperDebugLog: Schema.boolean()
     .default(defaultConfig.enableDeveloperDebugLog)
     .description("开启调试日志"),
-}).description("其他设置");
+  randomOutputMemeKey: Schema.string()
+    .default(defaultConfig.randomOutputMemeKey)
+    .description("指定`meme.random`输出的模板`key`，留空不启用"),
+}).description("开发者模式");
 
 export const ConfigSchema: Schema<Config> = Schema.intersect([
   basicSchema,
@@ -301,4 +309,5 @@ export const ConfigSchema: Schema<Config> = Schema.intersect([
   triggerSchema,
   filterSchema,
   runtimeSchema,
+  developerSchema,
 ]);

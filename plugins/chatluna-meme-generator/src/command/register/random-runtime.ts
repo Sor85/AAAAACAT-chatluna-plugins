@@ -92,8 +92,11 @@ export function installRandomRuntime(
     try {
       await ensureCategoryExcludedMemeKeySet();
       const executeRandom = async () => {
-        const shuffledKeys = createShuffledKeys(await client.getKeys());
-        const filteredShuffledKeys = filterExcludedMemeKeys(shuffledKeys);
+        const requestedRandomKey = config.randomOutputMemeKey.trim();
+        // 开发者模式用于复现单个模板问题，非空时直接绕过随机候选列表。
+        const filteredShuffledKeys = requestedRandomKey
+          ? [requestedRandomKey]
+          : filterExcludedMemeKeys(createShuffledKeys(await client.getKeys()));
         if (filteredShuffledKeys.length === 0) {
           return replyOrSilent(
             config,

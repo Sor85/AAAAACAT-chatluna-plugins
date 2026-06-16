@@ -36,6 +36,7 @@ const baseConfig: Config = {
   allowMentionPrefixDirectAliasTrigger: false,
   allowLeadingAtBeforeCommand: false,
   enableDeveloperDebugLog: false,
+  randomOutputMemeKey: "",
   enableMemeXmlTool: false,
   injectMemeXmlToolAsReplyTool: false,
   enableRandomDedupeWithinHours: false,
