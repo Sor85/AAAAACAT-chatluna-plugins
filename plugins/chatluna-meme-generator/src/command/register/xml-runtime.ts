@@ -13,7 +13,7 @@ import type { Config } from "../../config";
 import {
   getBotAvatarImage,
   getSenderAvatarImage,
-  getSenderDisplayName,
+  resolveSenderDisplayName,
   resolveAvatarImageByUserId,
   resolveDisplayNameByUserId,
 } from "../../utils/avatar";
@@ -140,7 +140,7 @@ async function buildXmlGenerateInput(
   options: BuildXmlGenerateInputOptions,
 ): Promise<XmlGenerateInput> {
   const { ctx, config, session, pickedCall } = options;
-  const senderName = getSenderDisplayName(session);
+  const senderName = await resolveSenderDisplayName(session);
   const preferredGuildId =
     session.guildId && session.guildId !== "private" ? session.guildId : undefined;
 

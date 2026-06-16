@@ -13,7 +13,7 @@ import {
   getMentionedAvatarImages,
   getMentionedTargetDisplayName,
   getSenderAvatarImage,
-  getSenderDisplayName,
+  resolveSenderDisplayName,
 } from "../../utils/avatar";
 import { mapRuntimeErrorMessage } from "./errors";
 
@@ -44,7 +44,7 @@ export async function handleGenerate(
   try {
     ctx.logger("chatluna-meme-generator").info("meme trigger key: %s", key);
     const parsedInput = await parseCommandInput(ctx, session, texts, config);
-    const senderName = getSenderDisplayName(session);
+    const senderName = await resolveSenderDisplayName(session);
     const groupNicknameEnabled = config.autoUseGroupNicknameWhenNoDefaultText;
     const targetDisplayName = groupNicknameEnabled
       ? await getMentionedTargetDisplayName(session)

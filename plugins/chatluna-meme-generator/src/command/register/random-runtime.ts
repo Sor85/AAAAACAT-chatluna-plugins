@@ -21,7 +21,7 @@ import {
   getMentionedAvatarImages,
   getMentionedTargetDisplayName,
   getSenderAvatarImage,
-  getSenderDisplayName,
+  resolveSenderDisplayName,
 } from "../../utils/avatar";
 import { buildRandomConfig, type PreparedAvatarImage } from "./generate";
 import { mapRuntimeErrorMessage, replyOrSilent } from "./errors";
@@ -112,7 +112,7 @@ export function installRandomRuntime(
           texts,
           config,
         );
-        const senderName = getSenderDisplayName(session);
+        const senderName = await resolveSenderDisplayName(session);
         const groupNicknameEnabled =
           config.autoUseGroupNicknameWhenNoDefaultText;
         const targetDisplayName = groupNicknameEnabled

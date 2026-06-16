@@ -12,7 +12,6 @@ type AvatarImageResult = GenerateImageInput | undefined;
 type AsyncAvatarImageMock = (...args: any[]) => Promise<AvatarImageResult>;
 type AsyncAvatarImagesMock = (...args: any[]) => Promise<GenerateImageInput[]>;
 type AsyncDisplayNameMock = (...args: any[]) => Promise<string | undefined>;
-type DisplayNameMock = (...args: any[]) => string | undefined;
 type MemeTriggerPrefixResolverMock = (
   input: string,
 ) => Promise<{ key: string; rest: string } | undefined>;
@@ -56,7 +55,7 @@ const avatarMocks = vi.hoisted(() => ({
   getMentionedTargetDisplayName: vi.fn<AsyncDisplayNameMock>(
     async () => undefined,
   ),
-  getSenderDisplayName: vi.fn<DisplayNameMock>(() => undefined),
+  resolveSenderDisplayName: vi.fn<AsyncDisplayNameMock>(async () => undefined),
   resolveAvatarImageByUserId: vi.fn<AsyncAvatarImageMock>(
     async () => undefined,
   ),
@@ -73,7 +72,7 @@ vi.mock("../../src/utils/avatar", () => ({
     avatarMocks.getMentionedSecondaryAvatarImage,
   getBotAvatarImage: avatarMocks.getBotAvatarImage,
   getMentionedTargetDisplayName: avatarMocks.getMentionedTargetDisplayName,
-  getSenderDisplayName: avatarMocks.getSenderDisplayName,
+  resolveSenderDisplayName: avatarMocks.resolveSenderDisplayName,
   resolveAvatarImageByUserId: avatarMocks.resolveAvatarImageByUserId,
   resolveDisplayNameByUserId: avatarMocks.resolveDisplayNameByUserId,
 }));
@@ -403,7 +402,7 @@ function resetCommonMocks() {
   avatarMocks.getMentionedSecondaryAvatarImage.mockReset();
   avatarMocks.getBotAvatarImage.mockReset();
   avatarMocks.getMentionedTargetDisplayName.mockReset();
-  avatarMocks.getSenderDisplayName.mockReset();
+  avatarMocks.resolveSenderDisplayName.mockReset();
   avatarMocks.resolveAvatarImageByUserId.mockReset();
   avatarMocks.resolveDisplayNameByUserId.mockReset();
   avatarMocks.getSenderAvatarImage.mockResolvedValue(undefined);
@@ -412,7 +411,7 @@ function resetCommonMocks() {
   avatarMocks.getMentionedSecondaryAvatarImage.mockResolvedValue(undefined);
   avatarMocks.getBotAvatarImage.mockResolvedValue(undefined);
   avatarMocks.getMentionedTargetDisplayName.mockResolvedValue(undefined);
-  avatarMocks.getSenderDisplayName.mockReturnValue(undefined);
+  avatarMocks.resolveSenderDisplayName.mockResolvedValue(undefined);
   avatarMocks.resolveAvatarImageByUserId.mockResolvedValue(undefined);
   avatarMocks.resolveDisplayNameByUserId.mockResolvedValue(undefined);
 
@@ -1331,7 +1330,7 @@ describe("registerCommands", () => {
 
   it("直触发中文别名在 @ 后携带文本时应保留用户文本", async () => {
     avatarMocks.getMentionedTargetDisplayName.mockResolvedValue("被@群昵称");
-    avatarMocks.getSenderDisplayName.mockReturnValue("发送者群昵称");
+    avatarMocks.resolveSenderDisplayName.mockResolvedValue("发送者群昵称");
 
     getInfoMock.mockResolvedValue({
       key: "qizhu",

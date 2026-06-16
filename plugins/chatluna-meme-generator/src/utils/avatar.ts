@@ -50,6 +50,37 @@ export function getSenderDisplayName(session: Session): string | undefined {
   return undefined;
 }
 
+export async function resolveSenderDisplayName(
+  session: Session,
+): Promise<string | undefined> {
+  const memberNick = normalizeDisplayName(session.author?.nick);
+  if (memberNick) return memberNick;
+
+  const memberName = normalizeDisplayName(session.author?.name);
+  if (memberName) return memberName;
+
+  const eventNick = normalizeDisplayName(session.event.user?.nick);
+  if (eventNick) return eventNick;
+
+  const eventName = normalizeDisplayName(session.event.user?.name);
+  if (eventName) return eventName;
+
+  // poke 等 notice 事件常只带 userId/username，username 可能是 QQID。
+  // 先回查群成员昵称，避免随机表情补文案时把 QQID 当作群昵称。
+  if (session.userId) {
+    const resolvedName = await resolveDisplayNameByUserId(
+      session,
+      session.userId,
+    );
+    if (resolvedName) return resolvedName;
+  }
+
+  const username = normalizeDisplayName(session.username);
+  if (username) return username;
+
+  return undefined;
+}
+
 export async function getSenderAvatarImage(
   ctx: Context,
   session: Session,
