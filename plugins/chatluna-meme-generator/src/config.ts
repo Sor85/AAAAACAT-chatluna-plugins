@@ -60,6 +60,7 @@ export interface Config {
   excludeImageAndTextMemes: boolean;
   excludeOtherMemes: boolean;
   excludedMemeKeys: string[];
+  showMemeListKey: boolean;
 }
 
 export const defaultConfig: Config = {
@@ -127,6 +128,7 @@ export const defaultConfig: Config = {
   excludeImageAndTextMemes: false,
   excludeOtherMemes: false,
   excludedMemeKeys: [],
+  showMemeListKey: false,
 };
 
 const basicSchema = Schema.object({
@@ -290,6 +292,9 @@ const runtimeSchema = Schema.object({
   renderMemeListAsImage: Schema.boolean()
     .default(defaultConfig.renderMemeListAsImage)
     .description("`meme.list`是否以图片形式输出"),
+  showMemeListKey: Schema.boolean()
+    .default(defaultConfig.showMemeListKey)
+    .description("`meme.list`是否显示模板 key"),
 }).description("其他设置");
 
 const developerSchema = Schema.object({

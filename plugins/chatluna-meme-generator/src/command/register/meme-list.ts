@@ -148,6 +148,7 @@ export async function fetchMemeListInfos(
 
 export function buildMemeListEntries(
   infoResults: MemeListInfoResult[],
+  showKey: boolean,
 ): MemeListEntry[] {
   return infoResults.map((result) => {
     if (!result.info) {
@@ -156,9 +157,11 @@ export function buildMemeListEntries(
         category: "unknown",
       };
     }
+    const alias = pickChineseAlias(result.info);
 
     return {
-      alias: pickChineseAlias(result.info),
+      alias:
+        showKey && alias !== result.key ? `${alias}（${result.key}）` : alias,
       category: resolveMemeListCategory(result.info.params_type),
     };
   });

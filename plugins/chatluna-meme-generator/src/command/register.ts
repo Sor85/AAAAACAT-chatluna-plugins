@@ -389,7 +389,10 @@ export function registerCommands(ctx: Context, config: Config): void {
         );
 
       const infoResults = await fetchMemeListInfos(client, keys, config);
-      const entries = buildMemeListEntries(infoResults);
+      const entries = buildMemeListEntries(
+        infoResults,
+        config.showMemeListKey,
+      );
       const sections = buildMemeListSections(entries);
       const lines = formatMemeListLines(sections);
       if (lines.length === 0)

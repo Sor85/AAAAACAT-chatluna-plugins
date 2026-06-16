@@ -85,6 +85,7 @@ function createConfig(): Config {
     allowLeadingAtBeforeCommand: false,
     enableDeveloperDebugLog: false,
     randomOutputMemeKey: "",
+    showMemeListKey: false,
     enableMemeXmlTool: false,
     injectMemeXmlToolAsReplyTool: false,
     enableRandomDedupeWithinHours: false,
