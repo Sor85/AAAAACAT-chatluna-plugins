@@ -24,9 +24,27 @@ export interface DashboardSnapshotSource {
   aliasRows: UserAliasRecord[];
 }
 
+type SnapshotTrigger = "backend" | "manual";
+
 export interface RecordedDashboardSnapshots {
   dashboardSnapshots: DashboardSnapshotRecord[];
   userAffinitySnapshots: UserAffinitySnapshotRecord[];
+}
+
+export async function readRecordedDashboardSnapshots(
+  ctx: Context,
+  scopeId: string,
+): Promise<RecordedDashboardSnapshots> {
+  const dashboardSnapshots = await ctx.database.get(
+    DASHBOARD_SNAPSHOT_MODEL_NAME,
+    { scopeId },
+  );
+  const userAffinitySnapshots = await ctx.database.get(
+    USER_AFFINITY_SNAPSHOT_MODEL_NAME,
+    { scopeId },
+  );
+
+  return { dashboardSnapshots, userAffinitySnapshots };
 }
 
 export function formatSnapshotDate(value: Date): string {
@@ -73,14 +91,41 @@ export function createDashboardSnapshot(
   scopeId: string,
   now: Date,
   source: DashboardSnapshotSource,
+  trigger: SnapshotTrigger = "backend",
 ): DashboardSnapshotRecord {
+  const permanentBlacklisted = source.blacklistRows.filter(
+    (row) => row.mode === "permanent",
+  ).length;
+  const temporaryBlacklisted = source.blacklistRows.filter(
+    (row) => row.mode === "temporary",
+  ).length;
+  const latestInteractionAt = source.affinityRows.reduce<Date | null>(
+    (latest, row) => {
+      const value = row.lastInteractionAt;
+      if (!value) return latest;
+      if (!latest || value.getTime() > latest.getTime()) return value;
+      return latest;
+    },
+    null,
+  );
+
   return {
     scopeId,
     date: formatSnapshotDate(now),
     recordedAt: now,
+    generatedBy: trigger,
     users: source.affinityRows.length,
     affinityTotal: source.affinityRows.reduce(
       (total, row) => total + Number(row.affinity || 0),
+      0,
+    ),
+    longTermAffinityTotal: source.affinityRows.reduce(
+      (total, row) =>
+        total + Number(row.longTermAffinity ?? row.affinity ?? 0),
+      0,
+    ),
+    shortTermAffinityTotal: source.affinityRows.reduce(
+      (total, row) => total + Number(row.shortTermAffinity || 0),
       0,
     ),
     chatCount: source.affinityRows.reduce(
@@ -88,7 +133,10 @@ export function createDashboardSnapshot(
       0,
     ),
     blacklisted: source.blacklistRows.length,
+    permanentBlacklisted,
+    temporaryBlacklisted,
     aliases: source.aliasRows.length,
+    latestInteractionAt,
   };
 }
 
@@ -103,7 +151,14 @@ export function createUserAffinitySnapshots(
     userId: row.userId,
     date,
     recordedAt: now,
+    nickname: row.nickname || null,
     affinity: Number(row.affinity || 0),
+    longTermAffinity: Number(row.longTermAffinity ?? row.affinity ?? 0),
+    shortTermAffinity: Number(row.shortTermAffinity || 0),
+    chatCount: Number(row.chatCount || 0),
+    relation: row.relation || null,
+    specialRelation: row.specialRelation || null,
+    lastInteractionAt: row.lastInteractionAt || null,
   }));
 }
 
@@ -152,6 +207,7 @@ export async function recordDashboardSnapshot(
     scopeId: string;
     now?: Date;
     source?: DashboardSnapshotSource;
+    trigger?: SnapshotTrigger;
     existingSnapshots?: DashboardSnapshotRecord[];
     existingUserAffinitySnapshots?: UserAffinitySnapshotRecord[];
   },
@@ -178,9 +234,14 @@ export async function recordDashboardSnapshot(
     };
   }
 
-  const snapshot = createDashboardSnapshot(scopeId, now, source);
+  const snapshot = createDashboardSnapshot(
+    scopeId,
+    now,
+    source,
+    options.trigger,
+  );
   const userSnapshots = createUserAffinitySnapshots(scopeId, now, source);
-  // 旧实现把当前状态表的 lastInteractionAt 当历史分桶，刷新当天快照后，趋势/周对比才能只依赖真实记录过的日期。
+  // 后台会周期性采样，同一天用主键覆盖当天快照，避免趋势图出现同一日期的重复点。
   await ctx.database.upsert(DASHBOARD_SNAPSHOT_MODEL_NAME, [snapshot]);
   if (userSnapshots.length > 0) {
     await ctx.database.upsert(USER_AFFINITY_SNAPSHOT_MODEL_NAME, userSnapshots);

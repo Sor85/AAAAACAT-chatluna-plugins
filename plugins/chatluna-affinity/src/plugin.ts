@@ -31,7 +31,10 @@ import { createPermanentUnblockHandler } from "./services/blacklist/unblock-perm
 import { createUserAliasService } from "./services/user-alias/repository";
 import { createManualRelationshipManager } from "./services/relationship/manual-config";
 import { createMigrationService } from "./services/migration";
-import { registerDashboardWebui } from "./services/dashboard";
+import {
+  registerDashboardBackend,
+  registerDashboardWebui,
+} from "./services/dashboard";
 import { createRenderService } from "./renders";
 import {
   createAffinityProvider,
@@ -118,6 +121,11 @@ export function apply(ctx: Context, config: Config): void {
 
   const log = createLogger(ctx, config);
 
+  registerDashboardBackend({
+    ctx,
+    config,
+    log,
+  });
   registerDashboardWebui({
     ctx,
     config,

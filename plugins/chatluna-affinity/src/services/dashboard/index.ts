@@ -20,8 +20,10 @@ import type {
 import {
   formatSnapshotDate,
   parseSnapshotDate,
-  recordDashboardSnapshot,
+  readRecordedDashboardSnapshots,
 } from "./snapshot";
+
+export { registerDashboardBackend } from "./backend";
 
 export const DASHBOARD_EVENT = "chatluna-affinity/dashboard";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -170,6 +172,26 @@ function roundPercent(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+function snapshotAffinityTotal(snapshot: DashboardSnapshotRecord): number {
+  return toCount(snapshot.affinityTotal);
+}
+
+function snapshotUsers(snapshot: DashboardSnapshotRecord): number {
+  return toCount(snapshot.users);
+}
+
+function snapshotChatCount(snapshot: DashboardSnapshotRecord): number {
+  return toCount(snapshot.chatCount);
+}
+
+function snapshotBlacklisted(snapshot: DashboardSnapshotRecord): number {
+  return toCount(snapshot.blacklisted);
+}
+
+function snapshotAliases(snapshot: DashboardSnapshotRecord): number {
+  return toCount(snapshot.aliases);
+}
+
 function createMetricChange(
   current: number,
   previous: number,
@@ -255,13 +277,13 @@ function createSnapshotTrendPoint(
 
   return {
     label: formatTrendLabel(date),
-    users: toCount(snapshot.users),
+    users: snapshotUsers(snapshot),
     averageAffinity: roundAverage(
-      toCount(snapshot.affinityTotal),
-      toCount(snapshot.users),
+      snapshotAffinityTotal(snapshot),
+      snapshotUsers(snapshot),
     ),
-    chatCount: toCount(snapshot.chatCount),
-    blacklisted: toCount(snapshot.blacklisted),
+    chatCount: snapshotChatCount(snapshot),
+    blacklisted: snapshotBlacklisted(snapshot),
   };
 }
 
@@ -351,7 +373,7 @@ function findLatestSnapshotInWindow(
 
 function snapshotAverage(snapshot: DashboardSnapshotRecord | null): number {
   if (!snapshot) return 0;
-  return roundAverage(toCount(snapshot.affinityTotal), toCount(snapshot.users));
+  return roundAverage(snapshotAffinityTotal(snapshot), snapshotUsers(snapshot));
 }
 
 function createUserHistoryPoints(
@@ -415,11 +437,7 @@ export async function getDashboardData(
   const aliasRows = await ctx.database.get(USER_ALIAS_MODEL_NAME_V2, {
     scopeId,
   });
-  const recordedSnapshots = await recordDashboardSnapshot(ctx, {
-    scopeId,
-    now,
-    source: { affinityRows, blacklistRows, aliasRows },
-  });
+  const recordedSnapshots = await readRecordedDashboardSnapshots(ctx, scopeId);
   const snapshotRows = recordedSnapshots.dashboardSnapshots;
   const userSnapshotRows = recordedSnapshots.userAffinitySnapshots;
   const trendAnchor = getLatestSnapshotDate(snapshotRows) || now;
@@ -538,20 +556,20 @@ export async function getDashboardData(
     latestInteractionAt,
     weeklyChanges: {
       users: createMetricChange(
-        toCount(currentWeekSnapshot?.users),
-        toCount(previousWeekSnapshot?.users),
+        currentWeekSnapshot ? snapshotUsers(currentWeekSnapshot) : 0,
+        previousWeekSnapshot ? snapshotUsers(previousWeekSnapshot) : 0,
       ),
       averageAffinity: createMetricChange(
         snapshotAverage(currentWeekSnapshot),
         snapshotAverage(previousWeekSnapshot),
       ),
       chatCount: createMetricChange(
-        toCount(currentWeekSnapshot?.chatCount),
-        toCount(previousWeekSnapshot?.chatCount),
+        currentWeekSnapshot ? snapshotChatCount(currentWeekSnapshot) : 0,
+        previousWeekSnapshot ? snapshotChatCount(previousWeekSnapshot) : 0,
       ),
       aliases: createMetricChange(
-        toCount(currentWeekSnapshot?.aliases),
-        toCount(previousWeekSnapshot?.aliases),
+        currentWeekSnapshot ? snapshotAliases(currentWeekSnapshot) : 0,
+        previousWeekSnapshot ? snapshotAliases(previousWeekSnapshot) : 0,
       ),
     },
     trends: {
