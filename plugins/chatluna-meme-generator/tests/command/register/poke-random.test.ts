@@ -79,6 +79,7 @@ function createConfig(): Config {
     enableQuotedTextTrigger: false,
     renderMemeListAsImage: false,
     sendMemeListAsForward: true,
+    sendMemeSearchAsForward: true,
     enableMemeCommandTrigger: true,
     enableDirectAliasWithoutPrefix: false,
     allowKeyWithoutPrefixTrigger: false,

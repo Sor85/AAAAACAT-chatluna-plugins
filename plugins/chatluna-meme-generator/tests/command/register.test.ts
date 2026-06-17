@@ -324,6 +324,7 @@ function createBaseConfig(overrides: Partial<Config> = {}): Config {
     enableQuotedTextTrigger: false,
     renderMemeListAsImage: false,
     sendMemeListAsForward: true,
+    sendMemeSearchAsForward: true,
     enableDirectAliasWithoutPrefix: true,
     allowMentionPrefixDirectAliasTrigger: false,
     allowLeadingAtBeforeCommand: false,
@@ -664,6 +665,283 @@ describe("registerCommands", () => {
       "aliases: 骑猪 | 骑猪快捷 | 坐骑猪",
     );
     expect(String(result)).toContain("default_texts: 默认文案");
+  });
+
+  it("meme.search 应按 key、关键词、标签和快捷句式查找模板", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu", "tag-match", "shortcut-match"]);
+    getInfoMock.mockImplementation(async (key: string) => ({
+      key,
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords:
+        key === "qizhu"
+          ? ["骑猪"]
+          : key === "tag-match"
+            ? ["标签命中"]
+            : ["快捷命中"],
+      shortcuts:
+        key === "shortcut-match"
+          ? [{ key: "shortcut-key", humanized: "搜骑猪快捷" }]
+          : [],
+      tags: key === "tag-match" ? ["搜骑猪标签"] : [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    }));
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const searchAction = commandActions.get("meme.search <关键词:string>");
+    expect(searchAction).toBeDefined();
+
+    const result = String(await searchAction!({}, "骑猪"));
+
+    expect(result).toContain("搜索结果（查看 3 条搜索结果）");
+    expect(result).toContain("1. 骑猪");
+    expect(result).toContain("2. 标签命中");
+    expect(result).toContain("3. 快捷命中");
+  });
+
+  it("meme.search 应过滤当前会话不可用的模板", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue([
+      "global_blocked",
+      "group_blocked",
+      "text_only",
+      "visible",
+    ]);
+    getInfoMock.mockImplementation(async (key: string) => ({
+      key,
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: key === "text_only" ? 1 : 0,
+        max_texts: key === "text_only" ? 1 : 0,
+        default_texts: [],
+      },
+      keywords: [`${key}_搜索命中`],
+      shortcuts: [],
+      tags: ["搜索命中"],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    }));
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+        excludedMemeKeys: ["global_blocked"],
+        groupExcludedMemeKeys: [
+          {
+            groupId: "20001",
+            excludedMemeKeys: ["group_blocked"],
+          },
+        ],
+        excludeTextOnlyMemes: true,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const searchAction = commandActions.get("meme.search <关键词:string>");
+    expect(searchAction).toBeDefined();
+
+    const session = createSession("meme.search 搜索命中");
+    session.guildId = "20001";
+    const result = String(await searchAction!({ session }, "搜索命中"));
+
+    expect(result).toContain("1. visible_搜索命中");
+    expect(result).not.toContain("global_blocked_搜索命中");
+    expect(result).not.toContain("group_blocked_搜索命中");
+    expect(result).not.toContain("text_only_搜索命中");
+  });
+
+  it("meme.search 在无结果时应返回提示", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu"]);
+    getInfoMock.mockResolvedValue({
+      key: "qizhu",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: ["骑猪"],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const searchAction = commandActions.get("meme.search <关键词:string>");
+    expect(searchAction).toBeDefined();
+
+    await expect(searchAction!({}, "不存在")).resolves.toBe(
+      "未找到相关表情：不存在",
+    );
+  });
+
+  it("meme.search 默认应通过 OneBot 合并转发发送搜索结果", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const request = vi.fn(async () => undefined);
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu"]);
+    getInfoMock.mockResolvedValue({
+      key: "qizhu",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: ["骑猪"],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const searchAction = commandActions.get("meme.search <关键词:string>");
+    expect(searchAction).toBeDefined();
+
+    const result = await searchAction!({ session: createOneBotListSession(request) }, "骑猪");
+
+    expect(result).toBeUndefined();
+    expect(request).toHaveBeenCalledWith(
+      "send_group_forward_msg",
+      expect.objectContaining({
+        group_id: 20001,
+        messages: [
+          {
+            type: "node",
+            data: expect.objectContaining({
+              content: "搜索结果（查看 1 条搜索结果）\n1. 骑猪",
+            }),
+          },
+        ],
+      }),
+    );
+  });
+
+  it("关闭合并转发开关时 meme.search 应返回文本", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const request = vi.fn(async () => undefined);
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu"]);
+    getInfoMock.mockResolvedValue({
+      key: "qizhu",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: ["骑猪"],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+        sendMemeSearchAsForward: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const searchAction = commandActions.get("meme.search <关键词:string>");
+    expect(searchAction).toBeDefined();
+
+    const result = await searchAction!({ session: createOneBotListSession(request) }, "骑猪");
+
+    expect(result).toBe("搜索结果（查看 1 条搜索结果）\n1. 骑猪");
+    expect(request).not.toHaveBeenCalled();
   });
 
   it("chatluna_character 延迟可用后仍应挂载 XML runtime", async () => {

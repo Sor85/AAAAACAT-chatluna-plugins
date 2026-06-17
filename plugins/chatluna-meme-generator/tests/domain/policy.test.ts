@@ -31,6 +31,7 @@ const baseConfig: Config = {
   enableQuotedTextTrigger: false,
   renderMemeListAsImage: false,
   sendMemeListAsForward: true,
+  sendMemeSearchAsForward: true,
   enableMemeCommandTrigger: true,
   enableDirectAliasWithoutPrefix: true,
   allowKeyWithoutPrefixTrigger: false,

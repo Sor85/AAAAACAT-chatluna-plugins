@@ -43,6 +43,7 @@ export interface Config {
   enableQuotedTextTrigger: boolean;
   renderMemeListAsImage: boolean;
   sendMemeListAsForward: boolean;
+  sendMemeSearchAsForward: boolean;
   enableMemeCommandTrigger: boolean;
   enableDirectAliasWithoutPrefix: boolean;
   allowKeyWithoutPrefixTrigger?: boolean;
@@ -93,6 +94,7 @@ export const defaultConfig: Config = {
   enableQuotedTextTrigger: false,
   renderMemeListAsImage: true,
   sendMemeListAsForward: true,
+  sendMemeSearchAsForward: true,
   enableMemeCommandTrigger: true,
   enableDirectAliasWithoutPrefix: true,
   allowKeyWithoutPrefixTrigger: false,
@@ -316,6 +318,9 @@ const runtimeSchema = Schema.object({
   sendMemeListAsForward: Schema.boolean()
     .default(defaultConfig.sendMemeListAsForward)
     .description("关闭图片输出时，`meme.list`是否以 OneBot 合并转发发送"),
+  sendMemeSearchAsForward: Schema.boolean()
+    .default(defaultConfig.sendMemeSearchAsForward)
+    .description("`meme.search`是否以 OneBot 合并转发发送"),
   showMemeListKey: Schema.boolean()
     .default(defaultConfig.showMemeListKey)
     .description("`meme.list`是否显示模板 key"),

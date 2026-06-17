@@ -16,8 +16,11 @@ import {
   buildMemeListSections,
   buildListMessage,
   fetchMemeListInfos,
+  formatMemeSearchResultMessage,
   formatMemeListLines,
+  searchMemeInfos,
   sendMemeListForwardMessage,
+  sendMemeSearchForwardMessage,
   splitMemeListMessages,
 } from "./register/meme-list";
 import {
@@ -453,6 +456,47 @@ export function registerCommands(ctx: Context, config: Config): void {
       return handleRuntimeError("meme.list", error);
     }
   });
+
+  ctx
+    .command("meme.search <关键词:string>", "搜索 meme 模板")
+    .action(async ({ session }, keyword) => {
+      if (!keyword)
+        return handleErrorReply("meme.search", "用法：meme.search <关键词>");
+      try {
+        const rawKeys = await client.getKeys();
+        await ensureCategoryExcludedMemeKeySet(rawKeys, true);
+        const keys = filterExcludedMemeKeys(
+          rawKeys,
+          mergedExcludedMemeKeySet(session),
+        );
+        if (keys.length === 0)
+          return replyOrSilent(
+            config,
+            logger,
+            "meme.search",
+            "当前后端没有可用模板。",
+          );
+
+        const infoResults = await fetchMemeListInfos(client, keys, config);
+        const results = searchMemeInfos(infoResults, keyword);
+        if (results.length === 0) return `未找到相关表情：${keyword}`;
+        const message = formatMemeSearchResultMessage(results);
+        if (
+          config.sendMemeSearchAsForward &&
+          (await sendMemeSearchForwardMessage(
+            session,
+            message,
+            results.length,
+            logger,
+          ))
+        ) {
+          return;
+        }
+        return message;
+      } catch (error) {
+        return handleRuntimeError("meme.search", error);
+      }
+    });
 
   ctx
     .command("meme.info <key:string>", "查看模板参数约束")

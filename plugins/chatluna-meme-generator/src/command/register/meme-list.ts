@@ -19,6 +19,11 @@ import {
 } from "./types";
 
 export const MEME_LIST_TEXT_CHUNK_BYTE_LIMIT = 3000;
+export const MEME_SEARCH_RESULT_LIMIT = 30;
+
+interface MemeSearchResult {
+  alias: string;
+}
 
 interface OneBotForwardInternal {
   _request?: (
@@ -266,6 +271,41 @@ async function tryOneBotActions(
   throw lastError;
 }
 
+function createOneBotForwardAttempts(
+  target: ForwardTarget,
+  baseParams: Record<string, unknown>,
+): Array<{ action: string; params: Record<string, unknown> }> {
+  return target.type === "group"
+    ? [
+        {
+          action: "send_group_forward_msg",
+          params: { group_id: target.id, ...baseParams },
+        },
+        {
+          action: "send_forward_msg",
+          params: {
+            message_type: "group",
+            group_id: target.id,
+            ...baseParams,
+          },
+        },
+      ]
+    : [
+        {
+          action: "send_private_forward_msg",
+          params: { user_id: target.id, ...baseParams },
+        },
+        {
+          action: "send_forward_msg",
+          params: {
+            message_type: "private",
+            user_id: target.id,
+            ...baseParams,
+          },
+        },
+      ];
+}
+
 export async function sendMemeListForwardMessage(
   session: unknown,
   sections: MemeListSection[],
@@ -282,36 +322,7 @@ export async function sendMemeListForwardMessage(
 
   const messages = createForwardMessages(oneBotSession, sections);
   const baseParams = { messages };
-  const attempts =
-    target.type === "group"
-      ? [
-          {
-            action: "send_group_forward_msg",
-            params: { group_id: target.id, ...baseParams },
-          },
-          {
-            action: "send_forward_msg",
-            params: {
-              message_type: "group",
-              group_id: target.id,
-              ...baseParams,
-            },
-          },
-        ]
-      : [
-          {
-            action: "send_private_forward_msg",
-            params: { user_id: target.id, ...baseParams },
-          },
-          {
-            action: "send_forward_msg",
-            params: {
-              message_type: "private",
-              user_id: target.id,
-              ...baseParams,
-            },
-          },
-        ];
+  const attempts = createOneBotForwardAttempts(target, baseParams);
 
   try {
     // NapCat 与 LLBOT 的转发接口命名不完全一致，这里先试群/私聊专用 action，再回退到通用 forward API。
@@ -320,6 +331,56 @@ export async function sendMemeListForwardMessage(
   } catch (error) {
     logger.warn(
       "meme.list forward send failed, fallback to text: %s",
+      String(error),
+    );
+    return false;
+  }
+}
+
+export async function sendMemeSearchForwardMessage(
+  session: unknown,
+  content: string,
+  count: number,
+  logger: ReturnType<Context["logger"]>,
+): Promise<boolean> {
+  const oneBotSession = session as OneBotForwardSession | undefined;
+  if (oneBotSession?.platform !== "onebot") return false;
+  if (!content) return false;
+
+  const internal = oneBotSession.bot?.internal;
+  if (!internal) return false;
+
+  const target = resolveOneBotForwardTarget(oneBotSession);
+  if (!target) return false;
+
+  const sender = resolveForwardSender(oneBotSession);
+  const messages = [
+    {
+      type: "node",
+      data: {
+        name: sender.name,
+        uin: sender.id,
+        content,
+      },
+    },
+  ];
+  const metadata = {
+    prompt: "表情搜索结果",
+    summary: `查看 ${count} 条搜索结果`,
+    source: "meme.search",
+  };
+  const attempts = createOneBotForwardAttempts(target, {
+    messages,
+    ...metadata,
+  });
+
+  try {
+    // 搜索结果也沿用 OneBot forward，避免长结果直接撞平台文本长度限制。
+    await tryOneBotActions(internal, attempts);
+    return true;
+  } catch (error) {
+    logger.warn(
+      "meme.search forward send failed, fallback to text: %s",
       String(error),
     );
     return false;
@@ -410,6 +471,54 @@ function pickChineseAlias(info: MemeInfoResponse): string {
   const chineseAlias = aliases.find((alias) => /[^\x00-\x7F]/.test(alias));
   if (chineseAlias) return chineseAlias;
   return info.key;
+}
+
+function buildMemeSearchText(info: MemeInfoResponse): string {
+  const values = [info.key, ...info.keywords, ...info.tags];
+  for (const shortcut of info.shortcuts) {
+    values.push(shortcut.humanized || shortcut.key);
+  }
+  return values.join(" ").toLowerCase();
+}
+
+export function searchMemeInfos(
+  infoResults: MemeListInfoResult[],
+  query: string,
+  limit = MEME_SEARCH_RESULT_LIMIT,
+): MemeSearchResult[] {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return [];
+
+  const exactMatches: MemeSearchResult[] = [];
+  const fuzzyMatches: MemeSearchResult[] = [];
+
+  for (const result of infoResults) {
+    if (!result.info) continue;
+
+    const info = result.info;
+    const exactCandidates = [info.key, ...info.keywords].map((value) =>
+      value.trim().toLowerCase(),
+    );
+    const searchResult = { alias: pickChineseAlias(info) };
+
+    if (exactCandidates.includes(normalizedQuery)) {
+      exactMatches.push(searchResult);
+    } else if (buildMemeSearchText(info).includes(normalizedQuery)) {
+      fuzzyMatches.push(searchResult);
+    }
+  }
+
+  return [...exactMatches, ...fuzzyMatches].slice(0, limit);
+}
+
+export function formatMemeSearchResultMessage(
+  results: MemeSearchResult[],
+): string {
+  const title = `搜索结果（查看 ${results.length} 条搜索结果）`;
+  return [
+    title,
+    ...results.map((result, index) => `${index + 1}. ${result.alias}`),
+  ].join("\n");
 }
 
 function resolveMemeListInfoConcurrency(

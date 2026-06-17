@@ -10,6 +10,7 @@
   - `meme.info <key>`：查看模板参数约束
   - `meme.preview <key>`：预览模板
   - `meme.random [...texts]`：随机模板生成
+  - `meme.search <关键词>`：搜索表情模板
 - 触发增强
   - 支持中文别名直连触发（可开关）
   - 支持 XML 工具调用触发（可开关）
@@ -35,7 +36,7 @@
 1. 在 Koishi 控制台安装并启用本插件。
 2. 配置 `baseUrl` 为你的 `meme-generator` 服务地址。
 3. 先执行 `meme.list` 确认可用模板。
-4. 使用 `meme <key>` 或 `meme.random` 生成图片。
+4. 使用 `meme <key>`、`meme.search <关键词>` 或 `meme.random` 生成图片。
 
 示例：
 
@@ -43,6 +44,7 @@
 meme.list
 meme.info can_can_need
 meme can_can_need @用户
+meme.search 骑猪
 meme.random
 ```
 
