@@ -552,6 +552,77 @@ describe("dashboard data", () => {
       blacklisted: 0,
     });
   });
+
+  it("extends unchanged user history to the latest dashboard snapshot date", async () => {
+    const data = await getDashboardData(
+      createContext({
+        [MODEL_NAME_V2]: [
+          {
+            scopeId: "test-scope",
+            userId: "current-a",
+            nickname: null,
+            affinity: 50,
+            relation: "朋友",
+            specialRelation: null,
+            longTermAffinity: 45,
+            shortTermAffinity: 5,
+            chatCount: 3,
+            actionStats: null,
+            lastInteractionAt: new Date("2026-06-13T12:00:00.000Z"),
+            coefficientState: null,
+          },
+        ],
+        [DASHBOARD_SNAPSHOT_MODEL_NAME]: [
+          {
+            scopeId: "test-scope",
+            date: "2026-06-03",
+            recordedAt: new Date("2026-06-03T12:00:00.000Z"),
+            users: 1,
+            affinityTotal: 50,
+            chatCount: 1,
+            blacklisted: 0,
+            aliases: 0,
+          },
+          {
+            scopeId: "test-scope",
+            date: "2026-06-13",
+            recordedAt: new Date("2026-06-13T12:00:00.000Z"),
+            users: 1,
+            affinityTotal: 50,
+            chatCount: 3,
+            blacklisted: 0,
+            aliases: 0,
+          },
+        ],
+        [USER_AFFINITY_SNAPSHOT_MODEL_NAME]: [
+          {
+            scopeId: "test-scope",
+            userId: "current-a",
+            date: "2026-06-03",
+            recordedAt: new Date("2026-06-03T12:00:00.000Z"),
+            affinity: 50,
+          },
+        ],
+      }),
+      {
+        ...config,
+        now: new Date("2026-06-13T12:00:00.000Z"),
+      },
+    );
+
+    assert.deepEqual(data.topUsers[0].historyPoints, [
+      {
+        label: "6/3",
+        timestamp: "2026-06-03T12:00:00.000Z",
+        affinity: 50,
+      },
+      {
+        label: "6/13",
+        timestamp: new Date(2026, 5, 13).toISOString(),
+        affinity: 50,
+      },
+    ]);
+  });
 });
 
 describe("dashboard backend", () => {
@@ -628,6 +699,66 @@ describe("dashboard backend", () => {
         specialRelation: null,
         lastInteractionAt: new Date("2026-06-17T12:00:00.000Z"),
       },
+    ]);
+  });
+
+  it("does not record unchanged user affinity snapshots", async () => {
+    const existingUserSnapshot = {
+      scopeId: "test-scope",
+      userId: "current-a",
+      date: "2026-06-16",
+      recordedAt: new Date("2026-06-16T12:00:00.000Z"),
+      nickname: null,
+      affinity: 64,
+      longTermAffinity: 50,
+      shortTermAffinity: 14,
+      chatCount: 5,
+      relation: "朋友",
+      specialRelation: null,
+      lastInteractionAt: new Date("2026-06-16T12:00:00.000Z"),
+    };
+    const tables: Record<string, unknown[]> = {
+      [MODEL_NAME_V2]: [
+        {
+          scopeId: "test-scope",
+          userId: "current-a",
+          nickname: "新的昵称",
+          affinity: 64,
+          relation: "亲密",
+          specialRelation: null,
+          longTermAffinity: 64,
+          shortTermAffinity: 0,
+          chatCount: 9,
+          actionStats: null,
+          lastInteractionAt: new Date("2026-06-17T12:00:00.000Z"),
+          coefficientState: null,
+        },
+      ],
+      [BLACKLIST_MODEL_NAME_V2]: [],
+      [USER_ALIAS_MODEL_NAME_V2]: [],
+      [DASHBOARD_SNAPSHOT_MODEL_NAME]: [],
+      [USER_AFFINITY_SNAPSHOT_MODEL_NAME]: [existingUserSnapshot],
+    };
+    const ctx = createBackendContext(tables);
+
+    registerDashboardBackend({
+      ctx,
+      config: { scopeId: "test-scope" },
+      log() {},
+      now: () => new Date("2026-06-17T12:00:00.000Z"),
+      setInterval: (callback, ms) => {
+        const timer = setInterval(callback, ms);
+        clearInterval(timer);
+        return timer;
+      },
+      clearInterval: () => {},
+    });
+    (ctx as unknown as { emitReady: () => void }).emitReady();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(tables[DASHBOARD_SNAPSHOT_MODEL_NAME]?.length, 1);
+    assert.deepEqual(tables[USER_AFFINITY_SNAPSHOT_MODEL_NAME], [
+      existingUserSnapshot,
     ]);
   });
 });

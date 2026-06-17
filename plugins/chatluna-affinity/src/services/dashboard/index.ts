@@ -379,25 +379,44 @@ function snapshotAverage(snapshot: DashboardSnapshotRecord | null): number {
 function createUserHistoryPoints(
   row: AffinityRecord,
   snapshots: UserAffinitySnapshotRecord[],
+  trendAnchor: Date,
 ): DashboardUserHistoryPoint[] {
   const points = snapshots
     .map((snapshot) => {
       const date = parseSnapshotDate(snapshot.date);
       if (!date) return null;
       return {
-        label: formatTrendLabel(date),
-        timestamp: toIsoString(snapshot.recordedAt) || toIsoString(date),
-        affinity: toCount(snapshot.affinity),
+        date,
+        point: {
+          label: formatTrendLabel(date),
+          timestamp: toIsoString(snapshot.recordedAt) || toIsoString(date),
+          affinity: toCount(snapshot.affinity),
+        },
       };
     })
-    .filter((point): point is DashboardUserHistoryPoint => point !== null)
-    .sort((left, right) =>
-      String(left.timestamp).localeCompare(String(right.timestamp)),
+    .filter(
+      (
+        point,
+      ): point is { date: Date; point: DashboardUserHistoryPoint } =>
+        point !== null,
     )
-    .slice(-HISTORY_POINT_LIMIT);
+    .sort((left, right) => left.date.getTime() - right.date.getTime());
 
   if (points.length) {
-    return points;
+    const anchorDate = startOfLocalDay(trendAnchor);
+    const latest = points.at(-1);
+    if (latest && latest.date.getTime() < anchorDate.getTime()) {
+      // 稀疏用户快照不会每天落库；这里补的是展示端水平延伸点，不代表数据库新增历史。
+      points.push({
+        date: anchorDate,
+        point: {
+          label: formatTrendLabel(anchorDate),
+          timestamp: toIsoString(anchorDate),
+          affinity: latest.point.affinity,
+        },
+      });
+    }
+    return points.slice(-HISTORY_POINT_LIMIT).map(({ point }) => point);
   }
 
   return [
@@ -492,6 +511,7 @@ export async function getDashboardData(
       historyPoints: createUserHistoryPoints(
         row,
         userSnapshotsByUserId.get(row.userId) || [],
+        trendAnchor,
       ),
     }));
 

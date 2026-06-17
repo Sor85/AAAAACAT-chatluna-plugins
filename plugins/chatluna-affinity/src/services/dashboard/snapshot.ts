@@ -144,22 +144,47 @@ export function createUserAffinitySnapshots(
   scopeId: string,
   now: Date,
   source: DashboardSnapshotSource,
+  existingSnapshots: UserAffinitySnapshotRecord[] = [],
 ): UserAffinitySnapshotRecord[] {
   const date = formatSnapshotDate(now);
-  return source.affinityRows.map((row) => ({
-    scopeId,
-    userId: row.userId,
-    date,
-    recordedAt: now,
-    nickname: row.nickname || null,
-    affinity: Number(row.affinity || 0),
-    longTermAffinity: Number(row.longTermAffinity ?? row.affinity ?? 0),
-    shortTermAffinity: Number(row.shortTermAffinity || 0),
-    chatCount: Number(row.chatCount || 0),
-    relation: row.relation || null,
-    specialRelation: row.specialRelation || null,
-    lastInteractionAt: row.lastInteractionAt || null,
-  }));
+  const latestSnapshotsByUserId = new Map<
+    string,
+    UserAffinitySnapshotRecord
+  >();
+
+  for (const snapshot of existingSnapshots) {
+    if (snapshot.scopeId !== scopeId || !parseSnapshotDate(snapshot.date)) {
+      continue;
+    }
+
+    const latest = latestSnapshotsByUserId.get(snapshot.userId);
+    if (!latest || snapshot.date >= latest.date) {
+      latestSnapshotsByUserId.set(snapshot.userId, snapshot);
+    }
+  }
+
+  return source.affinityRows
+    .filter((row) => {
+      const latest = latestSnapshotsByUserId.get(row.userId);
+      // 用户级快照是变化日志：总 affinity 未变时不写，展示层会把最后一个点延伸到趋势锚点。
+      return (
+        !latest || Number(latest.affinity || 0) !== Number(row.affinity || 0)
+      );
+    })
+    .map((row) => ({
+      scopeId,
+      userId: row.userId,
+      date,
+      recordedAt: now,
+      nickname: row.nickname || null,
+      affinity: Number(row.affinity || 0),
+      longTermAffinity: Number(row.longTermAffinity ?? row.affinity ?? 0),
+      shortTermAffinity: Number(row.shortTermAffinity || 0),
+      chatCount: Number(row.chatCount || 0),
+      relation: row.relation || null,
+      specialRelation: row.specialRelation || null,
+      lastInteractionAt: row.lastInteractionAt || null,
+    }));
 }
 
 function hasSnapshotSourceData(source: DashboardSnapshotSource): boolean {
@@ -240,7 +265,12 @@ export async function recordDashboardSnapshot(
     source,
     options.trigger,
   );
-  const userSnapshots = createUserAffinitySnapshots(scopeId, now, source);
+  const userSnapshots = createUserAffinitySnapshots(
+    scopeId,
+    now,
+    source,
+    existingUserAffinitySnapshots,
+  );
   // 后台会周期性采样，同一天用主键覆盖当天快照，避免趋势图出现同一日期的重复点。
   await ctx.database.upsert(DASHBOARD_SNAPSHOT_MODEL_NAME, [snapshot]);
   if (userSnapshots.length > 0) {
