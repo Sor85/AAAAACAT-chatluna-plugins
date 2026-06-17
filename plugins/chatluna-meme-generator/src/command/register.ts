@@ -16,12 +16,19 @@ import {
   buildMemeListSections,
   buildListMessage,
   fetchMemeListInfos,
+  formatMemeSearchResultMessage,
   formatMemeListLines,
+  searchMemeInfos,
+  sendMemeListForwardMessage,
+  sendMemeSearchForwardMessage,
+  splitMemeListMessages,
 } from "./register/meme-list";
 import {
   buildExcludedMemeKeySet,
+  buildGroupExcludedMemeKeySets,
   filterExcludedMemeKeys,
   isExcludedMemeKey,
+  resolveSessionGroupId,
 } from "./register/exclusion";
 import { mapRuntimeErrorMessage, replyOrSilent } from "./register/errors";
 import {
@@ -209,6 +216,7 @@ export function registerCommands(ctx: Context, config: Config): void {
     config.timeoutMs,
   );
   const excludedMemeKeySet = buildExcludedMemeKeySet(config);
+  const groupExcludedMemeKeySets = buildGroupExcludedMemeKeySets(config);
   let categoryExcludedMemeKeySet = new Set<string>();
   let categoryExcludedMemeKeySetLoaded = false;
   const ensureCategoryExcludedMemeKeySet = async (
@@ -224,9 +232,19 @@ export function registerCommands(ctx: Context, config: Config): void {
     );
     categoryExcludedMemeKeySetLoaded = true;
   };
-  const mergedExcludedMemeKeySet = (): Set<string> => {
+  const mergedGlobalExcludedMemeKeySet = (): Set<string> => {
     if (categoryExcludedMemeKeySet.size === 0) return excludedMemeKeySet;
     return new Set([...excludedMemeKeySet, ...categoryExcludedMemeKeySet]);
+  };
+  const mergedExcludedMemeKeySet = (session?: unknown): Set<string> => {
+    const globalExcludedSet = mergedGlobalExcludedMemeKeySet();
+    const groupId = resolveSessionGroupId(session);
+    const groupExcludedSet = groupId
+      ? groupExcludedMemeKeySets.get(groupId)
+      : undefined;
+    if (!groupExcludedSet || groupExcludedSet.size === 0)
+      return globalExcludedSet;
+    return new Set([...globalExcludedSet, ...groupExcludedSet]);
   };
 
   const resolveMemeKey = createMemeKeyResolver(client, {
@@ -352,13 +370,14 @@ export function registerCommands(ctx: Context, config: Config): void {
 
   const executePreview = async (
     key: string,
+    session?: unknown,
   ): Promise<string | ReturnType<typeof h.image>> => {
     if (!key) return handleErrorReply("meme.preview", "请提供模板 key。");
 
     try {
       await ensureCategoryExcludedMemeKeySet();
       const resolvedKey = await resolveMemeKey(key);
-      if (isExcludedMemeKey(resolvedKey, mergedExcludedMemeKeySet())) {
+      if (isExcludedMemeKey(resolvedKey, mergedExcludedMemeKeySet(session))) {
         return handleErrorReply("meme.preview", "该模板已被排除。");
       }
       const preview = await client.getPreview(resolvedKey);
@@ -370,11 +389,14 @@ export function registerCommands(ctx: Context, config: Config): void {
 
   ctx.command("meme.list", "列出可用 meme 模板").action(async ({ session }) => {
     try {
-      const oldMergedExcludedCount = mergedExcludedMemeKeySet().size;
+      const oldMergedExcludedCount = mergedExcludedMemeKeySet(session).size;
       const rawKeys = await client.getKeys();
       await ensureCategoryExcludedMemeKeySet(rawKeys, true);
-      const keys = filterExcludedMemeKeys(rawKeys, mergedExcludedMemeKeySet());
-      if (oldMergedExcludedCount !== mergedExcludedMemeKeySet().size) {
+      const keys = filterExcludedMemeKeys(
+        rawKeys,
+        mergedExcludedMemeKeySet(session),
+      );
+      if (oldMergedExcludedCount !== mergedExcludedMemeKeySet(session).size) {
         logger.info(
           "meme category exclusion loaded: %d keys",
           categoryExcludedMemeKeySet.size,
@@ -389,7 +411,10 @@ export function registerCommands(ctx: Context, config: Config): void {
         );
 
       const infoResults = await fetchMemeListInfos(client, keys, config);
-      const entries = buildMemeListEntries(infoResults);
+      const entries = buildMemeListEntries(
+        infoResults,
+        config.showMemeListKey,
+      );
       const sections = buildMemeListSections(entries);
       const lines = formatMemeListLines(sections);
       if (lines.length === 0)
@@ -400,7 +425,7 @@ export function registerCommands(ctx: Context, config: Config): void {
           "当前后端没有可用模板。",
         );
 
-      return await buildListMessage(
+      const message = await buildListMessage(
         ctx as ContextWithOptionalServices,
         sections,
         lines,
@@ -408,19 +433,79 @@ export function registerCommands(ctx: Context, config: Config): void {
         (session as { platform?: string } | undefined)?.platform,
         logger,
       );
+      if (!config.renderMemeListAsImage) {
+        const chunks = splitMemeListMessages(sections);
+        if (config.sendMemeListAsForward) {
+          const sent = await sendMemeListForwardMessage(
+            session,
+            sections,
+            logger,
+          );
+          if (sent) return;
+        }
+        if (session) {
+          for (const chunk of chunks) {
+            await session.send(chunk);
+          }
+          return;
+        }
+        return chunks.join("\n");
+      }
+      return message;
     } catch (error) {
       return handleRuntimeError("meme.list", error);
     }
   });
 
   ctx
+    .command("meme.search <关键词:string>", "搜索 meme 模板")
+    .action(async ({ session }, keyword) => {
+      if (!keyword)
+        return handleErrorReply("meme.search", "用法：meme.search <关键词>");
+      try {
+        const rawKeys = await client.getKeys();
+        await ensureCategoryExcludedMemeKeySet(rawKeys, true);
+        const keys = filterExcludedMemeKeys(
+          rawKeys,
+          mergedExcludedMemeKeySet(session),
+        );
+        if (keys.length === 0)
+          return replyOrSilent(
+            config,
+            logger,
+            "meme.search",
+            "当前后端没有可用模板。",
+          );
+
+        const infoResults = await fetchMemeListInfos(client, keys, config);
+        const results = searchMemeInfos(infoResults, keyword);
+        if (results.length === 0) return `未找到相关表情：${keyword}`;
+        const message = formatMemeSearchResultMessage(results);
+        if (
+          config.sendMemeSearchAsForward &&
+          (await sendMemeSearchForwardMessage(
+            session,
+            message,
+            results.length,
+            logger,
+          ))
+        ) {
+          return;
+        }
+        return message;
+      } catch (error) {
+        return handleRuntimeError("meme.search", error);
+      }
+    });
+
+  ctx
     .command("meme.info <key:string>", "查看模板参数约束")
-    .action(async (_, key) => {
+    .action(async ({ session }, key) => {
       if (!key) return handleErrorReply("meme.info", "请提供模板 key。");
       try {
         await ensureCategoryExcludedMemeKeySet();
         const resolvedKey = await resolveMemeKey(key);
-        if (isExcludedMemeKey(resolvedKey, mergedExcludedMemeKeySet())) {
+        if (isExcludedMemeKey(resolvedKey, mergedExcludedMemeKeySet(session))) {
           return handleErrorReply("meme.info", "该模板已被排除。");
         }
         const info = await client.getInfo(resolvedKey);
@@ -440,7 +525,7 @@ export function registerCommands(ctx: Context, config: Config): void {
 
   ctx
     .command("meme.preview <key:string>", "预览模板效果")
-    .action(async (_, key) => executePreview(key));
+    .action(async ({ session }, key) => executePreview(key, session));
 
   const aliasLogger = logger;
   let initializedNotified = false;
@@ -455,12 +540,22 @@ export function registerCommands(ctx: Context, config: Config): void {
     });
   };
 
-  const isExcludedFromMergedSet = (key: string): boolean => {
-    return isExcludedMemeKey(key, mergedExcludedMemeKeySet());
+  const isExcludedFromGlobalSet = (key: string): boolean => {
+    return isExcludedMemeKey(key, mergedGlobalExcludedMemeKeySet());
   };
 
-  const filterExcludedFromMergedSet = (keys: string[]): string[] => {
-    return filterExcludedMemeKeys(keys, mergedExcludedMemeKeySet());
+  const isExcludedFromMergedSet = (
+    key: string,
+    session?: unknown,
+  ): boolean => {
+    return isExcludedMemeKey(key, mergedExcludedMemeKeySet(session));
+  };
+
+  const filterExcludedFromMergedSet = (
+    keys: string[],
+    session?: unknown,
+  ): string[] => {
+    return filterExcludedMemeKeys(keys, mergedExcludedMemeKeySet(session));
   };
 
   const xmlExecutor = createXmlMemeToolExecutor({
@@ -625,7 +720,8 @@ export function registerCommands(ctx: Context, config: Config): void {
       logger: aliasLogger,
       ensureCategoryExcludedMemeKeySet,
       notifyInitializedSummary,
-      isExcludedMemeKey: isExcludedFromMergedSet,
+      isGloballyExcludedMemeKey: isExcludedFromGlobalSet,
+      isSessionExcludedMemeKey: isExcludedFromMergedSet,
       handleGenerate: async (session, key, texts) => {
         return await handleGenerate(ctx, session, client, config, key, texts);
       },
@@ -700,7 +796,7 @@ export function registerCommands(ctx: Context, config: Config): void {
         await ensureCategoryExcludedMemeKeySet(rawKeys, true);
         const keyCount = filterExcludedMemeKeys(
           rawKeys,
-          mergedExcludedMemeKeySet(),
+          mergedGlobalExcludedMemeKeySet(),
         ).length;
         notifyInitializedSummary(keyCount);
       } catch (error) {
@@ -732,7 +828,7 @@ export function registerCommands(ctx: Context, config: Config): void {
             ? await resolveMemeTriggerPrefix(key)
             : undefined;
           const resolvedKey = mergedTrigger?.key ?? (await resolveMemeKey(key));
-          if (isExcludedMemeKey(resolvedKey, mergedExcludedMemeKeySet())) {
+          if (isExcludedMemeKey(resolvedKey, mergedExcludedMemeKeySet(session))) {
             return handleErrorReply("meme.generate", "该模板已被排除。");
           }
           const mergedTexts = mergedTrigger

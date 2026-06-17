@@ -12,7 +12,6 @@ type AvatarImageResult = GenerateImageInput | undefined;
 type AsyncAvatarImageMock = (...args: any[]) => Promise<AvatarImageResult>;
 type AsyncAvatarImagesMock = (...args: any[]) => Promise<GenerateImageInput[]>;
 type AsyncDisplayNameMock = (...args: any[]) => Promise<string | undefined>;
-type DisplayNameMock = (...args: any[]) => string | undefined;
 type MemeTriggerPrefixResolverMock = (
   input: string,
 ) => Promise<{ key: string; rest: string } | undefined>;
@@ -56,7 +55,7 @@ const avatarMocks = vi.hoisted(() => ({
   getMentionedTargetDisplayName: vi.fn<AsyncDisplayNameMock>(
     async () => undefined,
   ),
-  getSenderDisplayName: vi.fn<DisplayNameMock>(() => undefined),
+  resolveSenderDisplayName: vi.fn<AsyncDisplayNameMock>(async () => undefined),
   resolveAvatarImageByUserId: vi.fn<AsyncAvatarImageMock>(
     async () => undefined,
   ),
@@ -73,7 +72,7 @@ vi.mock("../../src/utils/avatar", () => ({
     avatarMocks.getMentionedSecondaryAvatarImage,
   getBotAvatarImage: avatarMocks.getBotAvatarImage,
   getMentionedTargetDisplayName: avatarMocks.getMentionedTargetDisplayName,
-  getSenderDisplayName: avatarMocks.getSenderDisplayName,
+  resolveSenderDisplayName: avatarMocks.resolveSenderDisplayName,
   resolveAvatarImageByUserId: avatarMocks.resolveAvatarImageByUserId,
   resolveDisplayNameByUserId: avatarMocks.resolveDisplayNameByUserId,
 }));
@@ -134,6 +133,15 @@ vi.mock("../../src/infra/client", () => ({
 }));
 
 import { registerCommands } from "../../src/command/register";
+import {
+  MEME_LIST_TEXT_CHUNK_BYTE_LIMIT,
+  splitMemeListMessages,
+  splitMemeListText,
+} from "../../src/command/register/meme-list";
+
+type MockSessionEvent = Record<string, unknown> & {
+  user: Record<string, unknown>;
+};
 
 interface MatchOptions {
   appel?: boolean;
@@ -315,15 +323,19 @@ function createBaseConfig(overrides: Partial<Config> = {}): Config {
     enableQuotedImageTrigger: true,
     enableQuotedTextTrigger: false,
     renderMemeListAsImage: false,
+    sendMemeListAsForward: true,
+    sendMemeSearchAsForward: true,
     enableDirectAliasWithoutPrefix: true,
     allowMentionPrefixDirectAliasTrigger: false,
     allowLeadingAtBeforeCommand: false,
     enableDeveloperDebugLog: false,
+    randomOutputMemeKey: "",
     enableMemeXmlTool: false,
     injectMemeXmlToolAsReplyTool: false,
     enableRandomDedupeWithinHours: false,
     randomDedupeWindowHours: 24,
     enableRandomKeywordNotice: false,
+    showMemeListKey: false,
     randomMemeBucketWeightRules: [
       { category: "text-only", enabled: true, weight: 100 },
       { category: "single-image-only", enabled: true, weight: 100 },
@@ -340,6 +352,7 @@ function createBaseConfig(overrides: Partial<Config> = {}): Config {
     excludeImageAndTextMemes: false,
     excludeOtherMemes: false,
     excludedMemeKeys: [],
+    groupExcludedMemeKeys: [],
     ...overrides,
     enableMemeCommandTrigger: overrides.enableMemeCommandTrigger ?? true,
   };
@@ -364,6 +377,68 @@ function createSession(content: string, elements: any[] = []) {
     bot: {
       user: {},
       getLogin: vi.fn(async () => ({ user: {} })),
+    },
+  } as {
+    send: ReturnType<typeof vi.fn>;
+    execute: ReturnType<typeof vi.fn>;
+    stripped: {
+      content: string;
+      hasAt: boolean;
+      atSelf: boolean;
+      appel: boolean;
+    };
+    elements: any[];
+    quote: undefined;
+    author: undefined;
+    event: MockSessionEvent;
+    bot: {
+      user: Record<string, unknown>;
+      getLogin: ReturnType<typeof vi.fn>;
+    };
+    guildId?: string;
+  };
+}
+
+function createOneBotGroupSession(
+  content: string,
+  groupId: string | number,
+  rawField: "event" | "_data" | "_data.d" = "event",
+) {
+  const session = createSession(content);
+  if (rawField === "event") {
+    session.event.message_type = "group";
+    session.event.group_id = groupId;
+  } else if (rawField === "_data") {
+    session.event._data = {
+      message_type: "group",
+      group_id: groupId,
+    };
+  } else {
+    session.event._data = {
+      d: {
+        message_type: "group",
+        group_id: groupId,
+      },
+    };
+  }
+  return session;
+}
+
+type OneBotRequestMock = ReturnType<
+  typeof vi.fn<
+    (action: string, params: Record<string, unknown>) => Promise<unknown>
+  >
+>;
+
+function createOneBotListSession(request: OneBotRequestMock) {
+  return {
+    ...createSession("meme.list"),
+    platform: "onebot",
+    guildId: "20001",
+    bot: {
+      user: { id: "bot", name: "Bot" },
+      getLogin: vi.fn(async () => ({ user: { id: "bot", name: "Bot" } })),
+      internal: { _request: request },
     },
   };
 }
@@ -402,7 +477,7 @@ function resetCommonMocks() {
   avatarMocks.getMentionedSecondaryAvatarImage.mockReset();
   avatarMocks.getBotAvatarImage.mockReset();
   avatarMocks.getMentionedTargetDisplayName.mockReset();
-  avatarMocks.getSenderDisplayName.mockReset();
+  avatarMocks.resolveSenderDisplayName.mockReset();
   avatarMocks.resolveAvatarImageByUserId.mockReset();
   avatarMocks.resolveDisplayNameByUserId.mockReset();
   avatarMocks.getSenderAvatarImage.mockResolvedValue(undefined);
@@ -411,7 +486,7 @@ function resetCommonMocks() {
   avatarMocks.getMentionedSecondaryAvatarImage.mockResolvedValue(undefined);
   avatarMocks.getBotAvatarImage.mockResolvedValue(undefined);
   avatarMocks.getMentionedTargetDisplayName.mockResolvedValue(undefined);
-  avatarMocks.getSenderDisplayName.mockReturnValue(undefined);
+  avatarMocks.resolveSenderDisplayName.mockResolvedValue(undefined);
   avatarMocks.resolveAvatarImageByUserId.mockResolvedValue(undefined);
   avatarMocks.resolveDisplayNameByUserId.mockResolvedValue(undefined);
 
@@ -590,6 +665,283 @@ describe("registerCommands", () => {
       "aliases: 骑猪 | 骑猪快捷 | 坐骑猪",
     );
     expect(String(result)).toContain("default_texts: 默认文案");
+  });
+
+  it("meme.search 应按 key、关键词、标签和快捷句式查找模板", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu", "tag-match", "shortcut-match"]);
+    getInfoMock.mockImplementation(async (key: string) => ({
+      key,
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords:
+        key === "qizhu"
+          ? ["骑猪"]
+          : key === "tag-match"
+            ? ["标签命中"]
+            : ["快捷命中"],
+      shortcuts:
+        key === "shortcut-match"
+          ? [{ key: "shortcut-key", humanized: "搜骑猪快捷" }]
+          : [],
+      tags: key === "tag-match" ? ["搜骑猪标签"] : [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    }));
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const searchAction = commandActions.get("meme.search <关键词:string>");
+    expect(searchAction).toBeDefined();
+
+    const result = String(await searchAction!({}, "骑猪"));
+
+    expect(result).toContain("搜索结果（查看 3 条搜索结果）");
+    expect(result).toContain("1. 骑猪");
+    expect(result).toContain("2. 标签命中");
+    expect(result).toContain("3. 快捷命中");
+  });
+
+  it("meme.search 应过滤当前会话不可用的模板", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue([
+      "global_blocked",
+      "group_blocked",
+      "text_only",
+      "visible",
+    ]);
+    getInfoMock.mockImplementation(async (key: string) => ({
+      key,
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: key === "text_only" ? 1 : 0,
+        max_texts: key === "text_only" ? 1 : 0,
+        default_texts: [],
+      },
+      keywords: [`${key}_搜索命中`],
+      shortcuts: [],
+      tags: ["搜索命中"],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    }));
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+        excludedMemeKeys: ["global_blocked"],
+        groupExcludedMemeKeys: [
+          {
+            groupId: "20001",
+            excludedMemeKeys: ["group_blocked"],
+          },
+        ],
+        excludeTextOnlyMemes: true,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const searchAction = commandActions.get("meme.search <关键词:string>");
+    expect(searchAction).toBeDefined();
+
+    const session = createSession("meme.search 搜索命中");
+    session.guildId = "20001";
+    const result = String(await searchAction!({ session }, "搜索命中"));
+
+    expect(result).toContain("1. visible_搜索命中");
+    expect(result).not.toContain("global_blocked_搜索命中");
+    expect(result).not.toContain("group_blocked_搜索命中");
+    expect(result).not.toContain("text_only_搜索命中");
+  });
+
+  it("meme.search 在无结果时应返回提示", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu"]);
+    getInfoMock.mockResolvedValue({
+      key: "qizhu",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: ["骑猪"],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const searchAction = commandActions.get("meme.search <关键词:string>");
+    expect(searchAction).toBeDefined();
+
+    await expect(searchAction!({}, "不存在")).resolves.toBe(
+      "未找到相关表情：不存在",
+    );
+  });
+
+  it("meme.search 默认应通过 OneBot 合并转发发送搜索结果", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const request = vi.fn(async () => undefined);
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu"]);
+    getInfoMock.mockResolvedValue({
+      key: "qizhu",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: ["骑猪"],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const searchAction = commandActions.get("meme.search <关键词:string>");
+    expect(searchAction).toBeDefined();
+
+    const result = await searchAction!({ session: createOneBotListSession(request) }, "骑猪");
+
+    expect(result).toBeUndefined();
+    expect(request).toHaveBeenCalledWith(
+      "send_group_forward_msg",
+      expect.objectContaining({
+        group_id: 20001,
+        messages: [
+          {
+            type: "node",
+            data: expect.objectContaining({
+              content: "搜索结果（查看 1 条搜索结果）\n1. 骑猪",
+            }),
+          },
+        ],
+      }),
+    );
+  });
+
+  it("关闭合并转发开关时 meme.search 应返回文本", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const request = vi.fn(async () => undefined);
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu"]);
+    getInfoMock.mockResolvedValue({
+      key: "qizhu",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: ["骑猪"],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+        sendMemeSearchAsForward: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const searchAction = commandActions.get("meme.search <关键词:string>");
+    expect(searchAction).toBeDefined();
+
+    const result = await searchAction!({ session: createOneBotListSession(request) }, "骑猪");
+
+    expect(result).toBe("搜索结果（查看 1 条搜索结果）\n1. 骑猪");
+    expect(request).not.toHaveBeenCalled();
   });
 
   it("chatluna_character 延迟可用后仍应挂载 XML runtime", async () => {
@@ -1330,7 +1682,7 @@ describe("registerCommands", () => {
 
   it("直触发中文别名在 @ 后携带文本时应保留用户文本", async () => {
     avatarMocks.getMentionedTargetDisplayName.mockResolvedValue("被@群昵称");
-    avatarMocks.getSenderDisplayName.mockReturnValue("发送者群昵称");
+    avatarMocks.resolveSenderDisplayName.mockResolvedValue("发送者群昵称");
 
     getInfoMock.mockResolvedValue({
       key: "qizhu",
@@ -2460,6 +2812,56 @@ describe("registerCommands", () => {
     randomSpy.mockRestore();
   });
 
+  it("meme.random 设置固定输出 key 时应只生成指定模板", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["random-a", "random-b"]);
+    getInfoMock.mockImplementation(async (key: string) =>
+      createRandomMemeInfo(key, {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 1,
+        default_texts: [],
+      }),
+    );
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        randomOutputMemeKey: " fixed-key ",
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const randomAction = commandActions.get("meme.random [...texts]");
+    expect(randomAction).toBeDefined();
+
+    const result = await randomAction!({
+      session: createSession("meme.random"),
+    });
+
+    expect(result).toBeTruthy();
+    expect(getInfoMock).toHaveBeenCalledWith("fixed-key");
+    expect(generateMock).toHaveBeenCalledWith("fixed-key", [], [], {});
+    expect(generateMock).not.toHaveBeenCalledWith(
+      "random-a",
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
   it("meme.random 开启去重时桶耗尽后应直接切换到仍有候选的其他桶", async () => {
     const commandActions = new Map<
       string,
@@ -2990,6 +3392,364 @@ describe("registerCommands", () => {
     expect(getPreviewMock).not.toHaveBeenCalled();
   });
 
+  it("分群屏蔽列表应只过滤当前群的 meme.list", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["global_blocked", "group_blocked", "visible"]);
+    getInfoMock.mockImplementation(async (key: string) => ({
+      key,
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: [key],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    }));
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        excludedMemeKeys: ["global_blocked"],
+        groupExcludedMemeKeys: [
+          {
+            groupId: "20001",
+            excludedMemeKeys: ["group_blocked"],
+          },
+        ],
+        sendMemeListAsForward: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const listAction = commandActions.get("meme.list");
+    expect(listAction).toBeDefined();
+
+    const blockedGroupSession = createSession("meme.list");
+    blockedGroupSession.guildId = "20001";
+    await listAction!({ session: blockedGroupSession });
+    const blockedGroupContent = (
+      blockedGroupSession.send as ReturnType<typeof vi.fn>
+    ).mock.calls
+      .map((call) => String(call[0] ?? ""))
+      .join("\n");
+
+    expect(blockedGroupContent).toContain("visible");
+    expect(blockedGroupContent).not.toContain("global_blocked");
+    expect(blockedGroupContent).not.toContain("group_blocked");
+
+    const otherGroupSession = createSession("meme.list");
+    otherGroupSession.guildId = "30001";
+    await listAction!({ session: otherGroupSession });
+    const otherGroupContent = (
+      otherGroupSession.send as ReturnType<typeof vi.fn>
+    ).mock.calls
+      .map((call) => String(call[0] ?? ""))
+      .join("\n");
+
+    expect(otherGroupContent).toContain("visible");
+    expect(otherGroupContent).not.toContain("global_blocked");
+    expect(otherGroupContent).toContain("group_blocked");
+  });
+
+  it("分群屏蔽列表应识别 OneBot 原始群号字段", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["visible", "group_blocked"]);
+    getInfoMock.mockImplementation(async (key: string) => ({
+      key,
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: [key],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    }));
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        groupExcludedMemeKeys: [
+          {
+            groupId: "20001",
+            excludedMemeKeys: ["group_blocked"],
+          },
+        ],
+        sendMemeListAsForward: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const listAction = commandActions.get("meme.list");
+    expect(listAction).toBeDefined();
+
+    const topLevelSession = createOneBotGroupSession("meme.list", 20001);
+    await listAction!({ session: topLevelSession });
+    const topLevelContent = (
+      topLevelSession.send as ReturnType<typeof vi.fn>
+    ).mock.calls
+      .map((call) => String(call[0] ?? ""))
+      .join("\n");
+
+    expect(topLevelContent).toContain("visible");
+    expect(topLevelContent).not.toContain("group_blocked");
+
+    const rawDataSession = createOneBotGroupSession(
+      "meme.list",
+      20001,
+      "_data",
+    );
+    await listAction!({ session: rawDataSession });
+    const rawDataContent = (
+      rawDataSession.send as ReturnType<typeof vi.fn>
+    ).mock.calls
+      .map((call) => String(call[0] ?? ""))
+      .join("\n");
+
+    expect(rawDataContent).toContain("visible");
+    expect(rawDataContent).not.toContain("group_blocked");
+
+    const rawPayloadSession = createOneBotGroupSession(
+      "meme.list",
+      20001,
+      "_data.d",
+    );
+    await listAction!({ session: rawPayloadSession });
+    const rawPayloadContent = (
+      rawPayloadSession.send as ReturnType<typeof vi.fn>
+    ).mock.calls
+      .map((call) => String(call[0] ?? ""))
+      .join("\n");
+
+    expect(rawPayloadContent).toContain("visible");
+    expect(rawPayloadContent).not.toContain("group_blocked");
+  });
+
+  it("分群屏蔽列表应拦截当前群显式生成但不影响其他群", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu"]);
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        groupExcludedMemeKeys: [
+          {
+            groupId: "20001",
+            excludedMemeKeys: ["qizhu"],
+          },
+        ],
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const generateAction = commandActions.get("meme <key:string> [...texts]");
+    expect(generateAction).toBeDefined();
+
+    const blockedGroupSession = createSession("meme qizhu");
+    blockedGroupSession.guildId = "20001";
+    await expect(
+      generateAction!({ session: blockedGroupSession }, "qizhu"),
+    ).resolves.toContain("该模板已被排除");
+    expect(generateMock).not.toHaveBeenCalled();
+
+    const otherGroupSession = createSession("meme qizhu");
+    otherGroupSession.guildId = "30001";
+    await generateAction!({ session: otherGroupSession }, "qizhu");
+
+    expect(generateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("分群屏蔽列表应拦截当前群无前缀直连中文别名", async () => {
+    const { ctx, readyHandlers, matchHandlers, loggerWarn } =
+      createMockContext();
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: true,
+        disableErrorReplyToPlatform: true,
+        groupExcludedMemeKeys: [
+          {
+            groupId: "20001",
+            excludedMemeKeys: ["qizhu"],
+          },
+        ],
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    expect(matchHandlers).toHaveLength(1);
+
+    const blockedGroupSession = createSession("骑猪");
+    blockedGroupSession.guildId = "20001";
+    await expect(matchHandlers[0](blockedGroupSession)).resolves.toBe("");
+    expect(generateMock).not.toHaveBeenCalled();
+    expect(loggerWarn).toHaveBeenCalledWith(
+      "direct-alias skipped reply: %s",
+      "该模板已被排除。",
+    );
+
+    const otherGroupSession = createSession("骑猪");
+    otherGroupSession.guildId = "30001";
+    await expect(matchHandlers[0](otherGroupSession)).resolves.toBeTruthy();
+
+    expect(generateMock).toHaveBeenCalledWith("qizhu", [], [], {});
+  });
+
+  it("分群屏蔽列表应拦截当前群的 info 和 preview", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu"]);
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        groupExcludedMemeKeys: [
+          {
+            groupId: "20001",
+            excludedMemeKeys: ["qizhu"],
+          },
+        ],
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const infoAction = commandActions.get("meme.info <key:string>");
+    const previewAction = commandActions.get("meme.preview <key:string>");
+    expect(infoAction).toBeDefined();
+    expect(previewAction).toBeDefined();
+
+    const blockedGroupSession = createSession("meme.info qizhu");
+    blockedGroupSession.guildId = "20001";
+    await expect(
+      infoAction!({ session: blockedGroupSession }, "qizhu"),
+    ).resolves.toContain("该模板已被排除");
+    await expect(
+      previewAction!({ session: blockedGroupSession }, "qizhu"),
+    ).resolves.toContain("该模板已被排除");
+
+    const otherGroupSession = createSession("meme.info qizhu");
+    otherGroupSession.guildId = "30001";
+    await expect(
+      infoAction!({ session: otherGroupSession }, "qizhu"),
+    ).resolves.toContain("key: qizhu");
+    await previewAction!({ session: otherGroupSession }, "qizhu");
+
+    expect(getPreviewMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("分群屏蔽列表应过滤当前群 meme.random 候选", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["group_blocked"]);
+    getInfoMock.mockResolvedValue({
+      key: "group_blocked",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: ["group_blocked"],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        groupExcludedMemeKeys: [
+          {
+            groupId: "20001",
+            excludedMemeKeys: ["group_blocked"],
+          },
+        ],
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const randomAction = commandActions.get("meme.random [...texts]");
+    expect(randomAction).toBeDefined();
+
+    const blockedGroupSession = createSession("meme.random");
+    blockedGroupSession.guildId = "20001";
+    await expect(randomAction!({ session: blockedGroupSession })).resolves.toBe(
+      "当前后端没有可用模板。",
+    );
+    expect(generateMock).not.toHaveBeenCalled();
+
+    const otherGroupSession = createSession("meme.random");
+    otherGroupSession.guildId = "30001";
+    await randomAction!({ session: otherGroupSession });
+
+    expect(generateMock).toHaveBeenCalledTimes(1);
+  });
+
   it("排除仅需 1 张图片模板时应过滤 meme.list 并拦截 meme.random", async () => {
     const commandActions = new Map<
       string,
@@ -3167,11 +3927,541 @@ describe("registerCommands", () => {
 
     expect(listAction).toBeDefined();
 
-    const result = await listAction!({ session: createSession("meme.list") });
+    const session = createSession("meme.list");
+    const result = await listAction!({ session });
+    const sentContent = (session.send as ReturnType<typeof vi.fn>).mock.calls
+      .map((call) => String(call[0] ?? ""))
+      .join("\n");
 
-    expect(result).toContain("保留文本模板");
-    expect(result).not.toContain("大写单图模板");
-    expect(result).not.toContain("what_I_want_to_do");
+    expect(result).toBeUndefined();
+    expect(sentContent).toContain("保留文本模板");
+    expect(sentContent).not.toContain("大写单图模板");
+    expect(sentContent).not.toContain("what_I_want_to_do");
+  });
+
+  it("meme.list 默认不应显示模板 key", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu"]);
+    getInfoMock.mockResolvedValue({
+      key: "qizhu",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: ["骑猪"],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const listAction = commandActions.get("meme.list");
+    expect(listAction).toBeDefined();
+
+    const session = createSession("meme.list");
+    const result = await listAction!({ session });
+    const sentContent = (session.send as ReturnType<typeof vi.fn>).mock.calls
+      .map((call) => String(call[0] ?? ""))
+      .join("\n");
+
+    expect(result).toBeUndefined();
+    expect(sentContent).toContain("骑猪");
+    expect(sentContent).not.toContain("（qizhu）");
+    expect(sentContent).not.toContain("qizhu");
+  });
+
+  it("关闭图片列表时默认应通过 OneBot 合并转发发送 meme.list", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu"]);
+    getInfoMock.mockResolvedValue({
+      key: "qizhu",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: ["骑猪"],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const request = vi.fn<
+      (action: string, params: Record<string, unknown>) => Promise<unknown>
+    >(async () => undefined);
+    const listAction = commandActions.get("meme.list");
+    expect(listAction).toBeDefined();
+
+    const result = await listAction!({
+      session: createOneBotListSession(request),
+    });
+
+    expect(result).toBeUndefined();
+    expect(request).toHaveBeenCalledWith(
+      "send_group_forward_msg",
+      expect.objectContaining({
+        group_id: 20001,
+        messages: [
+          {
+            type: "node",
+            data: expect.objectContaining({
+              name: "Bot",
+              uin: "bot",
+              content: "无需参数",
+            }),
+          },
+          {
+            type: "node",
+            data: expect.objectContaining({
+              name: "Bot",
+              uin: "bot",
+              content: "骑猪",
+            }),
+          },
+        ],
+      }),
+    );
+  });
+
+  it("合并转发发送超长 meme.list 时应拆成多个 node", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu"]);
+    getInfoMock.mockResolvedValue({
+      key: "qizhu",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: ["测".repeat(1200)],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const request = vi.fn<
+      (action: string, params: Record<string, unknown>) => Promise<unknown>
+    >(async () => undefined);
+    const listAction = commandActions.get("meme.list");
+    expect(listAction).toBeDefined();
+
+    const result = await listAction!({
+      session: createOneBotListSession(request),
+    });
+
+    expect(result).toBeUndefined();
+    const call = request.mock.calls[0];
+    expect(call).toBeDefined();
+    const params = call?.[1] as {
+      messages: Array<{ data: { content: string } }>;
+    };
+    const messages = params.messages;
+    expect(messages.length).toBeGreaterThan(1);
+    expect(messages[0]?.data.content).toBe("无需参数");
+    for (const message of messages) {
+      expect(Buffer.byteLength(message.data.content, "utf8")).toBeLessThanOrEqual(
+        MEME_LIST_TEXT_CHUNK_BYTE_LIMIT,
+      );
+    }
+  });
+
+  it("关闭合并转发开关时 meme.list 应返回文本", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu"]);
+    getInfoMock.mockResolvedValue({
+      key: "qizhu",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: ["骑猪"],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+        sendMemeListAsForward: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const request = vi.fn<
+      (action: string, params: Record<string, unknown>) => Promise<unknown>
+    >(async () => undefined);
+    const listAction = commandActions.get("meme.list");
+    expect(listAction).toBeDefined();
+
+    const session = createOneBotListSession(request);
+    const result = await listAction!({ session });
+
+    expect(result).toBeUndefined();
+    expect(session.send).toHaveBeenNthCalledWith(1, "无需参数");
+    expect(session.send).toHaveBeenNthCalledWith(2, "骑猪");
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("OneBot 专用合并转发接口失败时应回退 send_forward_msg", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu"]);
+    getInfoMock.mockResolvedValue({
+      key: "qizhu",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: ["骑猪"],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const request = vi
+      .fn<(action: string, params: Record<string, unknown>) => Promise<unknown>>()
+      .mockRejectedValueOnce(new Error("unsupported action"))
+      .mockResolvedValueOnce(undefined);
+    const listAction = commandActions.get("meme.list");
+    expect(listAction).toBeDefined();
+
+    const result = await listAction!({
+      session: createOneBotListSession(request),
+    });
+
+    expect(result).toBeUndefined();
+    expect(request).toHaveBeenNthCalledWith(
+      1,
+      "send_group_forward_msg",
+      expect.objectContaining({ group_id: 20001 }),
+    );
+    expect(request).toHaveBeenNthCalledWith(
+      2,
+      "send_forward_msg",
+      expect.objectContaining({
+        message_type: "group",
+        group_id: 20001,
+      }),
+    );
+  });
+
+  it("图片列表模式下不应发送 OneBot 合并转发", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu"]);
+    getInfoMock.mockResolvedValue({
+      key: "qizhu",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: ["骑猪"],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+        renderMemeListAsImage: true,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const request = vi.fn<
+      (action: string, params: Record<string, unknown>) => Promise<unknown>
+    >(async () => undefined);
+    const listAction = commandActions.get("meme.list");
+    expect(listAction).toBeDefined();
+
+    const result = await listAction!({
+      session: createOneBotListSession(request),
+    });
+
+    expect(result).toBe("无需参数\n骑猪");
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("meme.list 文本应按字节上限分段", () => {
+    const chunks = splitMemeListText(`标题\n${"测".repeat(1200)}`);
+
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(
+      chunks.every(
+        (chunk) =>
+          Buffer.byteLength(chunk, "utf8") <= MEME_LIST_TEXT_CHUNK_BYTE_LIMIT,
+      ),
+    ).toBe(true);
+  });
+
+  it("meme.list 分类标题应独立成消息", () => {
+    const chunks = splitMemeListMessages([
+      { title: "无需参数", aliases: ["骑猪"] },
+      { title: "仅需文字", aliases: ["摸".repeat(1200)] },
+    ]);
+
+    expect(chunks[0]).toBe("无需参数");
+    expect(chunks[1]).toBe("骑猪");
+    expect(chunks[2]).toBe("仅需文字");
+    expect(chunks.slice(3).every((chunk) => chunk !== "仅需文字")).toBe(true);
+    expect(
+      chunks.every(
+        (chunk) =>
+          Buffer.byteLength(chunk, "utf8") <= MEME_LIST_TEXT_CHUNK_BYTE_LIMIT,
+      ),
+    ).toBe(true);
+  });
+
+  it("关闭图片与合并转发时，超长 meme.list 应分段发送", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu"]);
+    getInfoMock.mockResolvedValue({
+      key: "qizhu",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: ["测".repeat(1200)],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+        sendMemeListAsForward: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const session = createSession("meme.list");
+    const listAction = commandActions.get("meme.list");
+    expect(listAction).toBeDefined();
+
+    const result = await listAction!({ session });
+
+    expect(result).toBeUndefined();
+    const chunks = splitMemeListMessages([
+      { title: "无需参数", aliases: ["测".repeat(1200)] },
+    ]);
+    const sendMock = session.send as ReturnType<typeof vi.fn>;
+    expect(sendMock).toHaveBeenCalledTimes(chunks.length);
+    expect(sendMock).toHaveBeenNthCalledWith(1, "无需参数");
+    for (const sent of sendMock.mock.calls) {
+      expect(Buffer.byteLength(String(sent[0] ?? ""), "utf8")).toBeLessThanOrEqual(
+        MEME_LIST_TEXT_CHUNK_BYTE_LIMIT,
+      );
+    }
+  });
+
+  it("开启显示 key 后 meme.list 应显示别名与 key", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu", "plain_key"]);
+    getInfoMock.mockImplementation(async (key: string) => {
+      if (key === "qizhu") {
+        return {
+          key,
+          params_type: {
+            min_images: 0,
+            max_images: 0,
+            min_texts: 0,
+            max_texts: 0,
+            default_texts: [],
+          },
+          keywords: ["骑猪"],
+          shortcuts: [],
+          tags: [],
+          date_created: "2026-01-01T00:00:00",
+          date_modified: "2026-01-01T00:00:00",
+        };
+      }
+      return {
+        key,
+        params_type: {
+          min_images: 0,
+          max_images: 0,
+          min_texts: 0,
+          max_texts: 0,
+          default_texts: [],
+        },
+        keywords: [],
+        shortcuts: [],
+        tags: [],
+        date_created: "2026-01-01T00:00:00",
+        date_modified: "2026-01-01T00:00:00",
+      };
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+        showMemeListKey: true,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const listAction = commandActions.get("meme.list");
+    expect(listAction).toBeDefined();
+
+    const session = createSession("meme.list");
+    const result = await listAction!({ session });
+    const sentContent = (session.send as ReturnType<typeof vi.fn>).mock.calls
+      .map((call) => String(call[0] ?? ""))
+      .join("\n");
+
+    expect(result).toBeUndefined();
+    expect(sentContent).toContain("骑猪（qizhu）");
+    expect(sentContent).toContain("plain_key");
   });
 
   it("排除其他模板时应过滤 meme.list 并拦截显式访问", async () => {

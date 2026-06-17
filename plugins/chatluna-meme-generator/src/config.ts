@@ -26,6 +26,11 @@ export interface RandomMemeBucketWeightRule {
   weight: number;
 }
 
+export interface GroupExcludedMemeKeyRule {
+  groupId: string;
+  excludedMemeKeys: string[];
+}
+
 export interface Config {
   baseUrl: string;
   timeoutMs: number;
@@ -37,12 +42,15 @@ export interface Config {
   enableQuotedImageTrigger: boolean;
   enableQuotedTextTrigger: boolean;
   renderMemeListAsImage: boolean;
+  sendMemeListAsForward: boolean;
+  sendMemeSearchAsForward: boolean;
   enableMemeCommandTrigger: boolean;
   enableDirectAliasWithoutPrefix: boolean;
   allowKeyWithoutPrefixTrigger?: boolean;
   allowMentionPrefixDirectAliasTrigger: boolean;
   allowLeadingAtBeforeCommand: boolean;
   enableDeveloperDebugLog: boolean;
+  randomOutputMemeKey: string;
   enableMemeXmlTool: boolean;
   injectMemeXmlToolAsReplyTool: boolean;
   memeXmlReferencePrompt?: string;
@@ -59,6 +67,8 @@ export interface Config {
   excludeImageAndTextMemes: boolean;
   excludeOtherMemes: boolean;
   excludedMemeKeys: string[];
+  groupExcludedMemeKeys?: GroupExcludedMemeKeyRule[];
+  showMemeListKey: boolean;
 }
 
 export const defaultConfig: Config = {
@@ -83,12 +93,15 @@ export const defaultConfig: Config = {
   enableQuotedImageTrigger: true,
   enableQuotedTextTrigger: false,
   renderMemeListAsImage: true,
+  sendMemeListAsForward: true,
+  sendMemeSearchAsForward: true,
   enableMemeCommandTrigger: true,
   enableDirectAliasWithoutPrefix: true,
   allowKeyWithoutPrefixTrigger: false,
   allowMentionPrefixDirectAliasTrigger: false,
   allowLeadingAtBeforeCommand: false,
   enableDeveloperDebugLog: false,
+  randomOutputMemeKey: "",
   enableMemeXmlTool: false,
   injectMemeXmlToolAsReplyTool: false,
   memeXmlReferencePrompt: `## 动作指令
@@ -125,6 +138,8 @@ export const defaultConfig: Config = {
   excludeImageAndTextMemes: false,
   excludeOtherMemes: false,
   excludedMemeKeys: [],
+  groupExcludedMemeKeys: [],
+  showMemeListKey: false,
 };
 
 const basicSchema = Schema.object({
@@ -266,7 +281,19 @@ const filterSchema = Schema.object({
   excludedMemeKeys: Schema.array(Schema.string().min(1))
     .role("table")
     .default(defaultConfig.excludedMemeKeys)
-    .description("排除模板`key`列表"),
+    .description("全局排除模板`key`列表"),
+  groupExcludedMemeKeys: Schema.array(
+    Schema.object({
+      groupId: Schema.string().required().description("群号"),
+      excludedMemeKeys: Schema.array(Schema.string().min(1))
+        .role("table")
+        .default([])
+        .description("该群额外排除模板`key`列表"),
+    }),
+  )
+    .role("table")
+    .default(defaultConfig.groupExcludedMemeKeys ?? [])
+    .description("分群排除模板`key`列表"),
 }).description("模板筛选设置");
 
 const runtimeSchema = Schema.object({
@@ -288,10 +315,25 @@ const runtimeSchema = Schema.object({
   renderMemeListAsImage: Schema.boolean()
     .default(defaultConfig.renderMemeListAsImage)
     .description("`meme.list`是否以图片形式输出"),
+  sendMemeListAsForward: Schema.boolean()
+    .default(defaultConfig.sendMemeListAsForward)
+    .description("关闭图片输出时，`meme.list`是否以 OneBot 合并转发发送"),
+  sendMemeSearchAsForward: Schema.boolean()
+    .default(defaultConfig.sendMemeSearchAsForward)
+    .description("`meme.search`是否以 OneBot 合并转发发送"),
+  showMemeListKey: Schema.boolean()
+    .default(defaultConfig.showMemeListKey)
+    .description("`meme.list`是否显示模板 key"),
+}).description("其他设置");
+
+const developerSchema = Schema.object({
   enableDeveloperDebugLog: Schema.boolean()
     .default(defaultConfig.enableDeveloperDebugLog)
     .description("开启调试日志"),
-}).description("其他设置");
+  randomOutputMemeKey: Schema.string()
+    .default(defaultConfig.randomOutputMemeKey)
+    .description("指定`meme.random`输出的模板`key`，留空不启用"),
+}).description("开发者模式");
 
 export const ConfigSchema: Schema<Config> = Schema.intersect([
   basicSchema,
@@ -301,4 +343,5 @@ export const ConfigSchema: Schema<Config> = Schema.intersect([
   triggerSchema,
   filterSchema,
   runtimeSchema,
+  developerSchema,
 ]);

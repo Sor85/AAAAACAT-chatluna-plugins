@@ -21,7 +21,7 @@ import {
   getMentionedAvatarImages,
   getMentionedTargetDisplayName,
   getSenderAvatarImage,
-  getSenderDisplayName,
+  resolveSenderDisplayName,
 } from "../../utils/avatar";
 import { buildRandomConfig, type PreparedAvatarImage } from "./generate";
 import { mapRuntimeErrorMessage, replyOrSilent } from "./errors";
@@ -34,7 +34,7 @@ interface InstallRandomRuntimeOptions {
   client: MemeBackendClient;
   logger: ReturnType<Context["logger"]>;
   ensureCategoryExcludedMemeKeySet: () => Promise<void>;
-  filterExcludedMemeKeys: (keys: string[]) => string[];
+  filterExcludedMemeKeys: (keys: string[], session: Session) => string[];
   handleGenerateWithPreparedInput: (
     key: string,
     texts: string[],
@@ -92,8 +92,14 @@ export function installRandomRuntime(
     try {
       await ensureCategoryExcludedMemeKeySet();
       const executeRandom = async () => {
-        const shuffledKeys = createShuffledKeys(await client.getKeys());
-        const filteredShuffledKeys = filterExcludedMemeKeys(shuffledKeys);
+        const requestedRandomKey = config.randomOutputMemeKey.trim();
+        // 开发者模式用于复现单个模板问题，非空时直接绕过随机候选列表。
+        const filteredShuffledKeys = requestedRandomKey
+          ? [requestedRandomKey]
+          : filterExcludedMemeKeys(
+              createShuffledKeys(await client.getKeys()),
+              session,
+            );
         if (filteredShuffledKeys.length === 0) {
           return replyOrSilent(
             config,
@@ -109,7 +115,7 @@ export function installRandomRuntime(
           texts,
           config,
         );
-        const senderName = getSenderDisplayName(session);
+        const senderName = await resolveSenderDisplayName(session);
         const groupNicknameEnabled =
           config.autoUseGroupNicknameWhenNoDefaultText;
         const targetDisplayName = groupNicknameEnabled

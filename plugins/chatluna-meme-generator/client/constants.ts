@@ -13,6 +13,7 @@ export const NAV_SECTIONS: SharedNavSection[] = [
   { title: "触发方式设置", key: "trigger" },
   { title: "模板筛选设置", key: "filter" },
   { title: "其他设置", key: "runtime" },
+  { title: "开发者模式", key: "developer" },
 ];
 
 export const PLUGIN_CANDIDATE_NAMES = [

@@ -13,7 +13,7 @@ import type { Config } from "../../config";
 import {
   getBotAvatarImage,
   getSenderAvatarImage,
-  getSenderDisplayName,
+  resolveSenderDisplayName,
   resolveAvatarImageByUserId,
   resolveDisplayNameByUserId,
 } from "../../utils/avatar";
@@ -52,7 +52,7 @@ export interface XmlMemeToolExecutorDeps {
   config: Config;
   ensureCategoryExcludedMemeKeySet: () => Promise<void>;
   resolveMemeKey: (key: string) => Promise<string>;
-  isExcludedMemeKey: (key: string) => boolean;
+  isExcludedMemeKey: (key: string, session: Session) => boolean;
   handleGenerateWithPreparedInput: (
     key: string,
     texts: string[],
@@ -83,7 +83,7 @@ interface InstallXmlRuntimeOptions {
   logger: ReturnType<Context["logger"]>;
   ensureCategoryExcludedMemeKeySet: () => Promise<void>;
   resolveMemeKey: (key: string) => Promise<string>;
-  isExcludedMemeKey: (key: string) => boolean;
+  isExcludedMemeKey: (key: string, session: Session) => boolean;
   handleGenerateWithPreparedInput: (
     key: string,
     texts: string[],
@@ -140,7 +140,7 @@ async function buildXmlGenerateInput(
   options: BuildXmlGenerateInputOptions,
 ): Promise<XmlGenerateInput> {
   const { ctx, config, session, pickedCall } = options;
-  const senderName = getSenderDisplayName(session);
+  const senderName = await resolveSenderDisplayName(session);
   const preferredGuildId =
     session.guildId && session.guildId !== "private" ? session.guildId : undefined;
 
@@ -222,7 +222,7 @@ export function createXmlMemeToolExecutor(
     try {
       await ensureCategoryExcludedMemeKeySet();
       resolvedKey = await resolveMemeKey(normalized.key);
-      if (isExcludedMemeKey(resolvedKey)) {
+      if (isExcludedMemeKey(resolvedKey, session)) {
         return {
           memeKey: resolvedKey,
           result: "该模板已被排除。",

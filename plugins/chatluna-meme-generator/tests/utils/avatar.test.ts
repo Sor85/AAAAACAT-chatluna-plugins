@@ -23,6 +23,7 @@ import {
   getMentionedTargetAvatarImage,
   getMentionedTargetDisplayName,
   getSenderDisplayName,
+  resolveSenderDisplayName,
 } from "../../src/utils/avatar";
 
 function createCtx() {
@@ -463,7 +464,7 @@ describe("getMentionedSecondaryAvatarImage", () => {
   });
 });
 
-describe("getSenderDisplayName", () => {
+describe("resolveSenderDisplayName", () => {
   it("发送者昵称会清洗控制字符并截断长度", () => {
     const session = {
       author: {
@@ -476,6 +477,31 @@ describe("getSenderDisplayName", () => {
     const result = getSenderDisplayName(session);
 
     expect(result).toBe("b".repeat(64));
+  });
+
+  it("发送者昵称缺失时回查群成员昵称", async () => {
+    const getGuildMember = vi.fn(async () => ({
+      nick: "发送者群昵称",
+      name: "成员名",
+    }));
+    const getUser = vi.fn();
+    const session = {
+      userId: "10001",
+      guildId: "20001",
+      author: {},
+      event: { user: {} },
+      username: "10001",
+      bot: {
+        getGuildMember,
+        getUser,
+      },
+    } as any;
+
+    const result = await resolveSenderDisplayName(session);
+
+    expect(result).toBe("发送者群昵称");
+    expect(getGuildMember).toHaveBeenCalledWith("20001", "10001");
+    expect(getUser).not.toHaveBeenCalled();
   });
 });
 

@@ -12,7 +12,7 @@ const backendMocks = vi.hoisted(() => ({
 
 const displayNameMocks = vi.hoisted(() => ({
   getMentionedTargetDisplayName: vi.fn(),
-  getSenderDisplayName: vi.fn(),
+  resolveSenderDisplayName: vi.fn(),
 }));
 
 vi.mock("koishi", () => ({
@@ -67,7 +67,7 @@ vi.mock("../../../src/utils/avatar", () => ({
     avatarMocks.getMentionedSecondaryAvatarImage,
   getBotAvatarImage: avatarMocks.getBotAvatarImage,
   getMentionedTargetDisplayName: displayNameMocks.getMentionedTargetDisplayName,
-  getSenderDisplayName: displayNameMocks.getSenderDisplayName,
+  resolveSenderDisplayName: displayNameMocks.resolveSenderDisplayName,
 }));
 
 import type { Config } from "../../../src/config";
@@ -122,12 +122,16 @@ function createBaseConfig(): Config {
     enableQuotedImageTrigger: true,
     enableQuotedTextTrigger: false,
     renderMemeListAsImage: false,
+    sendMemeListAsForward: true,
+    sendMemeSearchAsForward: true,
     enableMemeCommandTrigger: true,
     enableDirectAliasWithoutPrefix: false,
     allowKeyWithoutPrefixTrigger: false,
     allowMentionPrefixDirectAliasTrigger: false,
     allowLeadingAtBeforeCommand: false,
     enableDeveloperDebugLog: false,
+    randomOutputMemeKey: "",
+    showMemeListKey: false,
     enableMemeXmlTool: false,
     injectMemeXmlToolAsReplyTool: false,
     enableRandomDedupeWithinHours: false,
@@ -183,7 +187,7 @@ describe("group nickname auto fill", () => {
     backendMocks.generate.mockReset();
     backendMocks.getInfo.mockReset();
     displayNameMocks.getMentionedTargetDisplayName.mockReset();
-    displayNameMocks.getSenderDisplayName.mockReset();
+    displayNameMocks.resolveSenderDisplayName.mockReset();
     resetAvatarMocks();
 
     backendMocks.getInfo.mockResolvedValue({
@@ -208,7 +212,7 @@ describe("group nickname auto fill", () => {
     displayNameMocks.getMentionedTargetDisplayName.mockResolvedValue(
       "被@群昵称",
     );
-    displayNameMocks.getSenderDisplayName.mockReturnValue("发送者群昵称");
+    displayNameMocks.resolveSenderDisplayName.mockResolvedValue("发送者群昵称");
 
     const { ctx, commandActions } = createMockContext();
     registerCommands(ctx, createBaseConfig());
@@ -220,7 +224,7 @@ describe("group nickname auto fill", () => {
 
     expect(result).toBeTruthy();
     expect(displayNameMocks.getMentionedTargetDisplayName).toHaveBeenCalled();
-    expect(displayNameMocks.getSenderDisplayName).toHaveBeenCalled();
+    expect(displayNameMocks.resolveSenderDisplayName).toHaveBeenCalled();
     expect(backendMocks.generate).toHaveBeenCalledWith(
       "yi",
       [],
@@ -233,7 +237,7 @@ describe("group nickname auto fill", () => {
     backendMocks.generate.mockReset();
     backendMocks.getInfo.mockReset();
     displayNameMocks.getMentionedTargetDisplayName.mockReset();
-    displayNameMocks.getSenderDisplayName.mockReset();
+    displayNameMocks.resolveSenderDisplayName.mockReset();
     resetAvatarMocks();
 
     backendMocks.getInfo.mockResolvedValue({
@@ -256,7 +260,7 @@ describe("group nickname auto fill", () => {
       mimeType: "image/png",
     });
     displayNameMocks.getMentionedTargetDisplayName.mockResolvedValue(undefined);
-    displayNameMocks.getSenderDisplayName.mockReturnValue("发送者群昵称");
+    displayNameMocks.resolveSenderDisplayName.mockResolvedValue("发送者群昵称");
 
     const { ctx, commandActions } = createMockContext();
     registerCommands(ctx, createBaseConfig());
@@ -268,7 +272,7 @@ describe("group nickname auto fill", () => {
 
     expect(result).toBeTruthy();
     expect(displayNameMocks.getMentionedTargetDisplayName).toHaveBeenCalled();
-    expect(displayNameMocks.getSenderDisplayName).toHaveBeenCalled();
+    expect(displayNameMocks.resolveSenderDisplayName).toHaveBeenCalled();
     expect(backendMocks.generate).toHaveBeenCalledWith(
       "yi",
       [],
@@ -281,7 +285,7 @@ describe("group nickname auto fill", () => {
     backendMocks.generate.mockReset();
     backendMocks.getInfo.mockReset();
     displayNameMocks.getMentionedTargetDisplayName.mockReset();
-    displayNameMocks.getSenderDisplayName.mockReset();
+    displayNameMocks.resolveSenderDisplayName.mockReset();
     resetAvatarMocks();
 
     backendMocks.getInfo.mockResolvedValue({
@@ -306,7 +310,7 @@ describe("group nickname auto fill", () => {
     displayNameMocks.getMentionedTargetDisplayName.mockResolvedValue(
       "被@群昵称",
     );
-    displayNameMocks.getSenderDisplayName.mockReturnValue("发送者群昵称");
+    displayNameMocks.resolveSenderDisplayName.mockResolvedValue("发送者群昵称");
 
     const { ctx, commandActions } = createMockContext();
     registerCommands(ctx, createBaseConfig());
