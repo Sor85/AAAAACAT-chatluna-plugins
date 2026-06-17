@@ -18,6 +18,321 @@ import {
   type MemeListSection,
 } from "./types";
 
+export const MEME_LIST_TEXT_CHUNK_BYTE_LIMIT = 3000;
+
+interface OneBotForwardInternal {
+  _request?: (
+    action: string,
+    params: Record<string, unknown>,
+  ) => Promise<unknown>;
+  [key: string]: unknown;
+}
+
+interface OneBotForwardSession {
+  platform?: string;
+  userId?: string;
+  selfId?: string;
+  channelId?: string;
+  guildId?: string;
+  groupId?: string;
+  roomId?: string;
+  event?: {
+    message_type?: string;
+    guild?: { id?: string };
+    group?: { id?: string };
+    channel?: { id?: string };
+    user?: { id?: string };
+  };
+  bot?: {
+    internal?: OneBotForwardInternal;
+    selfId?: string;
+    user?: {
+      id?: unknown;
+      name?: unknown;
+      nick?: unknown;
+      nickname?: unknown;
+      username?: unknown;
+    };
+    name?: string;
+    nick?: string;
+    nickname?: string;
+    username?: string;
+  };
+}
+
+type ForwardTarget =
+  | { type: "group"; id: string | number }
+  | { type: "private"; id: string | number };
+
+function toOneBotId(value: unknown): string | number | undefined {
+  const text = String(value ?? "").trim();
+  if (!text) return undefined;
+
+  const numeric = Number(text);
+  if (/^\d+$/.test(text) && Number.isSafeInteger(numeric)) return numeric;
+  return text;
+}
+
+function resolveOneBotForwardTarget(
+  session: OneBotForwardSession,
+): ForwardTarget | undefined {
+  const groupId =
+    session.guildId ||
+    session.groupId ||
+    session.event?.guild?.id ||
+    session.event?.group?.id ||
+    (session.event?.message_type === "group" ? session.channelId : "") ||
+    "";
+  const normalizedGroupId = toOneBotId(groupId);
+  if (normalizedGroupId) return { type: "group", id: normalizedGroupId };
+
+  const userId =
+    session.userId ||
+    session.event?.user?.id ||
+    (session.event?.message_type === "private" ? session.channelId : "") ||
+    "";
+  const normalizedUserId = toOneBotId(userId);
+  if (normalizedUserId) return { type: "private", id: normalizedUserId };
+
+  return undefined;
+}
+
+function resolveForwardSender(session: OneBotForwardSession): {
+  id: string | number;
+  name: string;
+} {
+  const user = session.bot?.user;
+  const id =
+    toOneBotId(user?.id) ||
+    toOneBotId(session.selfId) ||
+    toOneBotId(session.bot?.selfId) ||
+    0;
+  const name =
+    String(
+      user?.name ||
+        user?.nick ||
+        user?.nickname ||
+        user?.username ||
+        session.bot?.name ||
+        session.bot?.nick ||
+        session.bot?.nickname ||
+        session.bot?.username ||
+        "meme.list",
+    ).trim() || "meme.list";
+
+  return { id, name };
+}
+
+function appendChunk(
+  chunks: string[],
+  current: string,
+  next: string,
+): string {
+  if (!next) return current;
+  if (!current) return next;
+  if (
+    Buffer.byteLength(`${current}\n${next}`, "utf8") <=
+    MEME_LIST_TEXT_CHUNK_BYTE_LIMIT
+  ) {
+    return `${current}\n${next}`;
+  }
+  chunks.push(current);
+  return next;
+}
+
+function splitLongLine(line: string): string[] {
+  const chunks: string[] = [];
+  let current = "";
+
+  for (const word of line.split(/\s+/).filter(Boolean)) {
+    if (Buffer.byteLength(word, "utf8") > MEME_LIST_TEXT_CHUNK_BYTE_LIMIT) {
+      if (current) {
+        chunks.push(current);
+        current = "";
+      }
+      let chunk = "";
+      for (const char of word) {
+        if (
+          chunk &&
+          Buffer.byteLength(`${chunk}${char}`, "utf8") >
+            MEME_LIST_TEXT_CHUNK_BYTE_LIMIT
+        ) {
+          chunks.push(chunk);
+          chunk = "";
+        }
+        chunk += char;
+      }
+      if (chunk) chunks.push(chunk);
+      continue;
+    }
+
+    if (!current) {
+      current = word;
+      continue;
+    }
+    if (
+      Buffer.byteLength(`${current} ${word}`, "utf8") <=
+      MEME_LIST_TEXT_CHUNK_BYTE_LIMIT
+    ) {
+      current = `${current} ${word}`;
+    } else {
+      chunks.push(current);
+      current = word;
+    }
+  }
+
+  if (current) chunks.push(current);
+  return chunks;
+}
+
+export function splitMemeListText(content: string): string[] {
+  const chunks: string[] = [];
+  let current = "";
+
+  for (const line of content.split("\n")) {
+    if (Buffer.byteLength(line, "utf8") <= MEME_LIST_TEXT_CHUNK_BYTE_LIMIT) {
+      current = appendChunk(chunks, current, line);
+      continue;
+    }
+
+    if (current) {
+      chunks.push(current);
+      current = "";
+    }
+    chunks.push(...splitLongLine(line));
+  }
+
+  if (current) chunks.push(current);
+  return chunks.length > 0 ? chunks : [content];
+}
+
+export function splitMemeListMessages(sections: MemeListSection[]): string[] {
+  const chunks: string[] = [];
+
+  for (const section of sections) {
+    chunks.push(section.title);
+    chunks.push(...splitMemeListText(section.aliases.join(" ")));
+  }
+
+  return chunks;
+}
+
+function createForwardMessages(
+  session: OneBotForwardSession,
+  sections: MemeListSection[],
+) {
+  const sender = resolveForwardSender(session);
+  return splitMemeListMessages(sections).map((chunk) => ({
+    type: "node",
+    data: {
+      name: sender.name,
+      uin: sender.id,
+      content: chunk,
+    },
+  }));
+}
+
+function toInternalMethodName(action: string): string {
+  return action.replace(/_([a-z])/g, (_, char: string) => char.toUpperCase());
+}
+
+async function callOneBotAction(
+  internal: OneBotForwardInternal,
+  action: string,
+  params: Record<string, unknown>,
+): Promise<void> {
+  if (typeof internal._request === "function") {
+    await internal._request(action, params);
+    return;
+  }
+
+  const methodName = toInternalMethodName(action);
+  const method = internal[methodName] || internal[action];
+  if (typeof method !== "function") {
+    throw new Error(`OneBot adapter does not support ${action}`);
+  }
+
+  await (method as (params: Record<string, unknown>) => Promise<unknown>)(
+    params,
+  );
+}
+
+async function tryOneBotActions(
+  internal: OneBotForwardInternal,
+  attempts: Array<{ action: string; params: Record<string, unknown> }>,
+): Promise<void> {
+  let lastError: unknown;
+  for (const attempt of attempts) {
+    try {
+      await callOneBotAction(internal, attempt.action, attempt.params);
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+
+export async function sendMemeListForwardMessage(
+  session: unknown,
+  sections: MemeListSection[],
+  logger: ReturnType<Context["logger"]>,
+): Promise<boolean> {
+  const oneBotSession = session as OneBotForwardSession | undefined;
+  if (oneBotSession?.platform !== "onebot") return false;
+
+  const internal = oneBotSession.bot?.internal;
+  if (!internal) return false;
+
+  const target = resolveOneBotForwardTarget(oneBotSession);
+  if (!target) return false;
+
+  const messages = createForwardMessages(oneBotSession, sections);
+  const baseParams = { messages };
+  const attempts =
+    target.type === "group"
+      ? [
+          {
+            action: "send_group_forward_msg",
+            params: { group_id: target.id, ...baseParams },
+          },
+          {
+            action: "send_forward_msg",
+            params: {
+              message_type: "group",
+              group_id: target.id,
+              ...baseParams,
+            },
+          },
+        ]
+      : [
+          {
+            action: "send_private_forward_msg",
+            params: { user_id: target.id, ...baseParams },
+          },
+          {
+            action: "send_forward_msg",
+            params: {
+              message_type: "private",
+              user_id: target.id,
+              ...baseParams,
+            },
+          },
+        ];
+
+  try {
+    // NapCat 与 LLBOT 的转发接口命名不完全一致，这里先试群/私聊专用 action，再回退到通用 forward API。
+    await tryOneBotActions(internal, attempts);
+    return true;
+  } catch (error) {
+    logger.warn(
+      "meme.list forward send failed, fallback to text: %s",
+      String(error),
+    );
+    return false;
+  }
+}
+
 function resolveMemeListCategory(
   params: MemeInfoResponse["params_type"] | undefined,
 ): MemeListCategory {

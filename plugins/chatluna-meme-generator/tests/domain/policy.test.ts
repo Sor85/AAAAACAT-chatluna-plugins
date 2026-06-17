@@ -30,6 +30,7 @@ const baseConfig: Config = {
   enableQuotedImageTrigger: true,
   enableQuotedTextTrigger: false,
   renderMemeListAsImage: false,
+  sendMemeListAsForward: true,
   enableMemeCommandTrigger: true,
   enableDirectAliasWithoutPrefix: true,
   allowKeyWithoutPrefixTrigger: false,

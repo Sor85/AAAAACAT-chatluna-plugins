@@ -17,6 +17,8 @@ import {
   buildListMessage,
   fetchMemeListInfos,
   formatMemeListLines,
+  sendMemeListForwardMessage,
+  splitMemeListMessages,
 } from "./register/meme-list";
 import {
   buildExcludedMemeKeySet,
@@ -403,7 +405,7 @@ export function registerCommands(ctx: Context, config: Config): void {
           "当前后端没有可用模板。",
         );
 
-      return await buildListMessage(
+      const message = await buildListMessage(
         ctx as ContextWithOptionalServices,
         sections,
         lines,
@@ -411,6 +413,25 @@ export function registerCommands(ctx: Context, config: Config): void {
         (session as { platform?: string } | undefined)?.platform,
         logger,
       );
+      if (!config.renderMemeListAsImage) {
+        const chunks = splitMemeListMessages(sections);
+        if (config.sendMemeListAsForward) {
+          const sent = await sendMemeListForwardMessage(
+            session,
+            sections,
+            logger,
+          );
+          if (sent) return;
+        }
+        if (session) {
+          for (const chunk of chunks) {
+            await session.send(chunk);
+          }
+          return;
+        }
+        return chunks.join("\n");
+      }
+      return message;
     } catch (error) {
       return handleRuntimeError("meme.list", error);
     }
