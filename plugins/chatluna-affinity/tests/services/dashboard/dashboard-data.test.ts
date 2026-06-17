@@ -721,7 +721,7 @@ describe("dashboard backend", () => {
     ]);
   });
 
-  it("does not record unchanged user affinity snapshots", async () => {
+  it("does not record unchanged user trend snapshots", async () => {
     const existingUserSnapshot = {
       scopeId: "test-scope",
       userId: "current-a",
@@ -729,9 +729,9 @@ describe("dashboard backend", () => {
       recordedAt: new Date("2026-06-16T12:00:00.000Z"),
       nickname: null,
       affinity: 64,
-      longTermAffinity: 50,
+      longTermAffinity: 64,
       shortTermAffinity: 14,
-      chatCount: 5,
+      chatCount: 9,
       relation: "朋友",
       specialRelation: null,
       lastInteractionAt: new Date("2026-06-16T12:00:00.000Z"),
@@ -779,6 +779,148 @@ describe("dashboard backend", () => {
     assert.deepEqual(tables[USER_AFFINITY_SNAPSHOT_MODEL_NAME], [
       existingUserSnapshot,
     ]);
+  });
+
+  it("records user snapshots when long term affinity changes", async () => {
+    const existingUserSnapshot = {
+      scopeId: "test-scope",
+      userId: "current-a",
+      date: "2026-06-16",
+      recordedAt: new Date("2026-06-16T12:00:00.000Z"),
+      nickname: null,
+      affinity: 64,
+      longTermAffinity: 60,
+      shortTermAffinity: 4,
+      chatCount: 8,
+      relation: "朋友",
+      specialRelation: null,
+      lastInteractionAt: new Date("2026-06-16T12:00:00.000Z"),
+    };
+    const tables: Record<string, unknown[]> = {
+      [MODEL_NAME_V2]: [
+        {
+          scopeId: "test-scope",
+          userId: "current-a",
+          nickname: null,
+          affinity: 64,
+          relation: "朋友",
+          specialRelation: null,
+          longTermAffinity: 61,
+          shortTermAffinity: 3,
+          chatCount: 8,
+          actionStats: null,
+          lastInteractionAt: new Date("2026-06-17T12:00:00.000Z"),
+          coefficientState: null,
+        },
+      ],
+      [BLACKLIST_MODEL_NAME_V2]: [],
+      [USER_ALIAS_MODEL_NAME_V2]: [],
+      [DASHBOARD_SNAPSHOT_MODEL_NAME]: [],
+      [USER_AFFINITY_SNAPSHOT_MODEL_NAME]: [existingUserSnapshot],
+    };
+    const ctx = createBackendContext(tables);
+
+    registerDashboardBackend({
+      ctx,
+      config: { scopeId: "test-scope" },
+      log() {},
+      now: () => new Date("2026-06-17T12:00:00.000Z"),
+      setInterval: (callback, ms) => {
+        const timer = setInterval(callback, ms);
+        clearInterval(timer);
+        return timer;
+      },
+      clearInterval: () => {},
+    });
+    (ctx as unknown as { emitReady: () => void }).emitReady();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(tables[USER_AFFINITY_SNAPSHOT_MODEL_NAME]?.length, 2);
+    assert.deepEqual(tables[USER_AFFINITY_SNAPSHOT_MODEL_NAME]?.at(-1), {
+      scopeId: "test-scope",
+      userId: "current-a",
+      date: "2026-06-17",
+      recordedAt: new Date("2026-06-17T12:00:00.000Z"),
+      nickname: null,
+      affinity: 64,
+      longTermAffinity: 61,
+      shortTermAffinity: 3,
+      chatCount: 8,
+      relation: "朋友",
+      specialRelation: null,
+      lastInteractionAt: new Date("2026-06-17T12:00:00.000Z"),
+    });
+  });
+
+  it("records user snapshots when chat count changes", async () => {
+    const existingUserSnapshot = {
+      scopeId: "test-scope",
+      userId: "current-a",
+      date: "2026-06-16",
+      recordedAt: new Date("2026-06-16T12:00:00.000Z"),
+      nickname: null,
+      affinity: 64,
+      longTermAffinity: 60,
+      shortTermAffinity: 4,
+      chatCount: 8,
+      relation: "朋友",
+      specialRelation: null,
+      lastInteractionAt: new Date("2026-06-16T12:00:00.000Z"),
+    };
+    const tables: Record<string, unknown[]> = {
+      [MODEL_NAME_V2]: [
+        {
+          scopeId: "test-scope",
+          userId: "current-a",
+          nickname: null,
+          affinity: 64,
+          relation: "朋友",
+          specialRelation: null,
+          longTermAffinity: 60,
+          shortTermAffinity: 4,
+          chatCount: 9,
+          actionStats: null,
+          lastInteractionAt: new Date("2026-06-17T12:00:00.000Z"),
+          coefficientState: null,
+        },
+      ],
+      [BLACKLIST_MODEL_NAME_V2]: [],
+      [USER_ALIAS_MODEL_NAME_V2]: [],
+      [DASHBOARD_SNAPSHOT_MODEL_NAME]: [],
+      [USER_AFFINITY_SNAPSHOT_MODEL_NAME]: [existingUserSnapshot],
+    };
+    const ctx = createBackendContext(tables);
+
+    registerDashboardBackend({
+      ctx,
+      config: { scopeId: "test-scope" },
+      log() {},
+      now: () => new Date("2026-06-17T12:00:00.000Z"),
+      setInterval: (callback, ms) => {
+        const timer = setInterval(callback, ms);
+        clearInterval(timer);
+        return timer;
+      },
+      clearInterval: () => {},
+    });
+    (ctx as unknown as { emitReady: () => void }).emitReady();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(tables[USER_AFFINITY_SNAPSHOT_MODEL_NAME]?.length, 2);
+    assert.deepEqual(tables[USER_AFFINITY_SNAPSHOT_MODEL_NAME]?.at(-1), {
+      scopeId: "test-scope",
+      userId: "current-a",
+      date: "2026-06-17",
+      recordedAt: new Date("2026-06-17T12:00:00.000Z"),
+      nickname: null,
+      affinity: 64,
+      longTermAffinity: 60,
+      shortTermAffinity: 4,
+      chatCount: 9,
+      relation: "朋友",
+      specialRelation: null,
+      lastInteractionAt: new Date("2026-06-17T12:00:00.000Z"),
+    });
   });
 });
 

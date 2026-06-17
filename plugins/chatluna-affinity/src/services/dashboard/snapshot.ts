@@ -166,9 +166,13 @@ export function createUserAffinitySnapshots(
   return source.affinityRows
     .filter((row) => {
       const latest = latestSnapshotsByUserId.get(row.userId);
-      // 用户级快照是变化日志：总 affinity 未变时不写，展示层会把最后一个点延伸到趋势锚点。
+      // 用户级快照是趋势指标变化日志；只看图表会使用的三项，避免最后互动时间造成重复历史。
       return (
-        !latest || Number(latest.affinity || 0) !== Number(row.affinity || 0)
+        !latest ||
+        Number(latest.affinity || 0) !== Number(row.affinity || 0) ||
+        Number(latest.longTermAffinity || 0) !==
+          Number(row.longTermAffinity ?? row.affinity ?? 0) ||
+        Number(latest.chatCount || 0) !== Number(row.chatCount || 0)
       );
     })
     .map((row) => ({
