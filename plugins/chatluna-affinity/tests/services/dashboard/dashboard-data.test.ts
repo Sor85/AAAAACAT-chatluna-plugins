@@ -281,12 +281,15 @@ describe("dashboard data", () => {
       data.topUsers[0].avatarUrl,
       "https://q1.qlogo.cn/g?b=qq&nk=10001&s=640",
     );
+    assert.equal(data.topUsers[0].longTermAffinity, 70);
     assert.equal(data.topUsers[0].relationTone, "medium");
     assert.deepEqual(data.topUsers[0].historyPoints, [
       {
         label: "当前",
         timestamp: "2026-06-01T12:00:00.000Z",
         affinity: 80,
+        longTermAffinity: 70,
+        chatCount: 5,
       },
     ]);
     assert.equal(data.topUsers[1].avatarUrl, null);
@@ -381,6 +384,8 @@ describe("dashboard data", () => {
         date: "2026-06-03",
         recordedAt: new Date("2026-06-03T12:00:00.000Z"),
         affinity: 50,
+        longTermAffinity: 48,
+        chatCount: 6,
       },
       {
         scopeId: "other-scope",
@@ -388,6 +393,8 @@ describe("dashboard data", () => {
         date: "2026-06-03",
         recordedAt: new Date("2026-06-03T12:00:00.000Z"),
         affinity: 99,
+        longTermAffinity: 99,
+        chatCount: 99,
       },
     ];
     const data = await getDashboardData(
@@ -425,6 +432,8 @@ describe("dashboard data", () => {
             date: "2026-06-13",
             recordedAt: new Date("2026-06-13T12:00:00.000Z"),
             affinity: 70,
+            longTermAffinity: 68,
+            chatCount: 10,
           },
         ],
       }),
@@ -487,11 +496,15 @@ describe("dashboard data", () => {
         label: "6/3",
         timestamp: "2026-06-03T12:00:00.000Z",
         affinity: 50,
+        longTermAffinity: 48,
+        chatCount: 6,
       },
       {
         label: "6/13",
         timestamp: "2026-06-13T12:00:00.000Z",
         affinity: 70,
+        longTermAffinity: 68,
+        chatCount: 10,
       },
     ]);
   });
@@ -601,6 +614,8 @@ describe("dashboard data", () => {
             date: "2026-06-03",
             recordedAt: new Date("2026-06-03T12:00:00.000Z"),
             affinity: 50,
+            longTermAffinity: 42,
+            chatCount: 1,
           },
         ],
       }),
@@ -615,11 +630,15 @@ describe("dashboard data", () => {
         label: "6/3",
         timestamp: "2026-06-03T12:00:00.000Z",
         affinity: 50,
+        longTermAffinity: 42,
+        chatCount: 1,
       },
       {
         label: "6/13",
         timestamp: new Date(2026, 5, 13).toISOString(),
         affinity: 50,
+        longTermAffinity: 45,
+        chatCount: 3,
       },
     ]);
   });

@@ -113,10 +113,20 @@ const trendChartConfig = {
 
 const userHistoryChartConfig = {
   affinity: {
-    label: "好感度",
+    label: "综合好感",
     color: "var(--chart-2)",
   },
+  longTermAffinity: {
+    label: "长期好感",
+    color: "var(--chart-3)",
+  },
+  chatCount: {
+    label: "对话次数",
+    color: "var(--chart-4)",
+  },
 } satisfies ChartConfig;
+
+const USER_HISTORY_DAY_MS = 24 * 60 * 60 * 1000;
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat("zh-CN").format(value);
@@ -126,6 +136,63 @@ function formatAverage(value: number): string {
   return new Intl.NumberFormat("zh-CN", {
     maximumFractionDigits: 2,
   }).format(value);
+}
+
+function startOfLocalDay(value: Date): Date {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+function getHistoryWindowDays(range: TrendRange): number {
+  if (range === "month") return 30;
+  if (range === "all") return Number.POSITIVE_INFINITY;
+  return 7;
+}
+
+function getUserHistoryData(
+  points: DashboardTopUser["historyPoints"],
+  range: TrendRange,
+): DashboardTopUser["historyPoints"] {
+  if (!points.length) return points;
+  if (range === "all") return points;
+
+  const latest = points.at(-1);
+  const latestDate = latest?.timestamp ? new Date(latest.timestamp) : null;
+  if (!latestDate || Number.isNaN(latestDate.getTime())) return points;
+
+  const windowDays = getHistoryWindowDays(range);
+  const anchor = startOfLocalDay(latestDate);
+  const start = anchor.getTime() - (windowDays - 1) * USER_HISTORY_DAY_MS;
+  const filtered = points.filter((point) => {
+    if (!point.timestamp) return false;
+    const date = new Date(point.timestamp);
+    const time = date.getTime();
+    return !Number.isNaN(time) && time >= start;
+  });
+
+  if (!filtered.length) return [latest];
+
+  const firstVisibleIndex = points.findIndex((point) => {
+    if (!point.timestamp) return false;
+    const date = new Date(point.timestamp);
+    const time = date.getTime();
+    return !Number.isNaN(time) && time >= start;
+  });
+  if (firstVisibleIndex > 0) {
+    const anchorPoint = points[firstVisibleIndex - 1];
+    if (anchorPoint?.timestamp) {
+      const anchorDatePoint = new Date(anchorPoint.timestamp);
+      if (!Number.isNaN(anchorDatePoint.getTime())) {
+        const result = [anchorPoint, ...filtered];
+        return result.filter(
+          (point, index, list) =>
+            index === 0 ||
+            point.timestamp !== list[index - 1]?.timestamp,
+        );
+      }
+    }
+  }
+
+  return filtered;
 }
 
 function formatTime(value: string | null): string {
@@ -834,24 +901,31 @@ function BlacklistTable({ items }: { items: DashboardBlacklistItem[] }) {
 }
 
 function UserHistoryChart({ user }: { user: DashboardTopUser }) {
+  const [range, setRange] = useState<TrendRange>("week");
+  const historyPoints = useMemo(
+    () => getUserHistoryData(user.historyPoints, range),
+    [range, user.historyPoints],
+  );
+
   return (
     <div className="grid gap-3 py-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="grid gap-1">
-          <h3 className="text-sm font-medium">{user.name} 的好感度历史</h3>
-          <p className="text-sm text-muted-foreground">{user.userId}</p>
-        </div>
-        <Badge
-          className={getRelationBadgeClassName(user.relationTone)}
-          variant="outline"
+        <h3 className="text-sm font-medium">{user.name} 的好感度历史</h3>
+        <Tabs
+          value={range}
+          onValueChange={(value) => setRange(value as TrendRange)}
         >
-          {user.relation}
-        </Badge>
+          <TabsList>
+            <TabsTrigger value="week">周</TabsTrigger>
+            <TabsTrigger value="month">月</TabsTrigger>
+            <TabsTrigger value="all">总</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
       <ChartContainer className="h-56 w-full" config={userHistoryChartConfig}>
         <LineChart
           accessibilityLayer
-          data={user.historyPoints}
+          data={historyPoints}
           margin={{ left: 8, right: 8 }}
         >
           <CartesianGrid vertical={false} />
@@ -862,6 +936,20 @@ function UserHistoryChart({ user }: { user: DashboardTopUser }) {
             dataKey="affinity"
             dot={{ fill: "var(--color-affinity)" }}
             stroke="var(--color-affinity)"
+            strokeWidth={2}
+            type="monotone"
+          />
+          <Line
+            dataKey="longTermAffinity"
+            dot={{ fill: "var(--color-longTermAffinity)" }}
+            stroke="var(--color-longTermAffinity)"
+            strokeWidth={2}
+            type="monotone"
+          />
+          <Line
+            dataKey="chatCount"
+            dot={{ fill: "var(--color-chatCount)" }}
+            stroke="var(--color-chatCount)"
             strokeWidth={2}
             type="monotone"
           />

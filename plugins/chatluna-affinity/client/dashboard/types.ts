@@ -3,6 +3,7 @@ export interface DashboardTopUser {
   name: string;
   avatarUrl: string | null;
   affinity: number;
+  longTermAffinity: number;
   relation: string;
   relationTone: "custom" | "low" | "medium" | "high" | "unknown";
   chatCount: number;
@@ -34,6 +35,8 @@ export interface DashboardUserHistoryPoint {
   label: string;
   timestamp: string | null;
   affinity: number;
+  longTermAffinity: number;
+  chatCount: number;
 }
 
 export interface DashboardBlacklistItem {

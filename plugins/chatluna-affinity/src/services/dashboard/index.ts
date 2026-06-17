@@ -36,6 +36,7 @@ export interface DashboardTopUser {
   name: string;
   avatarUrl: string | null;
   affinity: number;
+  longTermAffinity: number;
   relation: string;
   relationTone: "custom" | "low" | "medium" | "high" | "unknown";
   chatCount: number;
@@ -67,6 +68,8 @@ export interface DashboardUserHistoryPoint {
   label: string;
   timestamp: string | null;
   affinity: number;
+  longTermAffinity: number;
+  chatCount: number;
 }
 
 export interface DashboardBlacklistItem {
@@ -391,6 +394,8 @@ function createUserHistoryPoints(
           label: formatTrendLabel(date),
           timestamp: toIsoString(snapshot.recordedAt) || toIsoString(date),
           affinity: toCount(snapshot.affinity),
+          longTermAffinity: toCount(snapshot.longTermAffinity),
+          chatCount: toCount(snapshot.chatCount),
         },
       };
     })
@@ -413,6 +418,8 @@ function createUserHistoryPoints(
           label: formatTrendLabel(anchorDate),
           timestamp: toIsoString(anchorDate),
           affinity: latest.point.affinity,
+          longTermAffinity: toCount(row.longTermAffinity ?? row.affinity),
+          chatCount: toCount(row.chatCount),
         },
       });
     }
@@ -424,6 +431,8 @@ function createUserHistoryPoints(
       label: "当前",
       timestamp: toIsoString(row.lastInteractionAt),
       affinity: toCount(row.affinity),
+      longTermAffinity: toCount(row.longTermAffinity ?? row.affinity),
+      chatCount: toCount(row.chatCount),
     },
   ];
 }
@@ -504,6 +513,7 @@ export async function getDashboardData(
       name: getDisplayName(row),
       avatarUrl: getOneBotAvatarUrl(row.userId),
       affinity: toCount(row.affinity),
+      longTermAffinity: toCount(row.longTermAffinity ?? row.affinity),
       relation: getDisplayRelation(row),
       relationTone: getRelationTone(row, relationshipAffinityLevels),
       chatCount: toCount(row.chatCount),
