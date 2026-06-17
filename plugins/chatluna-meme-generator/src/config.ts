@@ -26,6 +26,11 @@ export interface RandomMemeBucketWeightRule {
   weight: number;
 }
 
+export interface GroupExcludedMemeKeyRule {
+  groupId: string;
+  excludedMemeKeys: string[];
+}
+
 export interface Config {
   baseUrl: string;
   timeoutMs: number;
@@ -61,6 +66,7 @@ export interface Config {
   excludeImageAndTextMemes: boolean;
   excludeOtherMemes: boolean;
   excludedMemeKeys: string[];
+  groupExcludedMemeKeys?: GroupExcludedMemeKeyRule[];
   showMemeListKey: boolean;
 }
 
@@ -130,6 +136,7 @@ export const defaultConfig: Config = {
   excludeImageAndTextMemes: false,
   excludeOtherMemes: false,
   excludedMemeKeys: [],
+  groupExcludedMemeKeys: [],
   showMemeListKey: false,
 };
 
@@ -272,7 +279,19 @@ const filterSchema = Schema.object({
   excludedMemeKeys: Schema.array(Schema.string().min(1))
     .role("table")
     .default(defaultConfig.excludedMemeKeys)
-    .description("排除模板`key`列表"),
+    .description("全局排除模板`key`列表"),
+  groupExcludedMemeKeys: Schema.array(
+    Schema.object({
+      groupId: Schema.string().required().description("群号"),
+      excludedMemeKeys: Schema.array(Schema.string().min(1))
+        .role("table")
+        .default([])
+        .description("该群额外排除模板`key`列表"),
+    }),
+  )
+    .role("table")
+    .default(defaultConfig.groupExcludedMemeKeys ?? [])
+    .description("分群排除模板`key`列表"),
 }).description("模板筛选设置");
 
 const runtimeSchema = Schema.object({

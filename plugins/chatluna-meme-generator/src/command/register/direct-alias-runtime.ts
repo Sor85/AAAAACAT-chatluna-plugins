@@ -125,7 +125,8 @@ interface InstallDirectAliasRuntimeOptions {
   logger: ReturnType<Context["logger"]>;
   ensureCategoryExcludedMemeKeySet: () => Promise<void>;
   notifyInitializedSummary: (count: number) => void;
-  isExcludedMemeKey: (key: string) => boolean;
+  isGloballyExcludedMemeKey: (key: string) => boolean;
+  isSessionExcludedMemeKey: (key: string, session: Session) => boolean;
   handleGenerate: (
     session: Session,
     key: string,
@@ -143,7 +144,8 @@ export function installDirectAliasRuntime(
     logger,
     ensureCategoryExcludedMemeKeySet,
     notifyInitializedSummary,
-    isExcludedMemeKey,
+    isGloballyExcludedMemeKey,
+    isSessionExcludedMemeKey,
     handleGenerate,
   } = options;
 
@@ -156,6 +158,11 @@ export function installDirectAliasRuntime(
   let aliasRetryDisposed = false;
 
   const maxAliasRetryAttempts = config.initLoadRetryTimes;
+  const replyOrSilent = (message: string): string => {
+    if (!config.disableErrorReplyToPlatform) return message;
+    logger.warn("direct-alias skipped reply: %s", message);
+    return "";
+  };
 
   const registerDirectAliases = async (): Promise<boolean> => {
     if (aliasRetryDisposed) return true;
@@ -174,7 +181,7 @@ export function installDirectAliasRuntime(
     const filteredEntries = result.entries
       .map((entry) => ({
         ...entry,
-        keys: entry.keys.filter((key) => !isExcludedMemeKey(key)),
+        keys: entry.keys.filter((key) => !isGloballyExcludedMemeKey(key)),
       }))
       .filter((entry) => entry.keys.length > 0);
 
@@ -275,10 +282,19 @@ export function installDirectAliasRuntime(
             return undefined as unknown as string;
           }
 
+          const availableAliasKeys = aliasKeys.filter(
+            (key) => !isSessionExcludedMemeKey(key, session),
+          );
+          if (availableAliasKeys.length === 0) {
+            return replyOrSilent("该模板已被排除。");
+          }
+
           const pickedKey =
-            aliasKeys.length === 1
-              ? aliasKeys[0]
-              : aliasKeys[Math.floor(Math.random() * aliasKeys.length)];
+            availableAliasKeys.length === 1
+              ? availableAliasKeys[0]
+              : availableAliasKeys[
+                  Math.floor(Math.random() * availableAliasKeys.length)
+                ];
 
           if (config.enableDeveloperDebugLog) {
             logger.info(

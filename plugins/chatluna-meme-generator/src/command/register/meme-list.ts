@@ -7,7 +7,7 @@ import { h, type Context } from "koishi";
 import type { Config } from "../../config";
 import { MemeBackendClient } from "../../infra/client";
 import type { MemeInfoResponse } from "../../types";
-import { normalizeMemeKey } from "./exclusion";
+import { normalizeMemeKey, resolveSessionGroupId } from "./exclusion";
 import {
   type ContextWithOptionalServices,
   MEME_LIST_CATEGORY_LABEL,
@@ -76,14 +76,7 @@ function toOneBotId(value: unknown): string | number | undefined {
 function resolveOneBotForwardTarget(
   session: OneBotForwardSession,
 ): ForwardTarget | undefined {
-  const groupId =
-    session.guildId ||
-    session.groupId ||
-    session.event?.guild?.id ||
-    session.event?.group?.id ||
-    (session.event?.message_type === "group" ? session.channelId : "") ||
-    "";
-  const normalizedGroupId = toOneBotId(groupId);
+  const normalizedGroupId = toOneBotId(resolveSessionGroupId(session));
   if (normalizedGroupId) return { type: "group", id: normalizedGroupId };
 
   const userId =

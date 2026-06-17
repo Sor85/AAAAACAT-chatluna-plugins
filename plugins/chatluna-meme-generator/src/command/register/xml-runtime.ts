@@ -52,7 +52,7 @@ export interface XmlMemeToolExecutorDeps {
   config: Config;
   ensureCategoryExcludedMemeKeySet: () => Promise<void>;
   resolveMemeKey: (key: string) => Promise<string>;
-  isExcludedMemeKey: (key: string) => boolean;
+  isExcludedMemeKey: (key: string, session: Session) => boolean;
   handleGenerateWithPreparedInput: (
     key: string,
     texts: string[],
@@ -83,7 +83,7 @@ interface InstallXmlRuntimeOptions {
   logger: ReturnType<Context["logger"]>;
   ensureCategoryExcludedMemeKeySet: () => Promise<void>;
   resolveMemeKey: (key: string) => Promise<string>;
-  isExcludedMemeKey: (key: string) => boolean;
+  isExcludedMemeKey: (key: string, session: Session) => boolean;
   handleGenerateWithPreparedInput: (
     key: string,
     texts: string[],
@@ -222,7 +222,7 @@ export function createXmlMemeToolExecutor(
     try {
       await ensureCategoryExcludedMemeKeySet();
       resolvedKey = await resolveMemeKey(normalized.key);
-      if (isExcludedMemeKey(resolvedKey)) {
+      if (isExcludedMemeKey(resolvedKey, session)) {
         return {
           memeKey: resolvedKey,
           result: "该模板已被排除。",

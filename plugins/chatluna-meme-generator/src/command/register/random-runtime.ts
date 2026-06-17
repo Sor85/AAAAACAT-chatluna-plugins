@@ -34,7 +34,7 @@ interface InstallRandomRuntimeOptions {
   client: MemeBackendClient;
   logger: ReturnType<Context["logger"]>;
   ensureCategoryExcludedMemeKeySet: () => Promise<void>;
-  filterExcludedMemeKeys: (keys: string[]) => string[];
+  filterExcludedMemeKeys: (keys: string[], session: Session) => string[];
   handleGenerateWithPreparedInput: (
     key: string,
     texts: string[],
@@ -96,7 +96,10 @@ export function installRandomRuntime(
         // 开发者模式用于复现单个模板问题，非空时直接绕过随机候选列表。
         const filteredShuffledKeys = requestedRandomKey
           ? [requestedRandomKey]
-          : filterExcludedMemeKeys(createShuffledKeys(await client.getKeys()));
+          : filterExcludedMemeKeys(
+              createShuffledKeys(await client.getKeys()),
+              session,
+            );
         if (filteredShuffledKeys.length === 0) {
           return replyOrSilent(
             config,

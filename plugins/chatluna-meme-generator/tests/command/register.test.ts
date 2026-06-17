@@ -139,6 +139,10 @@ import {
   splitMemeListText,
 } from "../../src/command/register/meme-list";
 
+type MockSessionEvent = Record<string, unknown> & {
+  user: Record<string, unknown>;
+};
+
 interface MatchOptions {
   appel?: boolean;
   i18n?: boolean;
@@ -347,6 +351,7 @@ function createBaseConfig(overrides: Partial<Config> = {}): Config {
     excludeImageAndTextMemes: false,
     excludeOtherMemes: false,
     excludedMemeKeys: [],
+    groupExcludedMemeKeys: [],
     ...overrides,
     enableMemeCommandTrigger: overrides.enableMemeCommandTrigger ?? true,
   };
@@ -372,7 +377,50 @@ function createSession(content: string, elements: any[] = []) {
       user: {},
       getLogin: vi.fn(async () => ({ user: {} })),
     },
+  } as {
+    send: ReturnType<typeof vi.fn>;
+    execute: ReturnType<typeof vi.fn>;
+    stripped: {
+      content: string;
+      hasAt: boolean;
+      atSelf: boolean;
+      appel: boolean;
+    };
+    elements: any[];
+    quote: undefined;
+    author: undefined;
+    event: MockSessionEvent;
+    bot: {
+      user: Record<string, unknown>;
+      getLogin: ReturnType<typeof vi.fn>;
+    };
+    guildId?: string;
   };
+}
+
+function createOneBotGroupSession(
+  content: string,
+  groupId: string | number,
+  rawField: "event" | "_data" | "_data.d" = "event",
+) {
+  const session = createSession(content);
+  if (rawField === "event") {
+    session.event.message_type = "group";
+    session.event.group_id = groupId;
+  } else if (rawField === "_data") {
+    session.event._data = {
+      message_type: "group",
+      group_id: groupId,
+    };
+  } else {
+    session.event._data = {
+      d: {
+        message_type: "group",
+        group_id: groupId,
+      },
+    };
+  }
+  return session;
 }
 
 type OneBotRequestMock = ReturnType<
@@ -3064,6 +3112,364 @@ describe("registerCommands", () => {
     expect(matchHandlers).toHaveLength(0);
     expect(generateMock).not.toHaveBeenCalled();
     expect(getPreviewMock).not.toHaveBeenCalled();
+  });
+
+  it("分群屏蔽列表应只过滤当前群的 meme.list", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["global_blocked", "group_blocked", "visible"]);
+    getInfoMock.mockImplementation(async (key: string) => ({
+      key,
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: [key],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    }));
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        excludedMemeKeys: ["global_blocked"],
+        groupExcludedMemeKeys: [
+          {
+            groupId: "20001",
+            excludedMemeKeys: ["group_blocked"],
+          },
+        ],
+        sendMemeListAsForward: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const listAction = commandActions.get("meme.list");
+    expect(listAction).toBeDefined();
+
+    const blockedGroupSession = createSession("meme.list");
+    blockedGroupSession.guildId = "20001";
+    await listAction!({ session: blockedGroupSession });
+    const blockedGroupContent = (
+      blockedGroupSession.send as ReturnType<typeof vi.fn>
+    ).mock.calls
+      .map((call) => String(call[0] ?? ""))
+      .join("\n");
+
+    expect(blockedGroupContent).toContain("visible");
+    expect(blockedGroupContent).not.toContain("global_blocked");
+    expect(blockedGroupContent).not.toContain("group_blocked");
+
+    const otherGroupSession = createSession("meme.list");
+    otherGroupSession.guildId = "30001";
+    await listAction!({ session: otherGroupSession });
+    const otherGroupContent = (
+      otherGroupSession.send as ReturnType<typeof vi.fn>
+    ).mock.calls
+      .map((call) => String(call[0] ?? ""))
+      .join("\n");
+
+    expect(otherGroupContent).toContain("visible");
+    expect(otherGroupContent).not.toContain("global_blocked");
+    expect(otherGroupContent).toContain("group_blocked");
+  });
+
+  it("分群屏蔽列表应识别 OneBot 原始群号字段", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["visible", "group_blocked"]);
+    getInfoMock.mockImplementation(async (key: string) => ({
+      key,
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: [key],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    }));
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        groupExcludedMemeKeys: [
+          {
+            groupId: "20001",
+            excludedMemeKeys: ["group_blocked"],
+          },
+        ],
+        sendMemeListAsForward: false,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const listAction = commandActions.get("meme.list");
+    expect(listAction).toBeDefined();
+
+    const topLevelSession = createOneBotGroupSession("meme.list", 20001);
+    await listAction!({ session: topLevelSession });
+    const topLevelContent = (
+      topLevelSession.send as ReturnType<typeof vi.fn>
+    ).mock.calls
+      .map((call) => String(call[0] ?? ""))
+      .join("\n");
+
+    expect(topLevelContent).toContain("visible");
+    expect(topLevelContent).not.toContain("group_blocked");
+
+    const rawDataSession = createOneBotGroupSession(
+      "meme.list",
+      20001,
+      "_data",
+    );
+    await listAction!({ session: rawDataSession });
+    const rawDataContent = (
+      rawDataSession.send as ReturnType<typeof vi.fn>
+    ).mock.calls
+      .map((call) => String(call[0] ?? ""))
+      .join("\n");
+
+    expect(rawDataContent).toContain("visible");
+    expect(rawDataContent).not.toContain("group_blocked");
+
+    const rawPayloadSession = createOneBotGroupSession(
+      "meme.list",
+      20001,
+      "_data.d",
+    );
+    await listAction!({ session: rawPayloadSession });
+    const rawPayloadContent = (
+      rawPayloadSession.send as ReturnType<typeof vi.fn>
+    ).mock.calls
+      .map((call) => String(call[0] ?? ""))
+      .join("\n");
+
+    expect(rawPayloadContent).toContain("visible");
+    expect(rawPayloadContent).not.toContain("group_blocked");
+  });
+
+  it("分群屏蔽列表应拦截当前群显式生成但不影响其他群", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu"]);
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        groupExcludedMemeKeys: [
+          {
+            groupId: "20001",
+            excludedMemeKeys: ["qizhu"],
+          },
+        ],
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const generateAction = commandActions.get("meme <key:string> [...texts]");
+    expect(generateAction).toBeDefined();
+
+    const blockedGroupSession = createSession("meme qizhu");
+    blockedGroupSession.guildId = "20001";
+    await expect(
+      generateAction!({ session: blockedGroupSession }, "qizhu"),
+    ).resolves.toContain("该模板已被排除");
+    expect(generateMock).not.toHaveBeenCalled();
+
+    const otherGroupSession = createSession("meme qizhu");
+    otherGroupSession.guildId = "30001";
+    await generateAction!({ session: otherGroupSession }, "qizhu");
+
+    expect(generateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("分群屏蔽列表应拦截当前群无前缀直连中文别名", async () => {
+    const { ctx, readyHandlers, matchHandlers, loggerWarn } =
+      createMockContext();
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: true,
+        disableErrorReplyToPlatform: true,
+        groupExcludedMemeKeys: [
+          {
+            groupId: "20001",
+            excludedMemeKeys: ["qizhu"],
+          },
+        ],
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    expect(matchHandlers).toHaveLength(1);
+
+    const blockedGroupSession = createSession("骑猪");
+    blockedGroupSession.guildId = "20001";
+    await expect(matchHandlers[0](blockedGroupSession)).resolves.toBe("");
+    expect(generateMock).not.toHaveBeenCalled();
+    expect(loggerWarn).toHaveBeenCalledWith(
+      "direct-alias skipped reply: %s",
+      "该模板已被排除。",
+    );
+
+    const otherGroupSession = createSession("骑猪");
+    otherGroupSession.guildId = "30001";
+    await expect(matchHandlers[0](otherGroupSession)).resolves.toBeTruthy();
+
+    expect(generateMock).toHaveBeenCalledWith("qizhu", [], [], {});
+  });
+
+  it("分群屏蔽列表应拦截当前群的 info 和 preview", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["qizhu"]);
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        groupExcludedMemeKeys: [
+          {
+            groupId: "20001",
+            excludedMemeKeys: ["qizhu"],
+          },
+        ],
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const infoAction = commandActions.get("meme.info <key:string>");
+    const previewAction = commandActions.get("meme.preview <key:string>");
+    expect(infoAction).toBeDefined();
+    expect(previewAction).toBeDefined();
+
+    const blockedGroupSession = createSession("meme.info qizhu");
+    blockedGroupSession.guildId = "20001";
+    await expect(
+      infoAction!({ session: blockedGroupSession }, "qizhu"),
+    ).resolves.toContain("该模板已被排除");
+    await expect(
+      previewAction!({ session: blockedGroupSession }, "qizhu"),
+    ).resolves.toContain("该模板已被排除");
+
+    const otherGroupSession = createSession("meme.info qizhu");
+    otherGroupSession.guildId = "30001";
+    await expect(
+      infoAction!({ session: otherGroupSession }, "qizhu"),
+    ).resolves.toContain("key: qizhu");
+    await previewAction!({ session: otherGroupSession }, "qizhu");
+
+    expect(getPreviewMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("分群屏蔽列表应过滤当前群 meme.random 候选", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    getKeysMock.mockResolvedValue(["group_blocked"]);
+    getInfoMock.mockResolvedValue({
+      key: "group_blocked",
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: ["group_blocked"],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        groupExcludedMemeKeys: [
+          {
+            groupId: "20001",
+            excludedMemeKeys: ["group_blocked"],
+          },
+        ],
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const randomAction = commandActions.get("meme.random [...texts]");
+    expect(randomAction).toBeDefined();
+
+    const blockedGroupSession = createSession("meme.random");
+    blockedGroupSession.guildId = "20001";
+    await expect(randomAction!({ session: blockedGroupSession })).resolves.toBe(
+      "当前后端没有可用模板。",
+    );
+    expect(generateMock).not.toHaveBeenCalled();
+
+    const otherGroupSession = createSession("meme.random");
+    otherGroupSession.guildId = "30001";
+    await randomAction!({ session: otherGroupSession });
+
+    expect(generateMock).toHaveBeenCalledTimes(1);
   });
 
   it("排除仅需 1 张图片模板时应过滤 meme.list 并拦截 meme.random", async () => {
