@@ -1,14 +1,29 @@
-import * as TabsPrimitive from "@radix-ui/react-tabs";
+import { Tabs as HeroTabs } from "@heroui/react/tabs";
 import * as React from "react";
 import { cn } from "../../lib/utils";
 
+type TabsProps = Omit<
+  React.ComponentProps<typeof HeroTabs>,
+  "defaultSelectedKey" | "onSelectionChange" | "selectedKey"
+> & {
+  defaultValue?: string;
+  onValueChange?: (value: string) => void;
+  value?: string;
+};
+
 function Tabs({
   className,
+  defaultValue,
+  onValueChange,
+  value,
   ...props
-}: React.ComponentProps<typeof TabsPrimitive.Root>) {
+}: TabsProps) {
   return (
-    <TabsPrimitive.Root
+    <HeroTabs
       className={cn("flex flex-col gap-4", className)}
+      defaultSelectedKey={defaultValue}
+      selectedKey={value}
+      onSelectionChange={(key) => onValueChange?.(String(key))}
       {...props}
     />
   );
@@ -17,40 +32,48 @@ function Tabs({
 function TabsList({
   className,
   ...props
-}: React.ComponentProps<typeof TabsPrimitive.List>) {
+}: React.ComponentProps<typeof HeroTabs.List>) {
   return (
-    <TabsPrimitive.List
-      className={cn(
-        "inline-flex h-9 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground",
-        className,
-      )}
-      {...props}
-    />
+    <HeroTabs.ListContainer className="w-fit">
+      <HeroTabs.List
+        className={cn("w-fit shadow-none", className)}
+        {...props}
+      />
+    </HeroTabs.ListContainer>
   );
 }
 
 function TabsTrigger({
   className,
+  value,
+  children,
   ...props
-}: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
+}: Omit<React.ComponentProps<typeof HeroTabs.Tab>, "id"> & {
+  value: string;
+}) {
   return (
-    <TabsPrimitive.Trigger
-      className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
-        className,
-      )}
+    <HeroTabs.Tab
+      className={cn("min-w-fit whitespace-nowrap px-4 text-sm", className)}
+      id={value}
       {...props}
-    />
+    >
+      {children}
+      <HeroTabs.Indicator />
+    </HeroTabs.Tab>
   );
 }
 
 function TabsContent({
   className,
+  value,
   ...props
-}: React.ComponentProps<typeof TabsPrimitive.Content>) {
+}: Omit<React.ComponentProps<typeof HeroTabs.Panel>, "id"> & {
+  value: string;
+}) {
   return (
-    <TabsPrimitive.Content
-      className={cn("outline-none", className)}
+    <HeroTabs.Panel
+      className={cn("mt-0 p-0 outline-none", className)}
+      id={value}
       {...props}
     />
   );

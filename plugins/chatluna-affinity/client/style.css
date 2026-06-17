@@ -3,6 +3,7 @@
 @import "@heroui/styles/base";
 @import "@heroui/styles/themes/default";
 @import "@heroui/styles/utilities";
+@import "@heroui/styles/components/tabs.css";
 @import "@heroui/styles/components/tooltip.css";
 
 @theme inline {
@@ -80,6 +81,14 @@
   min-height: calc(100vh - 6rem);
   padding: 0;
   color: var(--foreground);
+}
+
+.affinity-dashboard .tabs__list {
+  width: fit-content;
+}
+
+.affinity-dashboard .tabs__tab:not([data-selected="true"]) {
+  color: var(--muted-foreground);
 }
 
 .affinity-dashboard *,
