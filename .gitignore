@@ -10,7 +10,6 @@ node_modules
 package-lock.json
 .DS_Store
 coverage
-docs
 .turbo
 *.tsbuildinfo
 plugins/*/node_modules
@@ -25,9 +24,3 @@ packages/*/lib
 !.claude/AGENTS.md
 *.log
 .vitest
-
-## trellis
-.codex
-.claude
-.agents
-AGENTS.md
