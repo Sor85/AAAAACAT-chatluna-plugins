@@ -976,7 +976,7 @@ function RankingPanel({
     <Card>
       <CardHeader>
         <CardTitle>好感度排行</CardTitle>
-        <CardDescription>默认按好感度从高到低排序，每页 10 名</CardDescription>
+        <CardDescription>用户好感与黑名单记录</CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="ranking">
@@ -1087,7 +1087,7 @@ export function AffinityDashboard() {
         <div className="grid min-w-0 gap-1">
           <h2 className="text-xl font-semibold leading-tight">好感度仪表盘</h2>
           <p className="text-sm text-muted-foreground">
-            当前 scopeId 下的真实统计数据
+            当前范围的好感度概览
           </p>
         </div>
         <Button disabled={loading} size="sm" type="button" onClick={() => void load(true)}>
