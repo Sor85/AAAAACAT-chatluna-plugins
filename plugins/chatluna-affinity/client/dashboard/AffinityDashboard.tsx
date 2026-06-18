@@ -422,8 +422,8 @@ function OverviewTrendChart({
 
   return (
     <Card>
-      <CardHeader className="flex-row items-start justify-between gap-4">
-        <div className="grid gap-1">
+      <CardHeader className="flex-row flex-wrap items-start justify-between gap-4">
+        <div className="grid min-w-0 gap-1">
           <CardTitle>趋势概览</CardTitle>
           <CardDescription>用户记录、平均好感、互动次数与黑名单</CardDescription>
         </div>
@@ -1084,7 +1084,7 @@ export function AffinityDashboard() {
     <section className="affinity-dashboard">
       <Toaster position="bottom-center" richColors />
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="grid gap-1">
+        <div className="grid min-w-0 gap-1">
           <h2 className="text-xl font-semibold leading-tight">好感度仪表盘</h2>
           <p className="text-sm text-muted-foreground">
             当前 scopeId 下的真实统计数据
