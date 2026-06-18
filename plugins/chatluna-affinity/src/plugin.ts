@@ -31,6 +31,10 @@ import { createPermanentUnblockHandler } from "./services/blacklist/unblock-perm
 import { createUserAliasService } from "./services/user-alias/repository";
 import { createManualRelationshipManager } from "./services/relationship/manual-config";
 import { createMigrationService } from "./services/migration";
+import {
+  registerDashboardBackend,
+  registerDashboardWebui,
+} from "./services/dashboard";
 import { createRenderService } from "./renders";
 import {
   createAffinityProvider,
@@ -115,19 +119,22 @@ export function apply(ctx: Context, config: Config): void {
   normalizeToolSettings(config);
   registerModels(ctx);
 
-  ctx.inject(["console"], (innerCtx) => {
-    const consoleService = (
-      innerCtx as unknown as {
-        console?: { addEntry?: (entry: unknown) => void };
-      }
-    ).console;
-    consoleService?.addEntry?.({
+  const log = createLogger(ctx, config);
+
+  registerDashboardBackend({
+    ctx,
+    config,
+    log,
+  });
+  registerDashboardWebui({
+    ctx,
+    config,
+    log,
+    entry: {
       dev: path.resolve(__dirname, "../client/index.ts"),
       prod: path.resolve(__dirname, "../dist"),
-    });
+    },
   });
-
-  const log = createLogger(ctx, config);
 
   log("info", runtimeFingerprint);
 

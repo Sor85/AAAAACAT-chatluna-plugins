@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-chatluna-affinity",
   "description": "ChatLuna Character 好感度系统，提供 {好感度}、{关系}、{黑名单} 变量与工具，并支持 XML 工具调用，仅支持 onebot 平台。",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "files": [
@@ -27,6 +27,27 @@
     "type": "git",
     "url": "https://github.com/Sor85/AAAAACAT-chatluna-plugins.git"
   },
+  "koishi": {
+    "browser": true,
+    "public": [
+      "dist"
+    ],
+    "description": {
+      "zh": "ChatLuna Character 好感度系统，提供好感度、关系、黑名单变量与控制台仪表盘"
+    },
+    "service": {
+      "required": [
+        "chatluna",
+        "database"
+      ],
+      "optional": [
+        "puppeteer",
+        "console",
+        "chatluna_group_analysis",
+        "chatluna_character"
+      ]
+    }
+  },
   "dependencies": {},
   "peerDependencies": {
     "koishi": "^4.18.7",
@@ -50,17 +71,36 @@
     }
   },
   "devDependencies": {
+    "@heroui/react": "^3.1.0",
+    "@heroui/styles": "^3.1.0",
     "@koishijs/client": "^5.30.0",
+    "@radix-ui/react-avatar": "^1.1.12",
+    "@radix-ui/react-slot": "^1.2.5",
+    "@radix-ui/react-tabs": "^1.1.14",
+    "@tabler/icons-react": "^3.44.0",
+    "@tailwindcss/vite": "^4.3.1",
     "@types/node": "^22.10.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/react-is": "^19",
     "@vitejs/plugin-vue": "^6.0.2",
-    "shared-chatluna-xmltools": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-is": "^19.2.7",
+    "recharts": "^3.8.1",
     "rimraf": "^5.0.5",
     "sass": "^1.77.0",
+    "shared-chatluna-xmltools": "workspace:*",
     "shared-nav": "workspace:*",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.0.0",
     "tsup": "^8.0.0",
+    "tsx": "^4.20.6",
     "typescript": "^5.7.2",
     "vite": "^6.0.0",
-    "vue": "^3.5.21",
-    "tsx": "^4.20.6"
+    "vue": "^3.5.21"
   }
 }

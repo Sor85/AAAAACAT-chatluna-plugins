@@ -78,6 +78,7 @@ export interface Config {
   blacklistDefaultLimit: number;
   inspectRenderAsImage: boolean;
   inspectShowImpression: boolean;
+  enableDashboard: boolean;
   debugLogging: boolean;
   blacklistRenderAsImage: boolean;
   shortTermBlacklistRenderAsImage: boolean;

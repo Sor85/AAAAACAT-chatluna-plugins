@@ -5,10 +5,18 @@
 
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
+import tailwindcss from "@tailwindcss/vite";
 import { resolve } from "node:path";
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), tailwindcss()],
+  // React 生态依赖会在浏览器端读取 process.env.NODE_ENV；Koishi 控制台没有注入 process，需要在构建期直接内联。
+  define: {
+    "process.env.NODE_ENV": JSON.stringify("production"),
+  },
+  esbuild: {
+    jsx: "automatic",
+  },
   build: {
     outDir: "dist",
     emptyOutDir: true,

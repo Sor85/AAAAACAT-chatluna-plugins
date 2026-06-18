@@ -6,6 +6,7 @@
 export * from "./common";
 export * from "./affinity";
 export * from "./blacklist";
+export * from "./dashboard";
 export * from "./member";
 export * from "./user-alias";
 export {
