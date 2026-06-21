@@ -9,6 +9,7 @@ import type { Config } from "../../../src/types";
 import {
   DEFAULT_DELETE_MESSAGE_TOOL_DESCRIPTION,
   DEFAULT_POKE_TOOL_DESCRIPTION,
+  DEFAULT_SEARCH_GROUP_MEMBER_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_SPECIAL_TITLE_TOOL_DESCRIPTION,
@@ -47,6 +48,11 @@ function createConfig(overrides: Partial<Config> = {}): Config {
       enabled: false,
       toolName: "set_group_card",
       description: DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION,
+    },
+    searchGroupMember: {
+      enabled: false,
+      toolName: "search_group_member",
+      description: DEFAULT_SEARCH_GROUP_MEMBER_TOOL_DESCRIPTION,
     },
     setGroupBan: {
       enabled: false,
@@ -279,6 +285,7 @@ describe("registerNativeTools", () => {
         "setSelfProfile",
         "setQQAvatar",
         "setGroupCard",
+        "searchGroupMember",
         "setGroupBan",
         "setGroupSpecialTitle",
         "setMsgEmoji",
@@ -299,6 +306,10 @@ describe("registerNativeTools", () => {
       setGroupCard: {
         toolName: "set_group_card",
         description: DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION,
+      },
+      searchGroupMember: {
+        toolName: "search_group_member",
+        description: DEFAULT_SEARCH_GROUP_MEMBER_TOOL_DESCRIPTION,
       },
       setGroupBan: {
         toolName: "set_group_ban",
@@ -331,6 +342,7 @@ describe("registerNativeTools", () => {
 
     expect(registrationsByName.get("delete_msg").meta.tags).toEqual(["message"]);
     expect(registrationsByName.get("poke_user").meta.tags).toEqual(["poke"]);
+    expect(registrationsByName.get("search_group_member").meta.tags).toEqual(["group"]);
     expect(registrationsByName.get("set_group_ban").meta.tags).toEqual(["group"]);
     expect(registrationsByName.get("set_group_card").meta.tags).toEqual(["group"]);
     expect(registrationsByName.get("set_group_special_title").meta.tags).toEqual(["group"]);
