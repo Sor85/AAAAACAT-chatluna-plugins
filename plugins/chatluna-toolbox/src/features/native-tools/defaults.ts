@@ -13,6 +13,9 @@ export const DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION =
 
 export const DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION = "修改群成员的群昵称。";
 
+export const DEFAULT_SEARCH_GROUP_MEMBER_TOOL_DESCRIPTION =
+  "根据 qqid 精确查询群成员的群昵称与 QQ 昵称，或根据群昵称/QQ 昵称搜索 qqid。默认查询当前群聊，可通过 groupId 查询指定群。";
+
 export const DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION =
   "用于管理群成员禁言状态，可设置禁言时长或解除禁言。";
 

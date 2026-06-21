@@ -13,6 +13,7 @@ import type {
 import {
   DEFAULT_DELETE_MESSAGE_TOOL_DESCRIPTION,
   DEFAULT_POKE_TOOL_DESCRIPTION,
+  DEFAULT_SEARCH_GROUP_MEMBER_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_SPECIAL_TITLE_TOOL_DESCRIPTION,
@@ -22,6 +23,7 @@ import {
 } from "./defaults";
 import { createDeleteMessageTool } from "./tools/delete-msg";
 import { createPokeTool } from "./tools/poke";
+import { createSearchGroupMemberTool } from "./tools/search-group-member";
 import { createSetGroupBanTool } from "./tools/set-group-ban";
 import { createSetGroupCardTool } from "./tools/set-group-card";
 import { createSetGroupSpecialTitleTool } from "./tools/set-group-special-title";
@@ -181,6 +183,26 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
       meta: createNativeToolMeta("onebot", ["group"]),
     });
     log?.("info", `群昵称工具已注册: ${toolName}`);
+  }
+
+  if (isNativeToolEnabled(config, "searchGroupMember")) {
+    const toolName = resolveToolName(
+      config.searchGroupMember.toolName,
+      "search_group_member",
+    );
+    const description = resolveToolDescription(
+      config.searchGroupMember.description,
+      DEFAULT_SEARCH_GROUP_MEMBER_TOOL_DESCRIPTION,
+    );
+    plugin.registerTool(toolName, {
+      selector: () => true,
+      authorization: (session: Session) => session?.platform === "onebot",
+      description,
+      createTool: () =>
+        createSearchGroupMemberTool({ toolName, description, log }),
+      meta: createNativeToolMeta("onebot", ["group"]),
+    });
+    log?.("info", `群成员搜索工具已注册: ${toolName}`);
   }
 
   if (isNativeToolEnabled(config, "setGroupBan")) {

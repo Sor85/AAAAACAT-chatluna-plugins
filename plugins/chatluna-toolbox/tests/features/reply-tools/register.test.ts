@@ -29,6 +29,11 @@ function createConfig(overrides: Partial<Config> = {}): Config {
       toolName: "set_group_card",
       description: "",
     },
+    searchGroupMember: {
+      enabled: false,
+      toolName: "search_group_member",
+      description: "",
+    },
     setGroupBan: {
       enabled: false,
       toolName: "set_group_ban",

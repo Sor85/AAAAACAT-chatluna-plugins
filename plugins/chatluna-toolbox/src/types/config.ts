@@ -10,6 +10,7 @@ export type NativeToolKey =
   | "setSelfProfile"
   | "setQQAvatar"
   | "setGroupCard"
+  | "searchGroupMember"
   | "setGroupBan"
   | "setGroupSpecialTitle"
   | "setMsgEmoji"
@@ -28,6 +29,7 @@ export interface NativeToolsConfig {
   setSelfProfile: NativeToolItemConfig;
   setQQAvatar: NativeToolItemConfig;
   setGroupCard: NativeToolItemConfig;
+  searchGroupMember: NativeToolItemConfig;
   setGroupBan: NativeToolItemConfig;
   setGroupSpecialTitle: NativeToolItemConfig;
   setMsgEmoji: NativeToolItemConfig;
