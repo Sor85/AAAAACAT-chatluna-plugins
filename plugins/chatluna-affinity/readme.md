@@ -84,6 +84,15 @@ yarn add koishi-plugin-chatluna-affinity
 
 如果开启 `injectXmlToolAsReplyTool`（界面显示为“将 XML 工具改为注入实验性‘工具调用回复’的参数中”），就不需要把完整 XML 参考提示词塞进角色提示词里；只需要告诉模型当前 `scopeId`，插件会把可用 XML 工具注入到 ChatLuna Character 的工具调用回复参数中。
 
+## 查看好感度数据
+
+常用查看方式有这几种：
+
+1. 查看 Koishi 数据库：好感度数据保存在 `chatluna_affinity_v2` 表中，可按 `scopeId` 和 `userId` 查询。
+2. 询问 bot：在角色提示词中正确接入 `{affinity("scopeId")}` 后，可以直接向 bot 询问当前用户的好感度、关系和互动次数。
+3. 查看好感度仪表盘：启用 Koishi 控制台后，在侧栏打开“好感度仪表盘”，查看当前 `scopeId` 的排行、黑名单和趋势数据。
+4. 使用 onebot-webqq：安装 [Sor85/koishi-plugin-onebot-webqq](https://github.com/Sor85/koishi-plugin-onebot-webqq)，并打开 `showWebQQAffinity` 功能后，可在 WebQQ 界面查看好感度。
+
 ## 变量
 
 默认变量名如下：

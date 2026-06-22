@@ -7,8 +7,10 @@ import {
   IconLoader2,
   IconMinus,
   IconRefresh,
+  IconSearch,
   IconTrendingDown,
   IconTrendingUp,
+  IconX,
 } from "@tabler/icons-react";
 import React, {
   useCallback,
@@ -45,6 +47,12 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "../components/ui/input-group";
 import {
   ChartContainer,
   ChartTooltip,
@@ -85,6 +93,7 @@ type SortColumn =
   | "user"
   | "userId";
 type SortDirection = "ascending" | "descending";
+type RankingTab = "ranking" | "blacklist";
 type TrendRange = "week" | "month" | "all";
 
 interface TopUserSortDescriptor {
@@ -239,6 +248,20 @@ function compareText(left: string, right: string): number {
   });
 }
 
+function normalizeSearchText(value: string): string {
+  return value.trim().toLocaleLowerCase("zh-CN");
+}
+
+function matchesSearchQuery(
+  query: string,
+  values: Array<string | null | undefined>,
+): boolean {
+  if (!query) return true;
+  return values.some((value) =>
+    value ? normalizeSearchText(value).includes(query) : false,
+  );
+}
+
 function compareTopUsers(
   left: DashboardTopUser,
   right: DashboardTopUser,
@@ -381,6 +404,40 @@ function SortHeader({
         )
       ) : null}
     </Button>
+  );
+}
+
+function RankingSearch({
+  value,
+  onValueChange,
+}: {
+  value: string;
+  onValueChange: (value: string) => void;
+}) {
+  return (
+    <InputGroup className="ml-auto w-64 max-w-full sm:w-80">
+      <InputGroupAddon>
+        <IconSearch aria-hidden="true" />
+      </InputGroupAddon>
+      <InputGroupInput
+        aria-label="搜索用户"
+        placeholder="搜索 QQ 号或昵称"
+        type="search"
+        value={value}
+        onChange={(event) => onValueChange(event.target.value)}
+      />
+      {value ? (
+        <InputGroupAddon align="inline-end">
+          <InputGroupButton
+            aria-label="清空搜索"
+            size="icon-xs"
+            onClick={() => onValueChange("")}
+          >
+            <IconX aria-hidden="true" />
+          </InputGroupButton>
+        </InputGroupAddon>
+      ) : null}
+    </InputGroup>
   );
 }
 
@@ -562,10 +619,12 @@ function RelationshipDistribution({
 }
 
 function TopUserTable({
+  emptyMessage,
   users,
   selectedUserId,
   onSelectUser,
 }: {
+  emptyMessage: string;
   users: DashboardTopUser[];
   selectedUserId: string | null;
   onSelectUser: (user: DashboardTopUser) => void;
@@ -601,7 +660,7 @@ function TopUserTable({
   }, [pageCount]);
 
   if (!users.length) {
-    return <p className="affinity-dashboard__empty">当前 scopeId 暂无好感度记录。</p>;
+    return <p className="affinity-dashboard__empty">{emptyMessage}</p>;
   }
 
   return (
@@ -788,9 +847,15 @@ function TopUserTable({
   );
 }
 
-function BlacklistTable({ items }: { items: DashboardBlacklistItem[] }) {
+function BlacklistTable({
+  emptyMessage,
+  items,
+}: {
+  emptyMessage: string;
+  items: DashboardBlacklistItem[];
+}) {
   if (!items.length) {
-    return <p className="affinity-dashboard__empty">当前 scopeId 暂无黑名单记录。</p>;
+    return <p className="affinity-dashboard__empty">{emptyMessage}</p>;
   }
 
   return (
@@ -964,13 +1029,36 @@ function RankingPanel({
 }: {
   data: DashboardData;
 }) {
+  const [activeTab, setActiveTab] = useState<RankingTab>("ranking");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const normalizedSearchQuery = useMemo(
+    () => normalizeSearchText(searchQuery),
+    [searchQuery],
+  );
+  const filteredTopUsers = useMemo(
+    () =>
+      data.topUsers.filter((user) =>
+        matchesSearchQuery(normalizedSearchQuery, [user.userId, user.name]),
+      ),
+    [data.topUsers, normalizedSearchQuery],
+  );
+  const filteredBlacklistItems = useMemo(
+    () =>
+      data.blacklistItems.filter((item) =>
+        matchesSearchQuery(normalizedSearchQuery, [item.userId, item.name]),
+      ),
+    [data.blacklistItems, normalizedSearchQuery],
+  );
+  const hasSearchQuery = normalizedSearchQuery.length > 0;
 
   useEffect(() => {
     setSelectedUserId((current) =>
-      current && data.topUsers.some((user) => user.userId === current) ? current : null,
+      current && filteredTopUsers.some((user) => user.userId === current)
+        ? current
+        : null,
     );
-  }, [data.topUsers]);
+  }, [filteredTopUsers]);
 
   return (
     <Card>
@@ -979,16 +1067,30 @@ function RankingPanel({
         <CardDescription>用户好感与黑名单记录</CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="ranking">
-          <TabsList className="self-start">
-            <TabsTrigger value="ranking">好感度</TabsTrigger>
-            <TabsTrigger value="blacklist">黑名单</TabsTrigger>
-          </TabsList>
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as RankingTab)}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <TabsList className="self-start">
+              <TabsTrigger value="ranking">好感度</TabsTrigger>
+              <TabsTrigger value="blacklist">黑名单</TabsTrigger>
+            </TabsList>
+            <RankingSearch
+              value={searchQuery}
+              onValueChange={setSearchQuery}
+            />
+          </div>
           <TabsContent value="ranking">
             <div className="grid gap-4">
               <TopUserTable
+                emptyMessage={
+                  hasSearchQuery
+                    ? "没有找到匹配的好感度用户。"
+                    : "当前 scopeId 暂无好感度记录。"
+                }
                 selectedUserId={selectedUserId}
-                users={data.topUsers}
+                users={filteredTopUsers}
                 onSelectUser={(user) =>
                   setSelectedUserId((current) =>
                     current === user.userId ? null : user.userId,
@@ -998,7 +1100,14 @@ function RankingPanel({
             </div>
           </TabsContent>
           <TabsContent value="blacklist">
-            <BlacklistTable items={data.blacklistItems} />
+            <BlacklistTable
+              emptyMessage={
+                hasSearchQuery
+                  ? "没有找到匹配的黑名单用户。"
+                  : "当前 scopeId 暂无黑名单记录。"
+              }
+              items={filteredBlacklistItems}
+            />
           </TabsContent>
         </Tabs>
       </CardContent>
