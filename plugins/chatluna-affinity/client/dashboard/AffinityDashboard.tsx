@@ -81,6 +81,10 @@ import type {
   DashboardRelationStat,
   DashboardTopUser,
 } from "./types";
+import {
+  getRelationListMinHeight,
+  RELATION_LIST_MAX_ITEMS,
+} from "./relation-layout";
 
 const DASHBOARD_EVENT = "chatluna-affinity/dashboard";
 const TOP_USER_PAGE_SIZE = 10;
@@ -549,18 +553,26 @@ function OverviewTrendChart({
 
 function RelationList({
   items,
+  minHeight,
   total,
 }: {
   items: DashboardRelationStat[];
+  minHeight: number;
   total: number;
 }) {
+  const style: React.CSSProperties = { minHeight };
+
   if (!items.length) {
-    return <p className="affinity-dashboard__empty">当前 scopeId 暂无关系数据。</p>;
+    return (
+      <div style={style}>
+        <p className="affinity-dashboard__empty">当前 scopeId 暂无关系数据。</p>
+      </div>
+    );
   }
 
   return (
-    <div className="grid gap-3">
-      {items.slice(0, 8).map((item) => {
+    <div className="grid content-start gap-3" style={style}>
+      {items.slice(0, RELATION_LIST_MAX_ITEMS).map((item) => {
         const percent = total > 0 ? Math.round((item.count / total) * 100) : 0;
 
         return (
@@ -593,6 +605,9 @@ function RelationshipDistribution({
 }) {
   const presetItems = items.filter((item) => item.kind === "preset");
   const customItems = items.filter((item) => item.kind === "custom");
+  const listMinHeight = getRelationListMinHeight(
+    Math.max(presetItems.length, customItems.length),
+  );
 
   return (
     <Card>
@@ -607,10 +622,18 @@ function RelationshipDistribution({
             <TabsTrigger value="custom">自定义关系</TabsTrigger>
           </TabsList>
           <TabsContent value="preset">
-            <RelationList items={presetItems} total={total} />
+            <RelationList
+              items={presetItems}
+              minHeight={listMinHeight}
+              total={total}
+            />
           </TabsContent>
           <TabsContent value="custom">
-            <RelationList items={customItems} total={total} />
+            <RelationList
+              items={customItems}
+              minHeight={listMinHeight}
+              total={total}
+            />
           </TabsContent>
         </Tabs>
       </CardContent>
