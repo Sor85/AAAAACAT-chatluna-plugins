@@ -74,6 +74,32 @@ ${colorConfig
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
 
+interface ChartTooltipPayloadItem {
+  color?: string;
+  dataKey?: string | number;
+  name?: string | number;
+  value?: unknown;
+}
+
+function toTooltipSortValue(value: unknown): number {
+  const numericValue = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(numericValue) ? numericValue : Number.NEGATIVE_INFINITY;
+}
+
+export function sortChartTooltipPayload<T extends ChartTooltipPayloadItem>(
+  payload: T[],
+): T[] {
+  return payload
+    .map((item, index) => ({ item, index }))
+    .sort((left, right) => {
+      const diff =
+        toTooltipSortValue(right.item.value) -
+        toTooltipSortValue(left.item.value);
+      return diff || left.index - right.index;
+    })
+    .map(({ item }) => item);
+}
+
 function ChartTooltipContent({
   active,
   payload,
@@ -82,12 +108,7 @@ function ChartTooltipContent({
   hideLabel = false,
 }: {
   active?: boolean;
-  payload?: Array<{
-    color?: string;
-    dataKey?: string | number;
-    name?: string | number;
-    value?: unknown;
-  }>;
+  payload?: ChartTooltipPayloadItem[];
   label?: React.ReactNode;
   className?: string;
   hideLabel?: boolean;
@@ -107,7 +128,7 @@ function ChartTooltipContent({
         <div className="font-medium text-foreground">{label}</div>
       ) : null}
       <div className="grid gap-1.5">
-        {payload.map((item) => {
+        {sortChartTooltipPayload(payload).map((item) => {
           const key = String(item.dataKey || item.name || "");
           const itemConfig = config[key];
           const color = item.color || itemConfig?.color;
