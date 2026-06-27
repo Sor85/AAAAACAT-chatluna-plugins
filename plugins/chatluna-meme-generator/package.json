@@ -7,7 +7,6 @@
   "files": [
     "lib",
     "dist",
-    "client",
     "README.md"
   ],
   "scripts": {
