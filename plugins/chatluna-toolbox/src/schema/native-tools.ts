@@ -6,10 +6,12 @@
 import { Schema } from "koishi";
 import {
   DEFAULT_DELETE_MESSAGE_TOOL_DESCRIPTION,
+  DEFAULT_LEAVE_GROUP_TOOL_DESCRIPTION,
   DEFAULT_POKE_TOOL_DESCRIPTION,
   DEFAULT_SEARCH_GROUP_MEMBER_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION,
+  DEFAULT_SET_GROUP_KICK_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_SPECIAL_TITLE_TOOL_DESCRIPTION,
   DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION,
   DEFAULT_SET_MSG_EMOJI_TOOL_DESCRIPTION,
@@ -24,6 +26,8 @@ const EnabledNativeToolsSchema = Schema.array(
     Schema.const("setGroupCard").description("修改群成员昵称"),
     Schema.const("searchGroupMember").description("搜索群成员"),
     Schema.const("setGroupBan").description("禁言群成员"),
+    Schema.const("leaveGroup").description("退群"),
+    Schema.const("setGroupKick").description("踢出群成员"),
     Schema.const("setGroupSpecialTitle").description("修改群成员专属头衔"),
     Schema.const("setMsgEmoji").description("消息表情"),
     Schema.const("deleteMessage").description("撤回消息"),
@@ -94,6 +98,24 @@ const NativeToolAdvancedSettingsSchema = Schema.object({
       .description("工具描述"),
   })
     .description("禁言工具")
+    .collapse(),
+  leaveGroup: Schema.object({
+    enabled: Schema.boolean().default(false).hidden(),
+    toolName: Schema.string().default("set_group_leave").description("工具名称"),
+    description: Schema.string()
+      .default(DEFAULT_LEAVE_GROUP_TOOL_DESCRIPTION)
+      .description("工具描述"),
+  })
+    .description("退群工具")
+    .collapse(),
+  setGroupKick: Schema.object({
+    enabled: Schema.boolean().default(false).hidden(),
+    toolName: Schema.string().default("set_group_kick").description("工具名称"),
+    description: Schema.string()
+      .default(DEFAULT_SET_GROUP_KICK_TOOL_DESCRIPTION)
+      .description("工具描述"),
+  })
+    .description("踢出群成员工具")
     .collapse(),
   setGroupSpecialTitle: Schema.object({
     enabled: Schema.boolean().default(false).hidden(),

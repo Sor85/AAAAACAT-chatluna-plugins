@@ -19,6 +19,12 @@ export const DEFAULT_SEARCH_GROUP_MEMBER_TOOL_DESCRIPTION =
 export const DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION =
   "用于管理群成员禁言状态，可设置禁言时长或解除禁言。";
 
+export const DEFAULT_LEAVE_GROUP_TOOL_DESCRIPTION =
+  "让机器人退出当前群聊。";
+
+export const DEFAULT_SET_GROUP_KICK_TOOL_DESCRIPTION =
+  "将指定成员踢出群聊。";
+
 export const DEFAULT_SET_GROUP_SPECIAL_TITLE_TOOL_DESCRIPTION =
   "修改或清除群成员的 QQ 群专属头衔。";
 
