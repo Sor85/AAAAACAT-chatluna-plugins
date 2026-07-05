@@ -87,7 +87,18 @@ export async function getSenderAvatarImage(
   timeoutMs: number,
 ): Promise<GenerateImageInput | undefined> {
   const src = getSenderAvatarSrc(session);
-  if (!src) return undefined;
+  if (!src) {
+    // poke 等 notice 事件常不带 author/avatar，需要按发送者 ID 回查头像供随机图片模板补图。
+    if (!session.userId) return undefined;
+    return await resolveAvatarImageByUserId(
+      ctx,
+      session,
+      session.userId,
+      timeoutMs,
+      session.guildId,
+      "avatar",
+    );
+  }
 
   try {
     return await downloadImage(ctx, src, timeoutMs, "avatar");
