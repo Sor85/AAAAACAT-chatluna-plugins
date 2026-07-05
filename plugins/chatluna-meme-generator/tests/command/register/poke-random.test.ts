@@ -12,6 +12,14 @@ const backendMocks = vi.hoisted(() => ({
   getKeys: vi.fn(),
 }));
 
+const imageMocks = vi.hoisted(() => ({
+  downloadImage: vi.fn(async () => ({
+    data: new Uint8Array([9, 9, 9]),
+    filename: "avatar.png",
+    mimeType: "image/png",
+  })),
+}));
+
 vi.mock("koishi", () => ({
   h: {
     image: vi.fn((buffer: Buffer, mimeType: string) => ({ buffer, mimeType })),
@@ -26,6 +34,16 @@ vi.mock("../../../src/infra/client", () => ({
     generate: backendMocks.generate,
   })),
 }));
+
+vi.mock("../../../src/utils/image", async () => {
+  const actual = await vi.importActual<typeof import("../../../src/utils/image")>(
+    "../../../src/utils/image",
+  );
+  return {
+    ...actual,
+    downloadImage: imageMocks.downloadImage,
+  };
+});
 
 import { registerCommands } from "../../../src/command/register";
 
@@ -169,6 +187,95 @@ describe("poke triggered meme.random", () => {
       "nickname_meme",
       [],
       ["发送者群昵称"],
+      {},
+    );
+  });
+
+  it("关闭仅需文字权重后应能用发送者头像生成图片模板", async () => {
+    backendMocks.generate.mockReset();
+    backendMocks.getInfo.mockReset();
+    backendMocks.getKeys.mockReset();
+    imageMocks.downloadImage.mockReset();
+    imageMocks.downloadImage.mockResolvedValue({
+      data: new Uint8Array([9, 9, 9]),
+      filename: "avatar.png",
+      mimeType: "image/png",
+    });
+
+    backendMocks.getKeys.mockResolvedValue(["avatar_meme"]);
+    backendMocks.getInfo.mockResolvedValue({
+      key: "avatar_meme",
+      params_type: {
+        min_images: 1,
+        max_images: 1,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: [],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    });
+    backendMocks.generate.mockResolvedValue({
+      buffer: new Uint8Array([1, 2, 3]).buffer,
+      mimeType: "image/png",
+    });
+
+    const { ctx, commandActions } = createMockContext();
+    registerCommands(ctx, {
+      ...createConfig(),
+      randomMemeBucketWeightRules: [
+        { category: "text-only", enabled: false, weight: 0 },
+        { category: "single-image-only", enabled: true, weight: 100 },
+        { category: "two-image-only", enabled: false, weight: 0 },
+        { category: "image-and-text", enabled: false, weight: 0 },
+        { category: "other", enabled: false, weight: 0 },
+      ],
+    });
+
+    const randomAction = commandActions.get("meme.random [...texts]");
+    expect(randomAction).toBeDefined();
+
+    const session = {
+      userId: "10001",
+      guildId: "20001",
+      username: "10001",
+      author: {},
+      event: { user: {} },
+      elements: [],
+      quote: undefined,
+      bot: {
+        user: {},
+        getLogin: vi.fn(async () => ({ user: {} })),
+        getGuildMember: vi.fn(async () => ({
+          avatar: "https://cdn.example.com/sender.png",
+          nick: "发送者群昵称",
+        })),
+        getUser: vi.fn(),
+      },
+    } as any;
+
+    const result = await randomAction!({ session });
+
+    expect(result).toBeTruthy();
+    expect(imageMocks.downloadImage).toHaveBeenCalledWith(
+      expect.anything(),
+      "https://cdn.example.com/sender.png",
+      3000,
+      "avatar",
+    );
+    expect(backendMocks.generate).toHaveBeenCalledWith(
+      "avatar_meme",
+      [
+        {
+          data: new Uint8Array([9, 9, 9]),
+          filename: "avatar.png",
+          mimeType: "image/png",
+        },
+      ],
+      [],
       {},
     );
   });

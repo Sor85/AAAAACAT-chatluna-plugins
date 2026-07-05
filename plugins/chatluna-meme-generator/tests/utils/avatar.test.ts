@@ -22,6 +22,7 @@ import {
   getMentionedSecondaryAvatarImage,
   getMentionedTargetAvatarImage,
   getMentionedTargetDisplayName,
+  getSenderAvatarImage,
   getSenderDisplayName,
   resolveSenderDisplayName,
 } from "../../src/utils/avatar";
@@ -461,6 +462,44 @@ describe("getMentionedSecondaryAvatarImage", () => {
 
     expect(result).toBeUndefined();
     expect(imageMocks.downloadImage).not.toHaveBeenCalled();
+  });
+});
+
+describe("getSenderAvatarImage", () => {
+  it("notice 会话缺少内联头像时回查发送者头像", async () => {
+    imageMocks.downloadImage.mockReset();
+    imageMocks.downloadImage.mockResolvedValue({
+      data: new Uint8Array([8]),
+      filename: "avatar.png",
+      mimeType: "image/png",
+    });
+
+    const getGuildMember = vi.fn(async () => ({
+      avatar: "https://cdn.example.com/sender.png",
+    }));
+    const getUser = vi.fn();
+    const session = {
+      userId: "10001",
+      guildId: "20001",
+      author: {},
+      event: { user: {} },
+      bot: {
+        getGuildMember,
+        getUser,
+      },
+    } as any;
+
+    const result = await getSenderAvatarImage(createCtx(), session, 3000);
+
+    expect(getGuildMember).toHaveBeenCalledWith("20001", "10001");
+    expect(getUser).not.toHaveBeenCalled();
+    expect(imageMocks.downloadImage).toHaveBeenCalledWith(
+      expect.anything(),
+      "https://cdn.example.com/sender.png",
+      3000,
+      "avatar",
+    );
+    expect(result).toBeTruthy();
   });
 });
 
