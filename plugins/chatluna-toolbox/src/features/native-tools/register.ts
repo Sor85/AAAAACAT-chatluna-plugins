@@ -12,20 +12,24 @@ import type {
 } from "../../types";
 import {
   DEFAULT_DELETE_MESSAGE_TOOL_DESCRIPTION,
+  DEFAULT_LEAVE_GROUP_TOOL_DESCRIPTION,
   DEFAULT_POKE_TOOL_DESCRIPTION,
   DEFAULT_SEARCH_GROUP_MEMBER_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION,
+  DEFAULT_SET_GROUP_KICK_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_SPECIAL_TITLE_TOOL_DESCRIPTION,
   DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION,
   DEFAULT_SET_MSG_EMOJI_TOOL_DESCRIPTION,
   DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION,
 } from "./defaults";
 import { createDeleteMessageTool } from "./tools/delete-msg";
+import { createLeaveGroupTool } from "./tools/leave-group";
 import { createPokeTool } from "./tools/poke";
 import { createSearchGroupMemberTool } from "./tools/search-group-member";
 import { createSetGroupBanTool } from "./tools/set-group-ban";
 import { createSetGroupCardTool } from "./tools/set-group-card";
+import { createSetGroupKickTool } from "./tools/set-group-kick";
 import { createSetGroupSpecialTitleTool } from "./tools/set-group-special-title";
 import { createSetMsgEmojiTool } from "./tools/set-msg-emoji";
 import { createSetProfileTool } from "./tools/profile";
@@ -223,6 +227,44 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
       meta: createNativeToolMeta("onebot", ["group"]),
     });
     log?.("info", `群成员禁言工具已注册: ${toolName}`);
+  }
+
+  if (isNativeToolEnabled(config, "leaveGroup")) {
+    const toolName = resolveToolName(
+      config.leaveGroup.toolName,
+      "set_group_leave",
+    );
+    const description = resolveToolDescription(
+      config.leaveGroup.description,
+      DEFAULT_LEAVE_GROUP_TOOL_DESCRIPTION,
+    );
+    plugin.registerTool(toolName, {
+      selector: () => true,
+      authorization: (session: Session) => session?.platform === "onebot",
+      description,
+      createTool: () => createLeaveGroupTool({ toolName, description, log }),
+      meta: createNativeToolMeta("onebot", ["group"]),
+    });
+    log?.("info", `退群工具已注册: ${toolName}`);
+  }
+
+  if (isNativeToolEnabled(config, "setGroupKick")) {
+    const toolName = resolveToolName(
+      config.setGroupKick.toolName,
+      "set_group_kick",
+    );
+    const description = resolveToolDescription(
+      config.setGroupKick.description,
+      DEFAULT_SET_GROUP_KICK_TOOL_DESCRIPTION,
+    );
+    plugin.registerTool(toolName, {
+      selector: () => true,
+      authorization: (session: Session) => session?.platform === "onebot",
+      description,
+      createTool: () => createSetGroupKickTool({ toolName, description, log }),
+      meta: createNativeToolMeta("onebot", ["group"]),
+    });
+    log?.("info", `踢出群成员工具已注册: ${toolName}`);
   }
 
   if (isNativeToolEnabled(config, "setGroupSpecialTitle")) {

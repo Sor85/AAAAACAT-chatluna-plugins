@@ -40,6 +40,16 @@ function createConfig(overrides: Partial<Config> = {}): Config {
       toolName: "set_group_ban",
       description: "",
     },
+    leaveGroup: {
+      enabled: false,
+      toolName: "set_group_leave",
+      description: "",
+    },
+    setGroupKick: {
+      enabled: false,
+      toolName: "set_group_kick",
+      description: "",
+    },
     setGroupSpecialTitle: {
       enabled: false,
       toolName: "set_group_special_title",

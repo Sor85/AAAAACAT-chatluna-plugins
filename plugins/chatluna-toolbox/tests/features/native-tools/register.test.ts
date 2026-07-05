@@ -8,10 +8,12 @@ import { registerNativeTools, resolveOneBotProtocol } from "../../../src/feature
 import type { Config } from "../../../src/types";
 import {
   DEFAULT_DELETE_MESSAGE_TOOL_DESCRIPTION,
+  DEFAULT_LEAVE_GROUP_TOOL_DESCRIPTION,
   DEFAULT_POKE_TOOL_DESCRIPTION,
   DEFAULT_SEARCH_GROUP_MEMBER_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_CARD_TOOL_DESCRIPTION,
+  DEFAULT_SET_GROUP_KICK_TOOL_DESCRIPTION,
   DEFAULT_SET_GROUP_SPECIAL_TITLE_TOOL_DESCRIPTION,
   DEFAULT_SET_QQ_AVATAR_TOOL_DESCRIPTION,
   DEFAULT_SET_MSG_EMOJI_TOOL_DESCRIPTION,
@@ -58,6 +60,16 @@ function createConfig(overrides: Partial<Config> = {}): Config {
       enabled: false,
       toolName: "set_group_ban",
       description: DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
+    },
+    leaveGroup: {
+      enabled: false,
+      toolName: "set_group_leave",
+      description: DEFAULT_LEAVE_GROUP_TOOL_DESCRIPTION,
+    },
+    setGroupKick: {
+      enabled: false,
+      toolName: "set_group_kick",
+      description: DEFAULT_SET_GROUP_KICK_TOOL_DESCRIPTION,
     },
     setGroupSpecialTitle: {
       enabled: false,
@@ -111,6 +123,8 @@ describe("registerNativeTools", () => {
       enabledNativeTools: [
         "poke",
         "setGroupBan",
+        "leaveGroup",
+        "setGroupKick",
         "setGroupSpecialTitle",
         "setMsgEmoji",
       ],
@@ -126,6 +140,14 @@ describe("registerNativeTools", () => {
         toolName: "custom_ban",
         description: "custom ban description",
       },
+      leaveGroup: {
+        toolName: "custom_leave",
+        description: "custom leave description",
+      },
+      setGroupKick: {
+        toolName: "custom_kick",
+        description: "custom kick description",
+      },
       setGroupSpecialTitle: {
         toolName: "custom_title",
         description: "custom title description",
@@ -139,7 +161,7 @@ describe("registerNativeTools", () => {
       protocol: "napcat",
     });
 
-    expect(registerTool).toHaveBeenCalledTimes(4);
+    expect(registerTool).toHaveBeenCalledTimes(6);
     expect(registerTool).toHaveBeenNthCalledWith(
       1,
       "custom_poke",
@@ -170,6 +192,34 @@ describe("registerNativeTools", () => {
     );
     expect(registerTool).toHaveBeenNthCalledWith(
       3,
+      "custom_leave",
+      expect.objectContaining({
+        selector: expect.any(Function),
+        authorization: expect.any(Function),
+        description: "custom leave description",
+        createTool: expect.any(Function),
+        meta: expect.objectContaining({
+          tags: ["group"],
+          defaultAvailability: TOOL_DEFAULT_AVAILABILITY,
+        }),
+      }),
+    );
+    expect(registerTool).toHaveBeenNthCalledWith(
+      4,
+      "custom_kick",
+      expect.objectContaining({
+        selector: expect.any(Function),
+        authorization: expect.any(Function),
+        description: "custom kick description",
+        createTool: expect.any(Function),
+        meta: expect.objectContaining({
+          tags: ["group"],
+          defaultAvailability: TOOL_DEFAULT_AVAILABILITY,
+        }),
+      }),
+    );
+    expect(registerTool).toHaveBeenNthCalledWith(
+      5,
       "custom_title",
       expect.objectContaining({
         selector: expect.any(Function),
@@ -183,7 +233,7 @@ describe("registerNativeTools", () => {
       }),
     );
     expect(registerTool).toHaveBeenNthCalledWith(
-      4,
+      6,
       "custom_emoji",
       expect.objectContaining({
         selector: expect.any(Function),
@@ -287,6 +337,8 @@ describe("registerNativeTools", () => {
         "setGroupCard",
         "searchGroupMember",
         "setGroupBan",
+        "leaveGroup",
+        "setGroupKick",
         "setGroupSpecialTitle",
         "setMsgEmoji",
         "deleteMessage",
@@ -315,6 +367,14 @@ describe("registerNativeTools", () => {
         toolName: "set_group_ban",
         description: DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION,
       },
+      leaveGroup: {
+        toolName: "set_group_leave",
+        description: DEFAULT_LEAVE_GROUP_TOOL_DESCRIPTION,
+      },
+      setGroupKick: {
+        toolName: "set_group_kick",
+        description: DEFAULT_SET_GROUP_KICK_TOOL_DESCRIPTION,
+      },
       setGroupSpecialTitle: {
         toolName: "set_group_special_title",
         description: DEFAULT_SET_GROUP_SPECIAL_TITLE_TOOL_DESCRIPTION,
@@ -341,6 +401,8 @@ describe("registerNativeTools", () => {
     );
 
     expect(registrationsByName.get("delete_msg").meta.tags).toEqual(["message"]);
+    expect(registrationsByName.get("set_group_kick").meta.tags).toEqual(["group"]);
+    expect(registrationsByName.get("set_group_leave").meta.tags).toEqual(["group"]);
     expect(registrationsByName.get("poke_user").meta.tags).toEqual(["poke"]);
     expect(registrationsByName.get("search_group_member").meta.tags).toEqual(["group"]);
     expect(registrationsByName.get("set_group_ban").meta.tags).toEqual(["group"]);
