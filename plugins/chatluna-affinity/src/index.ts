@@ -20,6 +20,7 @@ export {
   AffinitySchema,
   BlacklistSchema,
   RelationshipSchema,
+  NativeToolSettingsSchema,
   OtherSettingsSchema,
 } from "./schema";
 export const usage = `

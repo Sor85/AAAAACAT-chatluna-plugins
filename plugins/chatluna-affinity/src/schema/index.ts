@@ -10,6 +10,7 @@ import { RelationshipSchema } from "./relationship";
 import {
   ScopeSettingsSchema,
   VariableSettingsSchema,
+  NativeToolSettingsSchema,
   XmlToolSettingsSchema,
   OtherSettingsSchema,
 } from "./tools";
@@ -36,6 +37,7 @@ export const ConfigSchema = Schema.intersect([
   BlacklistSchema,
   RelationshipSchema,
   VariableSettingsSchema,
+  NativeToolSettingsSchema,
   XmlToolSettingsSchema,
   OtherSettingsSchema,
 ]);

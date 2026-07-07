@@ -63,6 +63,25 @@ export interface XmlToolSettings {
   characterPromptTemplate: string;
 }
 
+export type NativeToolKey =
+  | "affinity"
+  | "blacklist"
+  | "relationship"
+  | "userAlias";
+
+export interface NativeToolItemConfig {
+  toolName: string;
+  description: string;
+}
+
+export interface NativeToolSettings {
+  enabledNativeTools?: NativeToolKey[];
+  affinity: NativeToolItemConfig;
+  blacklist: NativeToolItemConfig;
+  relationship: NativeToolItemConfig;
+  userAlias: NativeToolItemConfig;
+}
+
 export interface Config {
   scopeId: string;
   botSelfIds: string[];
@@ -85,5 +104,6 @@ export interface Config {
   relationships: ManualRelationship[];
   relationshipAffinityLevels: RelationshipLevel[];
   variableSettings: VariableSettings;
+  nativeToolSettings: NativeToolSettings;
   xmlToolSettings: XmlToolSettings;
 }

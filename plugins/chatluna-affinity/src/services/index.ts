@@ -8,5 +8,6 @@ export * from "./blacklist";
 export * from "./relationship";
 export * from "./message";
 export * from "./model-response";
+export * from "./native-tools/register";
 export * from "./user-alias";
 export * from "./migration";

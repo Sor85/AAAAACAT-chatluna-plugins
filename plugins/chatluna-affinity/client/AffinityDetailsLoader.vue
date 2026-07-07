@@ -3,7 +3,7 @@
   根据当前插件名称决定是否显示共享导航组件
 -->
 <template>
-    <SharedNav v-if="isOwn" :sections="navSections" />
+    <SharedNav v-if="isOwn" :sections="navSections" :initial-right="24" :width="170" />
 </template>
 
 <script setup lang="ts">

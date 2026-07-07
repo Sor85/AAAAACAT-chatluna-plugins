@@ -6,8 +6,9 @@
 import { parseSelfClosingXmlTags } from "shared-chatluna-xmltools";
 import { collectNicknameCandidates, fetchMember } from "../../helpers";
 import type { ModelResponseContext } from "./temp-runtime";
-import type { Config, LogFn } from "../../types";
+import type { Config, LogFn, SessionSeed } from "../../types";
 import { applyAffinityDelta } from "../affinity/apply-delta";
+import type { UnblockPermanentResult } from "../blacklist/unblock-permanent";
 
 export interface ModelResponseProcessorParams {
   config: Config;
@@ -59,11 +60,11 @@ export interface ModelResponseProcessorParams {
     ) => Promise<unknown>;
   };
   unblockPermanent: (params: {
-    source: "xml" | "command";
+    source: "xml" | "command" | "native";
     platform: string;
     userId: string;
-    seed?: { scopeId: string; platform: string; userId: string };
-  }) => Promise<unknown>;
+    seed?: SessionSeed;
+  }) => Promise<UnblockPermanentResult>;
   userAlias: {
     setAlias: (
       platform: string,

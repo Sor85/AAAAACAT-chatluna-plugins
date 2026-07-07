@@ -3,7 +3,7 @@
   提供拖拽、折叠、滚动高亮与点击定位能力
 -->
 <template>
-  <div ref="containerRef" :class="[$style.container, isCollapsed ? $style.collapsed : '']" :style="position">
+  <div ref="containerRef" :class="[$style.container, isCollapsed ? $style.collapsed : '']" :style="containerStyle">
     <div :class="$style.header" @mousedown="onStartDrag" @touchstart="onStartDrag">
       <IconMove :class="$style.move" />
       <div :class="$style.toggle" @click="toggleCollapse" @mousedown.stop @touchstart.stop>
@@ -67,6 +67,11 @@ const { position, startDrag } = useDraggable({
   initialRight: props.initialRight,
   boundarySelector: props.boundarySelector,
 });
+
+const containerStyle = computed(() => ({
+  ...position.value,
+  ...(props.width ? { width: `${props.width}px` } : {}),
+}));
 
 const onStartDrag = (event: MouseEvent | TouchEvent) => {
   startDrag(event, containerRef.value);

@@ -4,6 +4,12 @@
  */
 
 import { Schema } from "koishi";
+import {
+  DEFAULT_AFFINITY_NATIVE_TOOL_DESCRIPTION,
+  DEFAULT_BLACKLIST_NATIVE_TOOL_DESCRIPTION,
+  DEFAULT_RELATIONSHIP_NATIVE_TOOL_DESCRIPTION,
+  DEFAULT_USER_ALIAS_NATIVE_TOOL_DESCRIPTION,
+} from "../services/native-tools/defaults";
 
 export const ScopeSettingsSchema = Schema.object({
   scopeId: Schema.string()
@@ -19,10 +25,71 @@ export const ScopeSettingsSchema = Schema.object({
     ),
 }).description("作用域设置");
 
+const EnabledNativeToolsSchema = Schema.array(
+  Schema.union([
+    Schema.const("affinity").description("好感度"),
+    Schema.const("blacklist").description("黑名单"),
+    Schema.const("relationship").description("关系"),
+    Schema.const("userAlias").description("自定义昵称"),
+  ]),
+)
+  .role("checkbox")
+  // Koishi 前端只有看到原生 array + checkbox schema 才会渲染为复选框列表；不要用 transform 包裹。
+  .extra("default", undefined)
+  .description("选择要注册到 ChatLuna 主插件的原生工具");
+
+export const NativeToolSettingsSchema = Schema.object({
+  nativeToolSettings: Schema.object({
+    enabledNativeTools: EnabledNativeToolsSchema,
+    affinity: Schema.object({
+      toolName: Schema.string()
+        .default("affinity_affinity")
+        .description("工具名称"),
+      description: Schema.string()
+        .default(DEFAULT_AFFINITY_NATIVE_TOOL_DESCRIPTION)
+        .description("工具描述"),
+    })
+      .description("好感度工具")
+      .collapse(),
+    blacklist: Schema.object({
+      toolName: Schema.string()
+        .default("affinity_blacklist")
+        .description("工具名称"),
+      description: Schema.string()
+        .default(DEFAULT_BLACKLIST_NATIVE_TOOL_DESCRIPTION)
+        .description("工具描述"),
+    })
+      .description("黑名单工具")
+      .collapse(),
+    relationship: Schema.object({
+      toolName: Schema.string()
+        .default("affinity_relationship")
+        .description("工具名称"),
+      description: Schema.string()
+        .default(DEFAULT_RELATIONSHIP_NATIVE_TOOL_DESCRIPTION)
+        .description("工具描述"),
+    })
+      .description("关系工具")
+      .collapse(),
+    userAlias: Schema.object({
+      toolName: Schema.string()
+        .default("affinity_user_alias")
+        .description("工具名称"),
+      description: Schema.string()
+        .default(DEFAULT_USER_ALIAS_NATIVE_TOOL_DESCRIPTION)
+        .description("工具描述"),
+    })
+      .description("自定义昵称工具")
+      .collapse(),
+  }).description(""),
+}).description("原生工具设置");
+
 export const XmlToolSettingsSchema = Schema.object({
   injectXmlToolAsReplyTool: Schema.boolean()
     .default(false)
-    .description("将 XML 工具改为注入实验性“工具调用回复”的参数中"),
+    .description(
+      "将 XML 工具改为注入实验性[工具调用回复](https://chatluna.chat/ecosystem/other/character.html#%E9%A2%84%E8%AE%BE)的参数中",
+    ),
   enableAffinityXmlToolCall: Schema.boolean()
     .default(true)
     .description("启用好感度 XML 工具调用"),
@@ -75,7 +142,7 @@ export const XmlToolSettingsSchema = Schema.object({
     )
     .description("模型回复 XML 参考提示词。此内容不会自动注入到角色提示词中；请先将 {scopeId} 替换为实际 scopeId，再手动复制到 ChatLuna Character 的角色提示词里。若开启“将 XML 工具改为注入实验性工具调用回复”，则只需在提示词中告知 AI 你的 scopeId")
     .collapse(),
-}).description("XML 工具设置");
+}).description("Character XML 工具设置");
 
 export const VariableSettingsSchema = Schema.object({
   affinityVariableName: Schema.string()

@@ -30,7 +30,7 @@ export interface CommandDependencies {
   resolveGroupId: (session: Session) => string;
   stripAtPrefix: (text: string) => string;
   unblockPermanent: (input: {
-    source: "command" | "xml";
+    source: "command" | "xml" | "native";
     platform: string;
     userId: string;
     seed?: SessionSeed;

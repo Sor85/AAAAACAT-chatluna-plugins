@@ -85,6 +85,19 @@ test("OtherSettingsSchema 默认开启控制台仪表盘", () => {
   assert.equal(OtherSettingsSchema.dict.enableDashboard.meta.default, true);
 });
 
+test("NativeToolSettingsSchema 将工具选择和工具配置放在同一分组", () => {
+  const { NativeToolSettingsSchema } = loadPlugin();
+  const nativeSettings = NativeToolSettingsSchema.dict.nativeToolSettings;
+
+  assert.ok(nativeSettings.dict.enabledNativeTools);
+  assert.ok(nativeSettings.dict.affinity);
+  assert.ok(nativeSettings.dict.blacklist);
+  assert.ok(nativeSettings.dict.relationship);
+  assert.ok(nativeSettings.dict.userAlias);
+  assert.equal(NativeToolSettingsSchema.meta.description, "原生工具设置");
+  assert.equal(nativeSettings.meta.description, "");
+});
+
 test("resolveShortTermConfig 在 affinityDynamics 缺失时返回稳定默认值", () => {
   const { resolveShortTermConfig } = loadPlugin();
 
