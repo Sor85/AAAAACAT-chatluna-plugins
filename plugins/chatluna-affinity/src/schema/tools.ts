@@ -36,7 +36,7 @@ const EnabledNativeToolsSchema = Schema.array(
   .role("checkbox")
   // Koishi 前端只有看到原生 array + checkbox schema 才会渲染为复选框列表；不要用 transform 包裹。
   .extra("default", undefined)
-  .description("选择要注册到 ChatLuna 主插件的原生工具");
+  .description("选择要注册到 ChatLuna 的原生工具");
 
 export const NativeToolSettingsSchema = Schema.object({
   nativeToolSettings: Schema.object({
