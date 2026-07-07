@@ -1,8 +1,9 @@
 /**
  * 原生工具注册测试
- * 覆盖协议选择与嵌套配置注册行为
+ * 覆盖协议选择、原生工具配置与注册行为
  */
 
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { registerNativeTools, resolveOneBotProtocol } from "../../../src/features/native-tools/register";
 import type { Config } from "../../../src/types";
@@ -117,6 +118,17 @@ describe("resolveOneBotProtocol", () => {
 });
 
 describe("registerNativeTools", () => {
+  it("将工具选择和工具配置放在同一原生工具分组", () => {
+    const source = readFileSync("src/schema/native-tools.ts", "utf8");
+
+    expect(source).toContain("export const NativeToolsSchema = Schema.object({");
+    expect(source).toContain("enabledNativeTools: EnabledNativeToolsSchema");
+    expect(source).toContain("poke: Schema.object({");
+    expect(source).toContain("deleteMessage: Schema.object({");
+    expect(source).not.toContain("NativeToolAdvancedSettingsSchema");
+    expect(source).not.toContain("Schema.intersect");
+  });
+
   it("按复选框列表注册启用的原生工具", () => {
     const registerTool = vi.fn();
     const config = createConfig({

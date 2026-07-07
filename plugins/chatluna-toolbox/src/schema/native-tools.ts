@@ -36,11 +36,10 @@ const EnabledNativeToolsSchema = Schema.array(
   .role("checkbox")
   // Koishi 前端只有看到原生 array + checkbox schema 才会渲染为复选框列表；不要用 transform 包裹。
   .extra("default", undefined)
-  .description(
-    "选择要注册到 ChatLuna 的原生工具，工具名称和描述通常无需修改，可在下方高级设置中调整",
-  );
+  .description("选择要注册到 ChatLuna 的原生工具");
 
-const NativeToolAdvancedSettingsSchema = Schema.object({
+export const NativeToolsSchema = Schema.object({
+  enabledNativeTools: EnabledNativeToolsSchema,
   poke: Schema.object({
     enabled: Schema.boolean().default(false).hidden(),
     toolName: Schema.string().default("poke_user").description("工具名称"),
@@ -146,14 +145,4 @@ const NativeToolAdvancedSettingsSchema = Schema.object({
   })
     .description("撤回消息工具")
     .collapse(),
-})
-  .description("高级设置")
-  .collapse();
-
-export const NativeToolsSchema = Schema.intersect([
-  Schema.object({
-    enabledNativeTools: EnabledNativeToolsSchema,
-  }).description(""),
-  NativeToolAdvancedSettingsSchema,
-])
-  .description("原生工具");
+}).description("原生工具");
