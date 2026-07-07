@@ -9,6 +9,7 @@ on:
       - '**'
 
 permissions:
+  id-token: write
   contents: read
 
 jobs:
@@ -34,7 +35,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6.3.0
         with:
-          node-version: '20'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Enable Corepack
@@ -90,12 +91,7 @@ jobs:
           if echo "$TAG_VERSION" | grep -qE '(alpha|beta|rc|next)'; then
             DIST_TAG=$(echo "$TAG_VERSION" | sed -E 's/.*-(alpha|beta|rc|next).*/\1/')
             echo "Publishing with dist-tag: $DIST_TAG"
-            yarn npm publish --access public --tag "$DIST_TAG"
+            npm publish --access public --tag "$DIST_TAG"
           else
-            yarn npm publish --access public
+            npm publish --access public
           fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          YARN_NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          YARN_NPM_REGISTRY_SERVER: https://registry.npmjs.org
-          YARN_NPM_PUBLISH_REGISTRY: https://registry.npmjs.org
