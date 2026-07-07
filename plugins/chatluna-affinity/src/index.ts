@@ -28,5 +28,8 @@ export const usage = `
 
 首次使用前请先阅读 [readme.md](https://github.com/Sor85/AAAAACAT-chatluna-plugins/blob/main/plugins/chatluna-affinity/readme.md)，按文档完成依赖安装、\`scopeId\` 配置、变量注入和 XML 工具接入。
 
-如果你主要在 ChatLuna Character 中使用本插件，请优先查看 readme.md 中的“快速上手”和“变量”章节。
+按你的使用入口选择对应指南：
+
+- 使用 ChatLuna Character：查看 [ChatLuna Character 接入指南](https://github.com/Sor85/AAAAACAT-chatluna-plugins/blob/main/plugins/chatluna-affinity/docs/character-prompt-guide.md)
+- 使用 ChatLuna 主插件：查看 [ChatLuna 主插件接入指南](https://github.com/Sor85/AAAAACAT-chatluna-plugins/blob/main/plugins/chatluna-affinity/docs/chatluna-plugin-guide.md)
 `;

@@ -41,7 +41,9 @@ yarn add koishi-plugin-chatluna-affinity
 
 ## 快速上手
 
-如果你主要是想在 ChatLuna Character 里使用本插件，建议先看这份伪装成接入指南的教程：[ChatLuna Character 接入指南](./character-prompt-guide.md)。它给出了角色提示词里应该放哪些变量，以及传统 XML 回复和实验性工具调用回复两种接入方式。
+如果你主要是想在 ChatLuna Character 里使用本插件，建议先看这份伪装成接入指南的教程：[ChatLuna Character 接入指南](./docs/character-prompt-guide.md)。它给出了角色提示词里应该放哪些变量，以及传统 XML 回复和实验性工具调用回复两种接入方式。
+
+如果你主要在 ChatLuna 主插件中使用本插件，建议先看 [ChatLuna 主插件接入指南](./docs/chatluna-plugin-guide.md)。它说明了如何开启原生工具，以及主插件可以直接调用哪些工具。
 
 ### 1. 先配置 `scopeId`
 
@@ -264,6 +266,7 @@ scopeId.指令名
 - 黑名单设置：默认列表、临时拉黑处罚、解除永久拉黑后的初始值等
 - 关系设置：区间关系与特殊关系
 - 变量设置：变量名重命名
+- 原生工具设置：注册给 ChatLuna 主插件直接调用的工具
 - Character XML 工具设置：是否启用各类 XML、是否注入实验性工具调用回复，以及参考提示词
 - 其他设置：图片渲染、调试日志、详情显示印象等
 
@@ -276,8 +279,11 @@ scopeId.指令名
 - `rankDefaultLimit`
 - `unblockPermanentInitialAffinity`
 - `debugLogging`
+- `nativeToolSettings.enabledNativeTools`
 - `injectXmlToolAsReplyTool`
 - `characterPromptTemplate`
+
+如果你使用 ChatLuna 主插件，请在“原生工具设置”中勾选需要注册的工具。开启后，主插件可以直接调用好感度、黑名单、关系和自定义昵称工具，不需要让模型输出 XML。
 
 `injectXmlToolAsReplyTool` 默认关闭。只有当你想让插件把 XML 工具注入到 ChatLuna Character 的实验性工具调用回复参数中时，才需要开启它。
 
