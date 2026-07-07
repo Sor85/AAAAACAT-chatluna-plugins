@@ -10,7 +10,8 @@ export const NAV_SECTIONS: SharedNavSection[] = [
   { title: "黑名单设置", key: "blacklist" },
   { title: "关系设置", key: "relationship" },
   { title: "变量设置", key: "variables" },
-  { title: "XML 工具设置", key: "xmlTools" },
+  { title: "原生工具设置", key: "nativeToolSettings" },
+  { title: "Character XML 工具设置", key: "xmlTools" },
   { title: "其他设置", key: "otherSettings" },
 ];
 

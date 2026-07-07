@@ -2,7 +2,7 @@
 
 这篇文档用于把 `chatluna-affinity` 接入到 `chatluna-character` 的角色提示词里。
 
-完成 `readme.md` 中的插件安装和基础配置后，先确认当前插件实例使用的 `scopeId`。下面示例统一使用 `nene`，实际使用时请替换成你自己的 `scopeId`。
+完成 [readme.md](../readme.md) 中的插件安装和基础配置后，先确认当前插件实例使用的 `scopeId`。下面示例统一使用 `nene`，实际使用时请替换成你自己的 `scopeId`。
 
 ## 1. 在角色模板中注入状态变量
 

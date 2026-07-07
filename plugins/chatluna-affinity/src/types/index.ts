@@ -18,5 +18,8 @@ export {
   ManualRelationship,
   VariableSettings,
   XmlToolSettings,
+  NativeToolKey,
+  NativeToolItemConfig,
+  NativeToolSettings,
   Config,
 } from "./config";

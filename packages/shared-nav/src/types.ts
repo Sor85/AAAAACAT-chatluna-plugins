@@ -15,6 +15,7 @@ export interface SharedNavProps {
   boundarySelector?: string;
   initialTop?: number;
   initialRight?: number;
+  width?: number;
   rootMargin?: string;
   threshold?: number;
 }

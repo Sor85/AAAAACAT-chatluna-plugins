@@ -17,7 +17,7 @@ export interface UnblockPermanentDeps {
 }
 
 export interface UnblockPermanentInput {
-  source: "command" | "xml";
+  source: "command" | "xml" | "native";
   platform: string;
   userId: string;
   seed?: SessionSeed;

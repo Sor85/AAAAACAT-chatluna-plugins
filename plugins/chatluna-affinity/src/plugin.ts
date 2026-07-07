@@ -25,6 +25,16 @@ import {
   hasReplyToolsEnabled,
   registerCharacterReplyTools,
 } from "./services/model-response";
+import {
+  registerNativeTools,
+  type NativeToolRegistration,
+} from "./services/native-tools/register";
+import {
+  DEFAULT_AFFINITY_NATIVE_TOOL_DESCRIPTION,
+  DEFAULT_BLACKLIST_NATIVE_TOOL_DESCRIPTION,
+  DEFAULT_RELATIONSHIP_NATIVE_TOOL_DESCRIPTION,
+  DEFAULT_USER_ALIAS_NATIVE_TOOL_DESCRIPTION,
+} from "./services/native-tools/defaults";
 import { createBlacklistService } from "./services/blacklist/repository";
 import { createBlacklistGuard } from "./services/blacklist/guard";
 import { createPermanentUnblockHandler } from "./services/blacklist/unblock-permanent";
@@ -58,6 +68,39 @@ import {
   resolveGroupId,
 } from "./helpers/member";
 function normalizeToolSettings(config: Config): void {
+  const nativeToolSettings = {
+    enabledNativeTools: config.nativeToolSettings?.enabledNativeTools ?? [],
+    affinity: {
+      toolName:
+        config.nativeToolSettings?.affinity?.toolName || "affinity_affinity",
+      description:
+        config.nativeToolSettings?.affinity?.description ||
+        DEFAULT_AFFINITY_NATIVE_TOOL_DESCRIPTION,
+    },
+    blacklist: {
+      toolName:
+        config.nativeToolSettings?.blacklist?.toolName || "affinity_blacklist",
+      description:
+        config.nativeToolSettings?.blacklist?.description ||
+        DEFAULT_BLACKLIST_NATIVE_TOOL_DESCRIPTION,
+    },
+    relationship: {
+      toolName:
+        config.nativeToolSettings?.relationship?.toolName ||
+        "affinity_relationship",
+      description:
+        config.nativeToolSettings?.relationship?.description ||
+        DEFAULT_RELATIONSHIP_NATIVE_TOOL_DESCRIPTION,
+    },
+    userAlias: {
+      toolName:
+        config.nativeToolSettings?.userAlias?.toolName || "affinity_user_alias",
+      description:
+        config.nativeToolSettings?.userAlias?.description ||
+        DEFAULT_USER_ALIAS_NATIVE_TOOL_DESCRIPTION,
+    },
+  };
+
   const xmlToolSettings = {
     injectXmlToolAsReplyTool:
       config.xmlToolSettings?.injectXmlToolAsReplyTool ??
@@ -105,6 +148,7 @@ function normalizeToolSettings(config: Config): void {
       "blacklistList",
   };
 
+  config.nativeToolSettings = nativeToolSettings;
   config.xmlToolSettings = xmlToolSettings;
   config.variableSettings = variableSettings;
 }
@@ -357,6 +401,9 @@ export function apply(ctx: Context, config: Config): void {
     const chatlunaService = (
       ctx as unknown as {
         chatluna?: {
+          platform?: {
+            registerTool?: (name: string, tool: unknown) => void;
+          };
           createChatModel?: (model: string) => Promise<unknown>;
           config?: { defaultModel?: string };
           promptRenderer?: {
@@ -370,6 +417,26 @@ export function apply(ctx: Context, config: Config): void {
     ).chatluna;
 
     const promptRenderer = chatlunaService?.promptRenderer;
+    const plugin = {
+      registerTool: (name: string, tool: NativeToolRegistration) => {
+        chatlunaService?.platform?.registerTool?.(name, tool);
+      },
+    };
+
+    registerNativeTools({
+      ctx,
+      config,
+      cache,
+      store,
+      blacklist,
+      unblockPermanent,
+      userAlias,
+      shortTermConfig,
+      actionWindowConfig,
+      coefficientConfig,
+      plugin,
+      log,
+    });
 
     const affinityProvider = createAffinityProvider({
       config,
