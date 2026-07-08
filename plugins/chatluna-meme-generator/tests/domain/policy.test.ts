@@ -622,6 +622,49 @@ describe("applyAutoFillPolicy", () => {
     expect(result.images[1]).toBe(secondaryTargetAvatar);
   });
 
+  it("min_images=1 且 max_images=2 且无图无被@头像时可自动补发送者与 bot 头像", () => {
+    const senderAvatar = makeImage("sender-avatar");
+    const botAvatar = makeImage("bot-avatar");
+
+    const result = applyAutoFillPolicy({
+      texts: ["a"],
+      images: [],
+      params: makeParams({ min_images: 1, max_images: 2 }),
+      config: {
+        ...baseConfig,
+        autoUseAvatarWhenMinImagesOneAndNoImage: true,
+        autoFillSenderAndBotAvatarsWhenMinImagesTwoAndNoImage: true,
+      },
+      senderAvatarImage: senderAvatar,
+      botAvatarImage: botAvatar,
+    });
+
+    expect(result.images).toHaveLength(2);
+    expect(result.images[0]).toBe(senderAvatar);
+    expect(result.images[1]).toBe(botAvatar);
+  });
+
+  it("min_images=1 且 max_images=2 且发送者与 bot 补全关闭时仍只补发送者头像", () => {
+    const senderAvatar = makeImage("sender-avatar");
+    const botAvatar = makeImage("bot-avatar");
+
+    const result = applyAutoFillPolicy({
+      texts: ["a"],
+      images: [],
+      params: makeParams({ min_images: 1, max_images: 2 }),
+      config: {
+        ...baseConfig,
+        autoUseAvatarWhenMinImagesOneAndNoImage: true,
+        autoFillSenderAndBotAvatarsWhenMinImagesTwoAndNoImage: false,
+      },
+      senderAvatarImage: senderAvatar,
+      botAvatarImage: botAvatar,
+    });
+
+    expect(result.images).toHaveLength(1);
+    expect(result.images[0]).toBe(senderAvatar);
+  });
+
   it("min_images=2 且 max_images=3 且无图时若存在三个被@头像应按顺序补满三张", () => {
     const senderAvatar = makeImage("sender-avatar");
     const botAvatar = makeImage("bot-avatar");

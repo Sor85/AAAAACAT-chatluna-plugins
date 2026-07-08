@@ -235,6 +235,16 @@ export function applyAutoFillPolicy(input: AutoFillInput): AutoFillResult {
       return { texts, images, selectedTextSource };
     }
 
+    if (
+      input.senderAvatarImage &&
+      input.botAvatarImage &&
+      maxImages >= 2 &&
+      input.config.autoFillSenderAndBotAvatarsWhenMinImagesTwoAndNoImage
+    ) {
+      images.push(input.senderAvatarImage, input.botAvatarImage);
+      return { texts, images, selectedTextSource };
+    }
+
     if (input.senderAvatarImage) {
       images.push(input.senderAvatarImage);
       return { texts, images, selectedTextSource };
