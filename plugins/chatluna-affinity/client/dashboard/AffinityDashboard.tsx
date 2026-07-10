@@ -22,10 +22,12 @@ import React, {
 } from "react";
 import {
   CartesianGrid,
+  Curve,
   Line,
   LineChart,
   XAxis,
   YAxis,
+  type CurveProps,
 } from "recharts";
 import { toast } from "sonner";
 import {
@@ -88,6 +90,11 @@ import {
 
 const DASHBOARD_EVENT = "chatluna-affinity/dashboard";
 const TOP_USER_PAGE_SIZE = 10;
+
+// 保留 Recharts 的坐标插值，只移除用于逐段显露路径的遮罩，避免切换范围时截断曲线。
+function AnimatedTrendLine(props: CurveProps) {
+  return <Curve {...props} strokeDasharray={undefined} />;
+}
 
 type SortColumn =
   | "affinity"
@@ -516,6 +523,7 @@ function OverviewTrendChart({
               <Line
                 dataKey="users"
                 dot={false}
+                shape={AnimatedTrendLine}
                 stroke="var(--color-users)"
                 strokeWidth={2}
                 type="monotone"
@@ -523,6 +531,7 @@ function OverviewTrendChart({
               <Line
                 dataKey="averageAffinity"
                 dot={false}
+                shape={AnimatedTrendLine}
                 stroke="var(--color-averageAffinity)"
                 strokeWidth={2}
                 type="monotone"
@@ -530,6 +539,7 @@ function OverviewTrendChart({
               <Line
                 dataKey="chatCount"
                 dot={false}
+                shape={AnimatedTrendLine}
                 stroke="var(--color-chatCount)"
                 strokeWidth={2}
                 type="monotone"
@@ -537,6 +547,7 @@ function OverviewTrendChart({
               <Line
                 dataKey="blacklisted"
                 dot={false}
+                shape={AnimatedTrendLine}
                 stroke="var(--color-blacklisted)"
                 strokeWidth={2}
                 type="monotone"
