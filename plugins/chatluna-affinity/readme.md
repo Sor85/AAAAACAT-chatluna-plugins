@@ -27,7 +27,7 @@
 
 可选依赖：
 
-- `koishi-plugin-puppeteer`：用于将排行、黑名单、详情渲染为图片
+- 图片渲染由插件内置 Takumi 完成，无需安装额外浏览器服务
 - `koishi-plugin-chatluna-group-analysis`：用于在详情页展示用户印象
 - `@koishijs/plugin-console`：用于控制台配置界面
 
@@ -298,7 +298,7 @@ scopeId.指令名
 - 变量调用是否写成了 `{affinity("scopeId")}` 这种正确格式
 - XML 标签里的 `scopeId` 是否与当前实例一致
 - `debugLogging` 是否开启
-- 当前环境是否安装了 `puppeteer`，否则图片模式会自动退回文本模式
+- Takumi 图片渲染失败时，图片模式会自动退回文本模式
 
 如果你怀疑数据脏了，可以执行：
 

@@ -3,7 +3,6 @@
  * 渲染通用表格图片
  */
 
-import type { Context } from 'koishi'
 import type { LogFn } from '../types'
 import { renderHtml } from './base'
 
@@ -13,10 +12,9 @@ export interface TableRenderOptions {
 }
 
 const TABLE_STYLE = `
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600&family=Noto+Color+Emoji&display=swap');
     body {
       margin: 0;
-      font-family: "Segoe UI", "Helvetica Neue", "Noto Sans SC", "Noto Color Emoji", "Segoe UI Emoji", "Apple Color Emoji", PingFangSC, "Microsoft Yahei", sans-serif;
+      font-family: "Noto Sans SC", sans-serif;
       background: #ffffff;
       color: #111111;
     }
@@ -116,7 +114,7 @@ function buildTableHtml(
 </html>`
 }
 
-export function createTableRenderer(ctx: Context, log?: LogFn) {
+export function createTableRenderer(log?: LogFn) {
     return async function renderTable(
         title: string,
         headers: string[],
@@ -126,13 +124,11 @@ export function createTableRenderer(ctx: Context, log?: LogFn) {
         const normalizedRows = Array.isArray(rows) ? rows : []
         const html = buildTableHtml(title, headers, normalizedRows, options)
         return renderHtml(
-            ctx,
             html,
             {
                 width: 800,
                 height: 220 + normalizedRows.length * 48,
-                deviceScaleFactor: 1,
-                selector: '#table-root'
+                deviceScaleFactor: 1
             },
             log
         )

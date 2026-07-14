@@ -4,13 +4,10 @@
  */
 
 export const COMMON_STYLE = `
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
-  @import url('https://fonts.googleapis.com/css?family=Noto+Color+Emoji');
-  
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    font-family: "Noto Sans SC", "Noto Color Emoji", "Segoe UI", "Microsoft YaHei", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+    font-family: "Noto Sans SC", sans-serif;
     background: #f0f2f5;
     color: #1f2937;
   }

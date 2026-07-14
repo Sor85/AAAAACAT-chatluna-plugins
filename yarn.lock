@@ -6185,6 +6185,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "koishi-plugin-chatluna-affinity@workspace:plugins/chatluna-affinity"
   dependencies:
+    "@fontsource-variable/noto-sans-kr": "npm:5.2.10"
+    "@fontsource-variable/noto-sans-sc": "npm:5.2.10"
     "@heroui/react": "npm:^3.1.0"
     "@heroui/styles": "npm:^3.1.0"
     "@koishijs/client": "npm:^5.30.0"
@@ -6194,6 +6196,8 @@ __metadata:
     "@radix-ui/react-tabs": "npm:^1.1.14"
     "@tabler/icons-react": "npm:^3.44.0"
     "@tailwindcss/vite": "npm:^4.3.1"
+    "@takumi-rs/core": "npm:1.8.7"
+    "@takumi-rs/helpers": "npm:1.8.7"
     "@types/node": "npm:^22.10.1"
     "@types/react": "npm:^19"
     "@types/react-dom": "npm:^19"
@@ -6230,8 +6234,6 @@ __metadata:
     koishi-plugin-chatluna-character:
       optional: true
     koishi-plugin-chatluna-group-analysis:
-      optional: true
-    koishi-plugin-puppeteer:
       optional: true
   languageName: unknown
   linkType: soft

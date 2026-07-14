@@ -1,82 +1,123 @@
 /**
- * 渲染器基础工具
- * 提供 Puppeteer 类型定义和通用渲染函数
+ * Takumi 渲染基础工具
+ * 负责复用渲染器、加载中韩文字体并准备远程图片资源
  */
 
-import type { Context } from 'koishi'
-import type { LogFn } from '../types'
-
-export interface Puppeteer {
-    page: () => Promise<Page>
-}
-
-export interface Page {
-    setViewport: (options: {
-        width: number
-        height: number
-        deviceScaleFactor?: number
-    }) => Promise<void>
-    setContent: (html: string, options: { waitUntil: string }) => Promise<void>
-    $: (selector: string) => Promise<Element | null>
-    close: () => Promise<void>
-}
-
-export interface Element {
-    screenshot: (options: { omitBackground: boolean }) => Promise<Buffer>
-}
+import { readdirSync, readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import {
+  Renderer,
+  type ImageSource,
+  type Node,
+} from "@takumi-rs/core";
+import { extractEmojis } from "@takumi-rs/helpers/emoji";
+import { fromHtml } from "@takumi-rs/helpers/html";
+import type { LogFn } from "../types";
 
 export interface RenderOptions {
-    width?: number
-    height?: number
-    deviceScaleFactor?: number
-    selector?: string
+  width?: number;
+  height?: number;
+  deviceScaleFactor?: number;
 }
 
-export function getPuppeteer(ctx: Context): Puppeteer | null {
-    return (ctx as unknown as { puppeteer?: Puppeteer }).puppeteer || null
+const fonts = [
+  "@fontsource-variable/noto-sans-sc",
+  "@fontsource-variable/noto-sans-kr",
+].flatMap((fontPackage, packageIndex) => {
+  const fontDirectory = resolve(
+    dirname(require.resolve(`${fontPackage}/package.json`)),
+    "files",
+  );
+  return readdirSync(fontDirectory)
+    .filter((name) => name.endsWith(".woff2"))
+    .sort()
+    .map((name, fontIndex) => ({
+      name: `NotoSans${packageIndex}_${fontIndex}`,
+      data: readFileSync(resolve(fontDirectory, name)),
+    }));
+});
+const fontFamily = fonts.map((font) => `'${font.name}'`).join(",");
+const renderer = new Renderer({ fonts, loadDefaultFonts: true });
+
+function parseHtml(html: string) {
+  const stylesheets: string[] = [];
+  const content = html.replace(
+    /<style\b[^>]*>([\s\S]*?)<\/style>/gi,
+    (_, stylesheet: string) => {
+      stylesheets.push(stylesheet);
+      return "";
+    },
+  );
+  const parsed = fromHtml(content);
+  return {
+    node: parsed.node,
+    stylesheets: [...parsed.stylesheets, ...stylesheets].map((stylesheet) =>
+      stylesheet.replaceAll('"Noto Sans SC"', fontFamily),
+    ),
+  };
+}
+
+async function fetchRemoteImages(node: Node): Promise<ImageSource[]> {
+  const urls = new Set<string>();
+
+  function collect(current: Node): void {
+    if (current.type === "image" && typeof current.src === "string") {
+      try {
+        const url = new URL(current.src);
+        if (url.protocol === "http:" || url.protocol === "https:") {
+          urls.add(current.src);
+        }
+      } catch {
+        // Takumi 会自行处理非远程图片来源
+      }
+    }
+
+    if (current.type === "container") {
+      current.children?.forEach(collect);
+    }
+  }
+
+  collect(node);
+  const images = await Promise.all(
+    [...urls].map(async (src): Promise<ImageSource | null> => {
+      try {
+        const response = await fetch(src);
+        if (!response.ok) return null;
+        return { src, data: await response.arrayBuffer() };
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return images.filter((image): image is ImageSource => image !== null);
 }
 
 export async function renderHtml(
-    ctx: Context,
-    html: string,
-    options: RenderOptions,
-    log?: LogFn
+  html: string,
+  options: RenderOptions,
+  log?: LogFn,
 ): Promise<Buffer | null> {
-    const puppeteer = getPuppeteer(ctx)
-    if (!puppeteer?.page) return null
+  const {
+    width = 600,
+    height,
+    deviceScaleFactor = 2,
+  } = options;
 
-    const {
-        width = 600,
-        height = 400,
-        deviceScaleFactor = 2,
-        selector = '#root'
-    } = options
+  try {
+    const parsed = parseHtml(html);
+    const node = extractEmojis(parsed.node, "twemoji");
+    const images = await fetchRemoteImages(node);
 
-    let page: Page | undefined
-    try {
-        page = await puppeteer.page()
-        await page.setViewport({ width, height, deviceScaleFactor })
-        await page.setContent(html, { waitUntil: 'networkidle0' })
-        const element = await page.$(selector)
-        if (!element) return null
-        return await element.screenshot({ omitBackground: false })
-    } catch (error) {
-        log?.('warn', '图片渲染失败', error)
-        return null
-    } finally {
-        try {
-            await page?.close()
-        } catch {
-            // ignore
-        }
-    }
-}
-
-export function escapeHtmlForRender(text: string): string {
-    return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;')
+    return await renderer.render(node, {
+      width: width * deviceScaleFactor,
+      height: height ? height * deviceScaleFactor : undefined,
+      devicePixelRatio: deviceScaleFactor,
+      format: "png",
+      stylesheets: parsed.stylesheets,
+      fetchedResources: images,
+    });
+  } catch (error) {
+    log?.("warn", "图片渲染失败", error);
+    return null;
+  }
 }

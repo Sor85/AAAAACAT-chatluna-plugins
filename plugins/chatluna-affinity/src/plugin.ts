@@ -224,7 +224,7 @@ export function apply(ctx: Context, config: Config): void {
     scopeId: config.scopeId,
     log,
   });
-  const renders = createRenderService({ ctx, log });
+  const renders = createRenderService({ log });
 
   ctx.accept(
     ["relationships"],
