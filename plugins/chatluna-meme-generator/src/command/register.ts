@@ -426,11 +426,9 @@ export function registerCommands(ctx: Context, config: Config): void {
         );
 
       const message = await buildListMessage(
-        ctx as ContextWithOptionalServices,
         sections,
         lines,
         config.renderMemeListAsImage,
-        (session as { platform?: string } | undefined)?.platform,
         logger,
       );
       if (!config.renderMemeListAsImage) {

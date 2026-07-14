@@ -4250,7 +4250,7 @@ describe("registerCommands", () => {
     );
   });
 
-  it("图片列表模式下不应发送 OneBot 合并转发", async () => {
+  it("图片列表模式下应使用 Takumi 渲染且不发送 OneBot 合并转发", async () => {
     const commandActions = new Map<
       string,
       (...args: any[]) => Promise<unknown>
@@ -4299,7 +4299,7 @@ describe("registerCommands", () => {
       session: createOneBotListSession(request),
     });
 
-    expect(result).toBe("无需参数\n骑猪");
+    expect(result).toMatch(/^<img src="data:image\/png;base64,/);
     expect(request).not.toHaveBeenCalled();
   });
 
