@@ -28,7 +28,7 @@
 ### 依赖要求
 
 - 必需服务：`http`
-- 可选服务：`notifier`、`puppeteer`、`chatluna_character`
+- 可选服务：`notifier`、`chatluna_character`
 - 后端服务：需可访问 `meme-generator`（Python）服务地址
 
 ## 快速上手

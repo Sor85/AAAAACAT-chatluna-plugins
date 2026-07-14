@@ -20,24 +20,10 @@ export interface FrontendNotifier {
   update(payload: { type: "success"; content: string }): void;
 }
 
-export interface PuppeteerLike {
-  render(
-    content: string,
-    callback?: (
-      page: {
-        $: (selector: string) => Promise<unknown>;
-        evaluate: <T>(fn: () => T | Promise<T>) => Promise<T>;
-      },
-      next: (handle?: unknown) => Promise<string>,
-    ) => Promise<string>,
-  ): Promise<string>;
-}
-
 export interface ContextWithOptionalServices extends Context {
   notifier?: {
     create(): FrontendNotifier;
   };
-  puppeteer?: PuppeteerLike;
 }
 
 export interface ChatlunaCompletionMessageLike {

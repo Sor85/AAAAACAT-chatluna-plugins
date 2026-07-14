@@ -7,9 +7,9 @@ import { h, type Context } from "koishi";
 import type { Config } from "../../config";
 import { MemeBackendClient } from "../../infra/client";
 import type { MemeInfoResponse } from "../../types";
+import { renderTakumiHtml } from "../../render/takumi";
 import { normalizeMemeKey, resolveSessionGroupId } from "./exclusion";
 import {
-  type ContextWithOptionalServices,
   MEME_LIST_CATEGORY_LABEL,
   MEME_LIST_CATEGORY_ORDER,
   type MemeListCategory,
@@ -685,15 +685,13 @@ export function stringifyImageSegment(
 }
 
 export async function buildListMessage(
-  ctx: ContextWithOptionalServices,
   sections: MemeListSection[],
   lines: string[],
   renderAsImage: boolean,
-  _platform: string | undefined,
   logger: ReturnType<Context["logger"]>,
 ): Promise<string> {
   const content = lines.join("\n");
-  if (!renderAsImage || !ctx.puppeteer) return content;
+  if (!renderAsImage) return content;
 
   const width = 2400;
   const titleFontSize = 22;
@@ -715,106 +713,9 @@ export async function buildListMessage(
       .map((line) => `<div class="line">${escapeXml(line)}</div>`)
       .join("");
 
-    const html = `<!doctype html><html><head><meta charset="utf-8"/><style>body{margin:0;padding:0;background:#f5f7fb;}#list{width:${width}px;padding:${paddingY}px ${paddingX}px;box-sizing:border-box;color:#0f172a;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Noto Emoji","Segoe UI Symbol","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Arial Unicode MS",sans-serif;font-variant-emoji:emoji;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased;}.section{margin:0 0 22px 0;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden;background:#ffffff;}.section-title{padding:12px 16px;background:#e2e8f0;border-bottom:1px solid #cbd5e1;font-size:${titleFontSize}px;line-height:1.4;font-weight:700;}.alias-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));}.alias-cell{padding:10px 12px;font-size:${aliasFontSize}px;line-height:1.5;border-right:1px solid #dbe3ee;border-bottom:1px solid #dbe3ee;word-break:break-word;overflow-wrap:anywhere;background:#ffffff;}.alias-cell:nth-child(2n){background:#f8fafc;}.line{font-size:${aliasFontSize}px;line-height:1.6;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;}.alias-cell img.emoji,.line img.emoji{width:1.15em;height:1.15em;vertical-align:-0.2em;margin:0 0.02em;}</style></head><body><div id="list">${sections.length > 0 ? sectionContent : fallbackContent}</div></body></html>`;
-
-    const renderedSegment = await ctx.puppeteer.render(
-      html,
-      async (page, next) => {
-        await page.evaluate(async () => {
-          const loadTwemoji = async (): Promise<boolean> => {
-            const twemojiApi = (window as unknown as { twemoji?: unknown })
-              .twemoji;
-            if (twemojiApi) return true;
-
-            const scriptUrls = [
-              "https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js",
-              "https://unpkg.com/twemoji@14.0.2/dist/twemoji.min.js",
-            ];
-
-            const loadScript = async (url: string): Promise<boolean> => {
-              return await new Promise<boolean>((resolve) => {
-                const script = document.createElement("script");
-                script.src = url;
-                script.async = true;
-                script.onload = () => resolve(true);
-                script.onerror = () => resolve(false);
-                document.head.appendChild(script);
-              });
-            };
-
-            for (const url of scriptUrls) {
-              const loaded = await loadScript(url);
-              if (loaded) return true;
-            }
-
-            return false;
-          };
-
-          if (typeof document !== "undefined" && document.fonts?.ready) {
-            await document.fonts.ready;
-          }
-
-          const loaded = await loadTwemoji();
-          if (!loaded) return;
-
-          const listNode = document.querySelector("#list");
-          const twemojiApi = (
-            window as unknown as {
-              twemoji?: {
-                parse: (
-                  node: Element,
-                  options?: {
-                    base?: string;
-                    folder?: string;
-                    ext?: string;
-                    className?: string;
-                  },
-                ) => void;
-              };
-            }
-          ).twemoji;
-          if (!listNode || !twemojiApi) return;
-
-          twemojiApi.parse(listNode, {
-            base: "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/",
-            folder: "svg",
-            ext: ".svg",
-            className: "emoji",
-          });
-
-          const emojiImages = Array.from(
-            document.querySelectorAll<HTMLImageElement>("#list img.emoji"),
-          );
-          if (emojiImages.length === 0) return;
-
-          await Promise.race([
-            Promise.all(
-              emojiImages.map(
-                (image) =>
-                  new Promise<void>((resolve) => {
-                    if (image.complete) {
-                      resolve();
-                      return;
-                    }
-                    image.addEventListener("load", () => resolve(), {
-                      once: true,
-                    });
-                    image.addEventListener("error", () => resolve(), {
-                      once: true,
-                    });
-                  }),
-              ),
-            ),
-            new Promise<void>((resolve) => setTimeout(resolve, 2500)),
-          ]);
-        });
-
-        const handle = await page.$("#list");
-        return next(handle);
-      },
-    );
-
-    return renderedSegment || content;
+    const html = `<!doctype html><html><head><meta charset="utf-8"/><style>body{margin:0;padding:0;background:#f5f7fb;}#list{width:${width}px;padding:${paddingY}px ${paddingX}px;box-sizing:border-box;color:#0f172a;font-family:"Noto Sans SC",sans-serif;}.section{margin:0 0 22px 0;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden;background:#ffffff;}.section-title{padding:12px 16px;background:#e2e8f0;border-bottom:1px solid #cbd5e1;font-size:${titleFontSize}px;line-height:1.4;font-weight:700;}.alias-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));}.alias-cell{padding:10px 12px;font-size:${aliasFontSize}px;line-height:1.5;border-right:1px solid #dbe3ee;border-bottom:1px solid #dbe3ee;word-break:break-word;overflow-wrap:anywhere;background:#ffffff;}.alias-cell:nth-child(2n){background:#f8fafc;}.line{font-size:${aliasFontSize}px;line-height:1.6;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;}</style></head><body><div id="list">${sections.length > 0 ? sectionContent : fallbackContent}</div></body></html>`;
+    const buffer = await renderTakumiHtml(html, width);
+    return stringifyImageSegment(h.image(buffer, "image/png"));
   } catch (error) {
     logger.warn(
       "meme.list image render failed, fallback to text: %s",
