@@ -90,12 +90,6 @@ export function registerBlacklistCommand(deps: BlacklistCommandDeps) {
           : !["0", "false", "text", "no", "n"].includes(
               String(imageArg).toLowerCase(),
             );
-      const puppeteer = (
-        ctx as unknown as { puppeteer?: { page?: () => Promise<unknown> } }
-      ).puppeteer;
-      if (shouldRenderImage && !puppeteer?.page)
-        return "当前环境未启用 puppeteer，已改为文本模式。";
-
       const platform = platformArg || session?.platform;
       const groupId = session ? resolveGroupId(session as Session) : "";
       const memberIds =

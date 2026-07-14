@@ -3,7 +3,6 @@
  * 渲染好感度排行榜图片
  */
 
-import type { Context } from 'koishi'
 import type { LogFn } from '../types'
 import { renderHtml } from './base'
 import { COMMON_STYLE } from './styles'
@@ -62,6 +61,13 @@ const RANK_LIST_STYLE = `
     }
 `
 
+function truncateName(name: string): string {
+    const characters = Array.from(name)
+    return characters.length > 16
+        ? `${characters.slice(0, 15).join('')}…`
+        : name
+}
+
 function buildRankListHtml(title: string, items: RankItem[]): string {
     return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -86,7 +92,7 @@ function buildRankListHtml(title: string, items: RankItem[]): string {
       }
       <div class="info">
         <div class="name-row">
-          <span class="name">${item.name}</span>
+          <span class="name">${truncateName(item.name)}</span>
           ${item.relation && item.relation !== '——' ? `<span class="relation-badge">${item.relation}</span>` : ''}
         </div>
       </div>
@@ -103,19 +109,17 @@ function buildRankListHtml(title: string, items: RankItem[]): string {
 </html>`
 }
 
-export function createRankListRenderer(ctx: Context, log?: LogFn) {
+export function createRankListRenderer(log?: LogFn) {
     return async function renderRankList(
         title: string,
         items: RankItem[]
     ): Promise<Buffer | null> {
         const html = buildRankListHtml(title, items)
         return renderHtml(
-            ctx,
             html,
             {
                 width: 600,
-                height: 100 + items.length * 120,
-                selector: '#list-root'
+                height: 100 + items.length * 120
             },
             log
         )

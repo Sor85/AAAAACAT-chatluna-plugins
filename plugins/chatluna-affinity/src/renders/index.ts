@@ -3,7 +3,6 @@
  * 提供所有渲染器的创建函数和类型
  */
 
-import type { Context } from "koishi";
 import type { LogFn } from "../types";
 import { createRankListRenderer } from "./rank-list";
 import { createInspectRenderer } from "./inspect";
@@ -18,18 +17,17 @@ export * from "./blacklist";
 export * from "./table";
 
 export interface RenderServiceOptions {
-  ctx: Context;
   log?: LogFn;
 }
 
 export function createRenderService(options: RenderServiceOptions) {
-  const { ctx, log } = options;
+  const { log } = options;
 
   return {
-    rankList: createRankListRenderer(ctx, log),
-    inspect: createInspectRenderer(ctx, log),
-    blacklist: createBlacklistRenderer(ctx, log),
-    table: createTableRenderer(ctx, log),
+    rankList: createRankListRenderer(log),
+    inspect: createInspectRenderer(log),
+    blacklist: createBlacklistRenderer(log),
+    table: createTableRenderer(log),
   };
 }
 

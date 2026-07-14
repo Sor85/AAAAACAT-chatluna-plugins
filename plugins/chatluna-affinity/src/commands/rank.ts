@@ -46,13 +46,6 @@ export function registerRankCommand(deps: CommandDependencies) {
           : !["0", "false", "text", "no", "n"].includes(
               String(imageArg).toLowerCase(),
             );
-      const puppeteer = (
-        ctx as unknown as { puppeteer?: { page?: () => Promise<unknown> } }
-      ).puppeteer;
-      if (shouldRenderImage && !puppeteer?.page) {
-        return "当前环境未启用 puppeteer，已改为文本模式。";
-      }
-
       type AffinityRow = {
         userId: string;
         nickname: string | null;

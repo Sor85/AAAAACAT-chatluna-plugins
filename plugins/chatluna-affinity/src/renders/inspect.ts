@@ -3,7 +3,6 @@
  * 渲染好感度详情卡片图片
  */
 
-import type { Context } from "koishi";
 import type { LogFn } from "../types";
 import { renderHtml } from "./base";
 import { COMMON_STYLE } from "./styles";
@@ -190,18 +189,16 @@ function buildInspectHtml(data: InspectData): string {
 </html>`;
 }
 
-export function createInspectRenderer(ctx: Context, log?: LogFn) {
+export function createInspectRenderer(log?: LogFn) {
   return async function renderInspect(
     data: InspectData,
   ): Promise<Buffer | null> {
     const html = buildInspectHtml(data);
     return renderHtml(
-      ctx,
       html,
       {
         width: 480,
         height: 600,
-        selector: "#inspect-root",
       },
       log,
     );

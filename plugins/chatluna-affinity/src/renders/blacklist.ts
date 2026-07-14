@@ -3,7 +3,6 @@
  * 渲染黑名单列表图片
  */
 
-import type { Context } from 'koishi'
 import type { LogFn } from '../types'
 import { renderHtml } from './base'
 import { COMMON_STYLE } from './styles'
@@ -72,19 +71,17 @@ function buildBlacklistHtml(title: string, items: BlacklistItem[]): string {
 </html>`
 }
 
-export function createBlacklistRenderer(ctx: Context, log?: LogFn) {
+export function createBlacklistRenderer(log?: LogFn) {
     return async function renderBlacklist(
         title: string,
         items: BlacklistItem[]
     ): Promise<Buffer | null> {
         const html = buildBlacklistHtml(title, items)
         return renderHtml(
-            ctx,
             html,
             {
                 width: 600,
-                height: 100 + items.length * 120,
-                selector: '#list-root'
+                height: 100 + items.length * 120
             },
             log
         )

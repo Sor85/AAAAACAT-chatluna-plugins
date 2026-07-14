@@ -45,10 +45,6 @@ export function registerInspectCommand(deps: CommandDependencies) {
           : !["0", "false", "text", "no", "n"].includes(
               String(imageArg).toLowerCase(),
             );
-      const puppeteer = (
-        ctx as unknown as { puppeteer?: { page?: () => Promise<unknown> } }
-      ).puppeteer;
-
       let displayNickname = record.nickname || userId;
       if (session) {
         const memberInfo = await fetchMember(session as Session, userId);
@@ -108,7 +104,7 @@ export function registerInspectCommand(deps: CommandDependencies) {
         ...(showImpression && impression ? [`印象：${impression}`] : []),
       ];
 
-      if (shouldRenderImage && puppeteer?.page) {
+      if (shouldRenderImage) {
         const rawId = stripAtPrefix(userId);
         const idParts = rawId.split(":");
         const id = idParts.length > 1 ? idParts[1] : idParts[0];

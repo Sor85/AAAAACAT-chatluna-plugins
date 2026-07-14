@@ -24,7 +24,6 @@ export const name = "chatluna-affinity";
 export const inject = {
   required: ["chatluna", "database"],
   optional: [
-    "puppeteer",
     "console",
     "chatluna_group_analysis",
     "chatluna_character",
