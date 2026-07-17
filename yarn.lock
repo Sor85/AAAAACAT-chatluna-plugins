@@ -1243,6 +1243,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@fontsource-variable/noto-sans-jp@npm:5.2.10":
+  version: 5.2.10
+  resolution: "@fontsource-variable/noto-sans-jp@npm:5.2.10"
+  checksum: 10c0/c93a5518d314ea7255be2bc4b3331af9ba8f2700af6f7f84ab35625f4f24f5718b57c4005dc4f5d43156a6fc751bee95d5f4512ddde336c994ecf8ac4ab45abd
+  languageName: node
+  linkType: hard
+
 "@fontsource-variable/noto-sans-kr@npm:5.2.10":
   version: 5.2.10
   resolution: "@fontsource-variable/noto-sans-kr@npm:5.2.10"
@@ -6185,6 +6192,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "koishi-plugin-chatluna-affinity@workspace:plugins/chatluna-affinity"
   dependencies:
+    "@fontsource-variable/noto-sans-jp": "npm:5.2.10"
     "@fontsource-variable/noto-sans-kr": "npm:5.2.10"
     "@fontsource-variable/noto-sans-sc": "npm:5.2.10"
     "@heroui/react": "npm:^3.1.0"

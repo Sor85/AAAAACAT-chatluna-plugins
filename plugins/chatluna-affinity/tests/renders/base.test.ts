@@ -47,3 +47,20 @@ test("renderHtml 应加载韩文字体而不是统一渲染为方框", async () 
   assert.ok(second);
   assert.notDeepEqual(first, second);
 });
+
+test("renderHtml 应渲染生僻字匊而不是缺字方框", async () => {
+  const renderText = (text: string) =>
+    renderHtml(
+      `<!doctype html><html><head><style>body{margin:0}.text{width:96px;height:96px;padding:16px;background:#fff;font-family:"Noto Sans SC",sans-serif;font-size:48px}</style></head><body><div class="text">${text}</div></body></html>`,
+      { width: 96, height: 96, deviceScaleFactor: 1 },
+    );
+
+  const [rareCharacter, missingGlyph] = await Promise.all([
+    renderText("匊"),
+    renderText("\uE000"),
+  ]);
+
+  assert.ok(rareCharacter);
+  assert.ok(missingGlyph);
+  assert.notDeepEqual(rareCharacter, missingGlyph);
+});

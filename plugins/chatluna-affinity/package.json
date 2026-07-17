@@ -47,6 +47,7 @@
     }
   },
   "dependencies": {
+    "@fontsource-variable/noto-sans-jp": "5.2.10",
     "@fontsource-variable/noto-sans-kr": "5.2.10",
     "@fontsource-variable/noto-sans-sc": "5.2.10",
     "@langchain/core": "^0.3.62",

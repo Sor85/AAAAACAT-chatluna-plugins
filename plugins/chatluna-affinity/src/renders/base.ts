@@ -1,6 +1,6 @@
 /**
  * Takumi 渲染基础工具
- * 负责复用渲染器、加载中韩文字体并准备远程图片资源
+ * 负责复用渲染器、加载中日韩字体并准备远程图片资源
  */
 
 import { readdirSync, readFileSync } from "node:fs";
@@ -23,6 +23,7 @@ export interface RenderOptions {
 const fonts = [
   "@fontsource-variable/noto-sans-sc",
   "@fontsource-variable/noto-sans-kr",
+  "@fontsource-variable/noto-sans-jp",
 ].flatMap((fontPackage, packageIndex) => {
   const fontDirectory = resolve(
     dirname(require.resolve(`${fontPackage}/package.json`)),
