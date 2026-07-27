@@ -317,7 +317,7 @@ const runtimeSchema = Schema.object({
     .description("`meme.list`是否以图片形式输出"),
   sendMemeListAsForward: Schema.boolean()
     .default(defaultConfig.sendMemeListAsForward)
-    .description("关闭图片输出时，`meme.list`是否以 OneBot 合并转发发送"),
+    .description("`meme.list`是否以 OneBot 合并转发发送"),
   sendMemeSearchAsForward: Schema.boolean()
     .default(defaultConfig.sendMemeSearchAsForward)
     .description("`meme.search`是否以 OneBot 合并转发发送"),
