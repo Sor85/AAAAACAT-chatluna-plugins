@@ -9,6 +9,7 @@ import { MemeBackendClient } from "../infra/client";
 import {
   createMemeKeyResolver,
   createMemeTriggerPrefixResolver,
+  shouldRegisterDirectAlias,
 } from "./key-resolver";
 import {
   buildCategoryExcludedMemeKeySet,
@@ -339,7 +340,30 @@ export function registerCommands(ctx: Context, config: Config): void {
 
     const normalizedCommandText = leadingAtParts.commandText.trim();
     const normalizedSuffix = leadingAtParts.suffix.trim();
-    // 前置 @ 只改写显式 meme 命令，避免把普通 @ 消息当成 meme key 后吞掉。
+    // Koishi 会在 matcher 回调前过滤“@其他用户 别名”，因此该格式必须在中间件中改写。
+    if (
+      config.enableDirectAliasWithoutPrefix &&
+      shouldRegisterDirectAlias(normalizedCommandText)
+    ) {
+      const resolvedKey = await resolveMemeKey(normalizedCommandText);
+      if (resolvedKey !== normalizedCommandText) {
+        const rewrittenCommand = normalizedSuffix
+          ? `meme ${resolvedKey} ${normalizedSuffix}`
+          : `meme ${resolvedKey}`;
+        const executed = await session.execute(rewrittenCommand);
+        if (config.enableDeveloperDebugLog) {
+          logger.info(
+            "leading-at debug: alias rewritten=%s execute returned=%s",
+            JSON.stringify(rewrittenCommand),
+            JSON.stringify(executed),
+          );
+        }
+        if (executed) await session.send(executed);
+        return;
+      }
+    }
+
+    // 普通前置 @ 消息必须继续放行，避免把对话内容当成 meme key 后吞掉。
     if (!/^meme$/i.test(normalizedCommandText)) {
       if (config.enableDeveloperDebugLog) {
         logger.info("leading-at debug: pass-through non-meme command");

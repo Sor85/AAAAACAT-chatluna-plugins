@@ -23,6 +23,7 @@ vi.mock("koishi", () => ({
 }));
 
 const keyResolverMocks = vi.hoisted(() => ({
+  resolveMemeKey: vi.fn(async (key: string) => key),
   createMemeTriggerPrefixResolver: vi.fn<() => MemeTriggerPrefixResolverMock>(
     () => async () => undefined,
   ),
@@ -35,7 +36,7 @@ const keyResolverMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../../src/command/key-resolver", () => ({
-  createMemeKeyResolver: vi.fn(() => async (key: string) => key),
+  createMemeKeyResolver: vi.fn(() => keyResolverMocks.resolveMemeKey),
   createMemeTriggerPrefixResolver:
     keyResolverMocks.createMemeTriggerPrefixResolver,
   listDirectAliases: keyResolverMocks.listDirectAliases,
@@ -539,6 +540,8 @@ async function flushAsyncCycles(cycles = 50) {
 }
 
 beforeEach(() => {
+  keyResolverMocks.resolveMemeKey.mockReset();
+  keyResolverMocks.resolveMemeKey.mockImplementation(async (key: string) => key);
   keyResolverMocks.createMemeTriggerPrefixResolver.mockReset();
   keyResolverMocks.createMemeTriggerPrefixResolver.mockImplementation(
     () => async () => undefined,
@@ -2102,6 +2105,38 @@ describe("registerCommands", () => {
     expect(next).toHaveBeenCalledTimes(1);
     expect(session.execute).not.toHaveBeenCalled();
     expect(session.send).not.toHaveBeenCalled();
+  });
+
+  it("开启中文别名直触发时应处理 @其他用户 别名", async () => {
+    keyResolverMocks.resolveMemeKey.mockResolvedValueOnce("flirt");
+    const { ctx, middlewareHandlers } = createMockContext();
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: true,
+        allowLeadingAtBeforeCommand: true,
+      }),
+    );
+
+    const middleware = middlewareHandlers[0] as MiddlewareHandler;
+    const session = createMiddlewareSession(
+      "撩",
+      '<img src="ok"/>',
+      [
+        { type: "at", attrs: { id: "10001" } },
+        { type: "text", attrs: { content: " 撩" } },
+      ],
+      { hasAt: true, atSelf: false, appel: false },
+      '<at id="10001"/> 撩',
+    );
+    const next = vi.fn(async () => undefined);
+
+    await middleware(session, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(session.execute).toHaveBeenCalledWith("meme flirt");
+    expect(session.send).toHaveBeenCalledWith('<img src="ok"/>');
   });
 
   it("关闭前置@允许时 @bot 别名直触发应被禁用且不吞消息", async () => {
