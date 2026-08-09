@@ -13,6 +13,7 @@ export type NativeToolKey =
   | "searchGroupMember"
   | "setGroupBan"
   | "leaveGroup"
+  | "handleRequest"
   | "setGroupKick"
   | "setGroupSpecialTitle"
   | "setMsgEmoji"
@@ -34,6 +35,7 @@ export interface NativeToolsConfig {
   searchGroupMember: NativeToolItemConfig;
   setGroupBan: NativeToolItemConfig;
   leaveGroup: NativeToolItemConfig;
+  handleRequest: NativeToolItemConfig;
   setGroupKick: NativeToolItemConfig;
   setGroupSpecialTitle: NativeToolItemConfig;
   setMsgEmoji: NativeToolItemConfig;

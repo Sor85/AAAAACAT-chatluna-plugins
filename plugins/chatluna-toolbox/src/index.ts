@@ -18,6 +18,7 @@ export * from "./features/native-tools/tools/set-group-card";
 export * from "./features/native-tools/tools/search-group-member";
 export * from "./features/native-tools/tools/set-group-ban";
 export * from "./features/native-tools/tools/leave-group";
+export * from "./features/native-tools/tools/handle-request";
 export * from "./features/native-tools/tools/set-group-kick";
 export * from "./features/native-tools/tools/set-group-special-title";
 export * from "./features/native-tools/tools/set-msg-emoji";

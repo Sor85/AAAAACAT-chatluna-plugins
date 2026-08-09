@@ -45,6 +45,11 @@ function createConfig(overrides: Partial<Config> = {}): Config {
       toolName: "set_group_leave",
       description: "",
     },
+    handleRequest: {
+      enabled: false,
+      toolName: "handle_request",
+      description: "",
+    },
     setGroupKick: {
       enabled: false,
       toolName: "set_group_kick",

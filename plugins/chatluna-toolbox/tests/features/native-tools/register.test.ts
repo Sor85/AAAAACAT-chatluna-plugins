@@ -9,6 +9,7 @@ import { registerNativeTools, resolveOneBotProtocol } from "../../../src/feature
 import type { Config } from "../../../src/types";
 import {
   DEFAULT_DELETE_MESSAGE_TOOL_DESCRIPTION,
+  DEFAULT_HANDLE_REQUEST_TOOL_DESCRIPTION,
   DEFAULT_LEAVE_GROUP_TOOL_DESCRIPTION,
   DEFAULT_POKE_TOOL_DESCRIPTION,
   DEFAULT_SEARCH_GROUP_MEMBER_TOOL_DESCRIPTION,
@@ -67,6 +68,11 @@ function createConfig(overrides: Partial<Config> = {}): Config {
       toolName: "set_group_leave",
       description: DEFAULT_LEAVE_GROUP_TOOL_DESCRIPTION,
     },
+    handleRequest: {
+      enabled: false,
+      toolName: "handle_request",
+      description: DEFAULT_HANDLE_REQUEST_TOOL_DESCRIPTION,
+    },
     setGroupKick: {
       enabled: false,
       toolName: "set_group_kick",
@@ -124,6 +130,7 @@ describe("registerNativeTools", () => {
     expect(source).toContain("export const NativeToolsSchema = Schema.object({");
     expect(source).toContain("enabledNativeTools: EnabledNativeToolsSchema");
     expect(source).toContain("poke: Schema.object({");
+    expect(source).toContain("handleRequest: Schema.object({");
     expect(source).toContain("deleteMessage: Schema.object({");
     expect(source).not.toContain("NativeToolAdvancedSettingsSchema");
     expect(source).not.toContain("Schema.intersect");
@@ -136,6 +143,7 @@ describe("registerNativeTools", () => {
         "poke",
         "setGroupBan",
         "leaveGroup",
+        "handleRequest",
         "setGroupKick",
         "setGroupSpecialTitle",
         "setMsgEmoji",
@@ -156,6 +164,10 @@ describe("registerNativeTools", () => {
         toolName: "custom_leave",
         description: "custom leave description",
       },
+      handleRequest: {
+        toolName: "custom_handle_request",
+        description: "custom handle request description",
+      },
       setGroupKick: {
         toolName: "custom_kick",
         description: "custom kick description",
@@ -173,7 +185,7 @@ describe("registerNativeTools", () => {
       protocol: "napcat",
     });
 
-    expect(registerTool).toHaveBeenCalledTimes(6);
+    expect(registerTool).toHaveBeenCalledTimes(7);
     expect(registerTool).toHaveBeenNthCalledWith(
       1,
       "custom_poke",
@@ -218,6 +230,20 @@ describe("registerNativeTools", () => {
     );
     expect(registerTool).toHaveBeenNthCalledWith(
       4,
+      "custom_handle_request",
+      expect.objectContaining({
+        selector: expect.any(Function),
+        authorization: expect.any(Function),
+        description: "custom handle request description",
+        createTool: expect.any(Function),
+        meta: expect.objectContaining({
+          tags: ["request"],
+          defaultAvailability: TOOL_DEFAULT_AVAILABILITY,
+        }),
+      }),
+    );
+    expect(registerTool).toHaveBeenNthCalledWith(
+      5,
       "custom_kick",
       expect.objectContaining({
         selector: expect.any(Function),
@@ -231,7 +257,7 @@ describe("registerNativeTools", () => {
       }),
     );
     expect(registerTool).toHaveBeenNthCalledWith(
-      5,
+      6,
       "custom_title",
       expect.objectContaining({
         selector: expect.any(Function),
@@ -245,7 +271,7 @@ describe("registerNativeTools", () => {
       }),
     );
     expect(registerTool).toHaveBeenNthCalledWith(
-      6,
+      7,
       "custom_emoji",
       expect.objectContaining({
         selector: expect.any(Function),
@@ -350,6 +376,7 @@ describe("registerNativeTools", () => {
         "searchGroupMember",
         "setGroupBan",
         "leaveGroup",
+        "handleRequest",
         "setGroupKick",
         "setGroupSpecialTitle",
         "setMsgEmoji",
@@ -383,6 +410,10 @@ describe("registerNativeTools", () => {
         toolName: "set_group_leave",
         description: DEFAULT_LEAVE_GROUP_TOOL_DESCRIPTION,
       },
+      handleRequest: {
+        toolName: "handle_request",
+        description: DEFAULT_HANDLE_REQUEST_TOOL_DESCRIPTION,
+      },
       setGroupKick: {
         toolName: "set_group_kick",
         description: DEFAULT_SET_GROUP_KICK_TOOL_DESCRIPTION,
@@ -415,6 +446,7 @@ describe("registerNativeTools", () => {
     expect(registrationsByName.get("delete_msg").meta.tags).toEqual(["message"]);
     expect(registrationsByName.get("set_group_kick").meta.tags).toEqual(["group"]);
     expect(registrationsByName.get("set_group_leave").meta.tags).toEqual(["group"]);
+    expect(registrationsByName.get("handle_request").meta.tags).toEqual(["request"]);
     expect(registrationsByName.get("poke_user").meta.tags).toEqual(["poke"]);
     expect(registrationsByName.get("search_group_member").meta.tags).toEqual(["group"]);
     expect(registrationsByName.get("set_group_ban").meta.tags).toEqual(["group"]);

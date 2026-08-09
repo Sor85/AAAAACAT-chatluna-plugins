@@ -12,6 +12,7 @@ import type {
 } from "../../types";
 import {
   DEFAULT_DELETE_MESSAGE_TOOL_DESCRIPTION,
+  DEFAULT_HANDLE_REQUEST_TOOL_DESCRIPTION,
   DEFAULT_LEAVE_GROUP_TOOL_DESCRIPTION,
   DEFAULT_POKE_TOOL_DESCRIPTION,
   DEFAULT_SEARCH_GROUP_MEMBER_TOOL_DESCRIPTION,
@@ -24,6 +25,7 @@ import {
   DEFAULT_SET_SELF_PROFILE_TOOL_DESCRIPTION,
 } from "./defaults";
 import { createDeleteMessageTool } from "./tools/delete-msg";
+import { createHandleRequestTool } from "./tools/handle-request";
 import { createLeaveGroupTool } from "./tools/leave-group";
 import { createPokeTool } from "./tools/poke";
 import { createSearchGroupMemberTool } from "./tools/search-group-member";
@@ -246,6 +248,25 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
       meta: createNativeToolMeta("onebot", ["group"]),
     });
     log?.("info", `退群工具已注册: ${toolName}`);
+  }
+
+  if (isNativeToolEnabled(config, "handleRequest")) {
+    const toolName = resolveToolName(
+      config.handleRequest.toolName,
+      "handle_request",
+    );
+    const description = resolveToolDescription(
+      config.handleRequest.description,
+      DEFAULT_HANDLE_REQUEST_TOOL_DESCRIPTION,
+    );
+    plugin.registerTool(toolName, {
+      selector: () => true,
+      authorization: (session: Session) => session?.platform === "onebot",
+      description,
+      createTool: () => createHandleRequestTool({ toolName, description, log }),
+      meta: createNativeToolMeta("onebot", ["request"]),
+    });
+    log?.("info", `好友与群申请处理工具已注册: ${toolName}`);
   }
 
   if (isNativeToolEnabled(config, "setGroupKick")) {

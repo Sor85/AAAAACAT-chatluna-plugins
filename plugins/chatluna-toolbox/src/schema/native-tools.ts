@@ -6,6 +6,7 @@
 import { Schema } from "koishi";
 import {
   DEFAULT_DELETE_MESSAGE_TOOL_DESCRIPTION,
+  DEFAULT_HANDLE_REQUEST_TOOL_DESCRIPTION,
   DEFAULT_LEAVE_GROUP_TOOL_DESCRIPTION,
   DEFAULT_POKE_TOOL_DESCRIPTION,
   DEFAULT_SEARCH_GROUP_MEMBER_TOOL_DESCRIPTION,
@@ -27,6 +28,7 @@ const EnabledNativeToolsSchema = Schema.array(
     Schema.const("searchGroupMember").description("搜索群成员"),
     Schema.const("setGroupBan").description("禁言群成员"),
     Schema.const("leaveGroup").description("退群"),
+    Schema.const("handleRequest").description("处理好友与群申请"),
     Schema.const("setGroupKick").description("踢出群成员"),
     Schema.const("setGroupSpecialTitle").description("修改群成员专属头衔"),
     Schema.const("setMsgEmoji").description("消息表情"),
@@ -106,6 +108,15 @@ export const NativeToolsSchema = Schema.object({
       .description("工具描述"),
   })
     .description("退群工具")
+    .collapse(),
+  handleRequest: Schema.object({
+    enabled: Schema.boolean().default(false).hidden(),
+    toolName: Schema.string().default("handle_request").description("工具名称"),
+    description: Schema.string()
+      .default(DEFAULT_HANDLE_REQUEST_TOOL_DESCRIPTION)
+      .description("工具描述"),
+  })
+    .description("处理好友与群申请工具")
     .collapse(),
   setGroupKick: Schema.object({
     enabled: Schema.boolean().default(false).hidden(),

@@ -22,6 +22,9 @@ export const DEFAULT_SET_GROUP_BAN_TOOL_DESCRIPTION =
 export const DEFAULT_LEAVE_GROUP_TOOL_DESCRIPTION =
   "让机器人退出当前群聊。";
 
+export const DEFAULT_HANDLE_REQUEST_TOOL_DESCRIPTION =
+  "根据 OneBot 申请 flag 同意或拒绝好友申请、加群申请或群邀请。";
+
 export const DEFAULT_SET_GROUP_KICK_TOOL_DESCRIPTION =
   "将指定成员踢出群聊。";
 
