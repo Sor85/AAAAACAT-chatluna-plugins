@@ -101,6 +101,11 @@ const toNavSection = (nav: SharedNavSection) => {
 
 <style module lang="scss">
 .container {
+  --shared-nav-header-bg: rgba(255, 255, 255, 0.85);
+  --shared-nav-header-hover-bg: rgba(255, 255, 255, 0.95);
+  --shared-nav-header-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shared-nav-item-hover-bg: rgba(0, 0, 0, 0.06);
+
   position: absolute;
   z-index: 1000;
   width: 140px;
@@ -121,6 +126,14 @@ const toNavSection = (nav: SharedNavSection) => {
   user-select: none;
   overflow: visible;
 
+  :global(html.dark) &,
+  :global(.theme-root.dark) & {
+    --shared-nav-header-bg: rgba(37, 37, 41, 0.88);
+    --shared-nav-header-hover-bg: rgba(49, 49, 54, 0.96);
+    --shared-nav-header-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+    --shared-nav-item-hover-bg: rgba(255, 255, 255, 0.1);
+  }
+
   @media (max-width: 768px) {
     width: 120px;
     max-height: 50vh;
@@ -132,14 +145,14 @@ const toNavSection = (nav: SharedNavSection) => {
     justify-content: space-between;
     align-items: center;
     cursor: move;
-    background: rgba(255, 255, 255, 0.85);
+    background: var(--shared-nav-header-bg);
     border-radius: 20px;
     backdrop-filter: blur(8px);
     margin-bottom: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--shared-nav-header-shadow);
 
     &:hover {
-      background: rgba(255, 255, 255, 0.95);
+      background: var(--shared-nav-header-hover-bg);
     }
 
     .move {

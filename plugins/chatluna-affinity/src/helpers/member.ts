@@ -380,6 +380,11 @@ export async function findMemberByName(
 }
 
 export function resolveGroupId(session: Session): string {
+  // 私聊的 channelId 可能是 private:*，不能把它当成群号传给适配器查询群成员。
+  if (session.isDirect) {
+    return "";
+  }
+
   return String(
     session.guildId ||
       (session as unknown as { groupId?: string })?.groupId ||

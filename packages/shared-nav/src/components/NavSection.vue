@@ -39,7 +39,7 @@ defineEmits<{
   background: transparent;
 
   &:hover {
-    background: rgba(0, 0, 0, 0.06);
+    background: var(--shared-nav-item-hover-bg, rgba(0, 0, 0, 0.06));
     color: var(--k-text-active);
   }
 
