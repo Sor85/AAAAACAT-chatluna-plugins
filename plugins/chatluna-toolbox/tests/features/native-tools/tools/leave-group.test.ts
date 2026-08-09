@@ -39,6 +39,56 @@ describe("sendLeaveGroup", () => {
     expect(result).toBe("已退出群 group-1。");
   });
 
+  it("OneBot 返回失败响应时不应报告退群成功", async () => {
+    const request = vi.fn().mockResolvedValue({
+      status: "failed",
+      retcode: 100,
+      wording: "群主不能直接退出群组",
+    });
+    const result = await sendLeaveGroup({
+      session: {
+        platform: "onebot",
+        guildId: "group-1",
+        bot: { internal: { _request: request } },
+      } as any,
+    });
+
+    expect(result).toBe(
+      "set_group_leave failed: 群主不能直接退出群组 (retcode: 100)",
+    );
+  });
+
+  it("fallback 返回失败响应时不应报告退群成功", async () => {
+    const setGroupLeave = vi.fn().mockResolvedValue({
+      retcode: 1404,
+      message: "group not found",
+    });
+    const result = await sendLeaveGroup({
+      session: {
+        platform: "onebot",
+        guildId: "group-1",
+        bot: { internal: { setGroupLeave } },
+      } as any,
+    });
+
+    expect(result).toBe(
+      "set_group_leave failed: group not found (retcode: 1404)",
+    );
+  });
+
+  it("OneBot 返回成功响应时报告退群成功", async () => {
+    const request = vi.fn().mockResolvedValue({ status: "ok", retcode: 0 });
+    const result = await sendLeaveGroup({
+      session: {
+        platform: "onebot",
+        guildId: "group-1",
+        bot: { internal: { _request: request } },
+      } as any,
+    });
+
+    expect(result).toBe("已退出群 group-1。");
+  });
+
   it("在缺少群号时返回错误", async () => {
     const result = await sendLeaveGroup({
       session: {

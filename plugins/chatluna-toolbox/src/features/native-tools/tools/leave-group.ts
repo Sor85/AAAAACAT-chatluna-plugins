@@ -11,6 +11,13 @@ import { ensureOneBotSession, callOneBotAPI } from "../onebot-api";
 import { getSession } from "../session";
 import { DEFAULT_LEAVE_GROUP_TOOL_DESCRIPTION } from "../defaults";
 
+interface OneBotResponseLike {
+  status?: string;
+  retcode?: number;
+  wording?: string;
+  message?: string;
+}
+
 export interface LeaveGroupToolDeps {
   toolName: string;
   description: string;
@@ -31,6 +38,26 @@ function resolveGroupId(session: Session, groupId?: string): string {
   );
 }
 
+function assertOneBotSuccess(result: unknown): void {
+  const response = result as OneBotResponseLike | undefined;
+  if (!response || typeof response !== "object") return;
+
+  const status = String(response.status || "").toLowerCase();
+  const failed =
+    status === "failed" ||
+    (!!status && status !== "ok") ||
+    (typeof response.retcode === "number" && response.retcode !== 0);
+  if (!failed) return;
+
+  // OneBot 业务错误可能以正常 resolve 的响应包返回，不能只依赖 Promise rejection 判断退群成功。
+  const reason = response.wording || response.message || response.status;
+  const retcode =
+    typeof response.retcode === "number"
+      ? ` (retcode: ${response.retcode})`
+      : "";
+  throw new Error(`${reason || "OneBot returned failed"}${retcode}`);
+}
+
 export async function sendLeaveGroup(
   params: SendLeaveGroupParams,
 ): Promise<string> {
@@ -48,12 +75,13 @@ export async function sendLeaveGroup(
       return "Missing groupId. Provide groupId explicitly or run inside a group session.";
     }
 
-    await callOneBotAPI(
+    const result = await callOneBotAPI(
       internal!,
       "set_group_leave",
       { group_id: resolvedGroupId },
       ["setGroupLeave"],
     );
+    assertOneBotSuccess(result);
 
     const message = `已退出群 ${resolvedGroupId}。`;
     log?.("info", message);
