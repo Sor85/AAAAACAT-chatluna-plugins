@@ -23,6 +23,7 @@ import {
   createCharacterTempModelResponseRuntime,
   createModelResponseProcessor,
   hasReplyToolsEnabled,
+  registerCharacterPromptInjection,
   registerCharacterReplyTools,
 } from "./services/model-response";
 import {
@@ -41,6 +42,7 @@ import { createPermanentUnblockHandler } from "./services/blacklist/unblock-perm
 import { createUserAliasService } from "./services/user-alias/repository";
 import { createManualRelationshipManager } from "./services/relationship/manual-config";
 import { createMigrationService } from "./services/migration";
+import { registerActiveScope } from "./services/scope-registry";
 import {
   registerDashboardBackend,
   registerDashboardWebui,
@@ -118,6 +120,14 @@ function normalizeToolSettings(config: Config): void {
       config.xmlToolSettings?.enableRelationshipXmlToolCall ?? true,
     enableUserAliasXmlToolCall:
       config.xmlToolSettings?.enableUserAliasXmlToolCall ?? true,
+    autoInjectReferencePrompt:
+      config.xmlToolSettings?.autoInjectReferencePrompt ??
+      (
+        config as unknown as {
+          autoInjectReferencePrompt?: boolean;
+        }
+      ).autoInjectReferencePrompt ??
+      false,
     characterPromptTemplate:
       config.xmlToolSettings?.characterPromptTemplate ||
       (config as unknown as { characterPromptTemplate?: string })
@@ -248,6 +258,22 @@ export function apply(ctx: Context, config: Config): void {
   let characterCtx: Context | null = null;
   let xmlActionExecutionEnabled = true;
   let replyToolsDispose: (() => void) | null = null;
+  let nativeToolsDispose: (() => void) | null = null;
+  let referencePromptDispose: (() => void) | null = null;
+  let isOnlyScope = false;
+  let isScopeOwner = false;
+  let servicesInitialized = false;
+  let reconcileNativeTools: (() => void) | null = null;
+  let reconcileCharacterTools: (() => void) | null = null;
+  let reconcileReferencePrompt: (() => void) | null = null;
+
+  const scopeDispose = registerActiveScope(ctx, config.scopeId, (state) => {
+    isOnlyScope = state.isOnlyScope;
+    isScopeOwner = state.isOwner;
+    reconcileNativeTools?.();
+    if (servicesInitialized) reconcileCharacterTools?.();
+    reconcileReferencePrompt?.();
+  });
 
   const processModelResponse = createModelResponseProcessor({
     config,
@@ -278,49 +304,65 @@ export function apply(ctx: Context, config: Config): void {
     logActivation: Boolean(config.debugLogging),
   });
 
-  ctx.inject(["chatluna_character"], (innerCtx) => {
-    characterCtx = innerCtx;
+  reconcileCharacterTools = () => {
+    replyToolsDispose?.();
+    replyToolsDispose = null;
+    xmlActionExecutionEnabled = true;
+
+    if (!characterCtx || !isOnlyScope || !isScopeOwner) return;
+    if (!hasReplyToolsEnabled(config)) return;
+
     const characterService = (
-      innerCtx as unknown as {
+      characterCtx as unknown as {
         chatluna_character?: {
           registerReplyToolField?: (...args: unknown[]) => () => void;
         };
       }
     ).chatluna_character;
-    const enableReplyTools = hasReplyToolsEnabled(config);
-
-    replyToolsDispose?.();
-    replyToolsDispose = null;
-    xmlActionExecutionEnabled = true;
-
-    if (enableReplyTools) {
-      if (characterService?.registerReplyToolField) {
-        replyToolsDispose = registerCharacterReplyTools({
-          ctx: innerCtx,
-          config,
-          cache,
-          store,
-          blacklist,
-          unblockPermanent,
-          userAlias,
-          shortTermConfig,
-          actionWindowConfig,
-          coefficientConfig,
-          log,
-        });
-        xmlActionExecutionEnabled = false;
-        if (config.debugLogging) {
-          log("info", "已启用实验性 reply tool 字段注入，关闭 XML 动作执行");
-        }
-      } else {
-        if (config.debugLogging) {
-          log(
-            "warn",
-            "chatluna_character.registerReplyToolField 不可用，回退为 XML 动作执行模式",
-          );
-        }
+    if (!characterService?.registerReplyToolField) {
+      if (config.debugLogging) {
+        log(
+          "warn",
+          "chatluna_character.registerReplyToolField 不可用，回退为 XML 动作执行模式",
+        );
       }
+      return;
     }
+
+    replyToolsDispose = registerCharacterReplyTools({
+      ctx: characterCtx,
+      config,
+      cache,
+      store,
+      blacklist,
+      unblockPermanent,
+      userAlias,
+      shortTermConfig,
+      actionWindowConfig,
+      coefficientConfig,
+      log,
+    });
+    xmlActionExecutionEnabled = false;
+    if (config.debugLogging) {
+      log("info", "已启用实验性 reply tool 字段注入，关闭 XML 动作执行");
+    }
+  };
+
+  reconcileReferencePrompt = () => {
+    referencePromptDispose?.();
+    referencePromptDispose = null;
+    if (!isScopeOwner && isOnlyScope) return;
+    referencePromptDispose = registerCharacterPromptInjection({
+      ctx,
+      config,
+      replaceScopeId: isOnlyScope,
+      log,
+    });
+  };
+
+  ctx.inject(["chatluna_character"], (innerCtx) => {
+    characterCtx = innerCtx;
+    reconcileCharacterTools?.();
 
     if (config.debugLogging) {
       log(
@@ -347,6 +389,11 @@ export function apply(ctx: Context, config: Config): void {
     characterCtx = null;
     replyToolsDispose?.();
     replyToolsDispose = null;
+    nativeToolsDispose?.();
+    nativeToolsDispose = null;
+    referencePromptDispose?.();
+    referencePromptDispose = null;
+    scopeDispose();
     xmlActionExecutionEnabled = true;
     modelResponseRuntime.stop();
   });
@@ -389,6 +436,9 @@ export function apply(ctx: Context, config: Config): void {
 
   const initializeServices = async () => {
     log("info", "插件初始化开始...");
+    servicesInitialized = true;
+    reconcileCharacterTools?.();
+    reconcileReferencePrompt?.();
 
     await migration.run();
 
@@ -402,7 +452,10 @@ export function apply(ctx: Context, config: Config): void {
       ctx as unknown as {
         chatluna?: {
           platform?: {
-            registerTool?: (name: string, tool: unknown) => void;
+            registerTool?: (
+              name: string,
+              tool: unknown,
+            ) => (() => void) | void;
           };
           createChatModel?: (model: string) => Promise<unknown>;
           config?: { defaultModel?: string };
@@ -418,25 +471,34 @@ export function apply(ctx: Context, config: Config): void {
 
     const promptRenderer = chatlunaService?.promptRenderer;
     const plugin = {
-      registerTool: (name: string, tool: NativeToolRegistration) => {
-        chatlunaService?.platform?.registerTool?.(name, tool);
-      },
+      registerTool: (name: string, tool: NativeToolRegistration) =>
+        chatlunaService?.platform?.registerTool?.(name, tool),
     };
 
-    registerNativeTools({
-      ctx,
-      config,
-      cache,
-      store,
-      blacklist,
-      unblockPermanent,
-      userAlias,
-      shortTermConfig,
-      actionWindowConfig,
-      coefficientConfig,
-      plugin,
-      log,
-    });
+    reconcileNativeTools = () => {
+      nativeToolsDispose?.();
+      nativeToolsDispose = null;
+
+      // 固定工具名只能由唯一作用域的一个实例持有；多作用域时主动注销，避免后注册实例覆盖并把动作写入错误 scope。
+      if (!isOnlyScope || !isScopeOwner) return;
+      if (config.xmlToolSettings.injectXmlToolAsReplyTool) return;
+
+      nativeToolsDispose = registerNativeTools({
+        ctx,
+        config,
+        cache,
+        store,
+        blacklist,
+        unblockPermanent,
+        userAlias,
+        shortTermConfig,
+        actionWindowConfig,
+        coefficientConfig,
+        plugin,
+        log,
+      });
+    };
+    reconcileNativeTools();
 
     const affinityProvider = createAffinityProvider({
       config,

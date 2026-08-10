@@ -21,6 +21,7 @@ export {
   BlacklistSchema,
   RelationshipSchema,
   NativeToolSettingsSchema,
+  XmlToolSettingsSchema,
   OtherSettingsSchema,
 } from "./schema";
 export const usage = `

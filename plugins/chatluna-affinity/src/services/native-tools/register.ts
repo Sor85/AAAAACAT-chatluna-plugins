@@ -48,7 +48,10 @@ export interface RegisterNativeToolsDeps
   > {
   ctx: Context;
   plugin: {
-    registerTool: (name: string, tool: NativeToolRegistration) => void;
+    registerTool: (
+      name: string,
+      tool: NativeToolRegistration,
+    ) => (() => void) | void;
   };
   log?: LogFn;
 }
@@ -90,10 +93,14 @@ function resolveToolDescription(value: string, fallback: string): string {
 }
 
 function isNativeToolEnabled(config: Config, toolKey: NativeToolKey): boolean {
-  return Boolean(config.nativeToolSettings.enabledNativeTools?.includes(toolKey));
+  return Boolean(
+    config.nativeToolSettings.enabledNativeTools?.includes(toolKey),
+  );
 }
 
-export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
+export function registerNativeTools(
+  deps: RegisterNativeToolsDeps,
+): () => void {
   const {
     config,
     cache,
@@ -108,6 +115,11 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
     log,
   } = deps;
   const scopeId = config.scopeId;
+  const disposers: (() => void)[] = [];
+  const registerTool = (name: string, tool: NativeToolRegistration) => {
+    const dispose = plugin.registerTool(name, tool);
+    if (typeof dispose === "function") disposers.push(dispose);
+  };
 
   if (isNativeToolEnabled(config, "affinity") && config.affinityEnabled) {
     const toolName = resolveToolName(
@@ -118,7 +130,7 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
       config.nativeToolSettings.affinity.description,
       DEFAULT_AFFINITY_NATIVE_TOOL_DESCRIPTION,
     );
-    plugin.registerTool(toolName, {
+    registerTool(toolName, {
       selector: () => true,
       authorization: () => true,
       description,
@@ -182,7 +194,7 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
       config.nativeToolSettings.blacklist.description,
       DEFAULT_BLACKLIST_NATIVE_TOOL_DESCRIPTION,
     );
-    plugin.registerTool(toolName, {
+    registerTool(toolName, {
       selector: () => true,
       authorization: () => true,
       description,
@@ -288,7 +300,7 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
       config.nativeToolSettings.relationship.description,
       DEFAULT_RELATIONSHIP_NATIVE_TOOL_DESCRIPTION,
     );
-    plugin.registerTool(toolName, {
+    registerTool(toolName, {
       selector: () => true,
       authorization: () => true,
       description,
@@ -341,7 +353,7 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
       config.nativeToolSettings.userAlias.description,
       DEFAULT_USER_ALIAS_NATIVE_TOOL_DESCRIPTION,
     );
-    plugin.registerTool(toolName, {
+    registerTool(toolName, {
       selector: () => true,
       authorization: () => true,
       description,
@@ -368,4 +380,8 @@ export function registerNativeTools(deps: RegisterNativeToolsDeps): void {
     });
     log?.("info", `自定义昵称原生工具已注册: ${toolName}`);
   }
+
+  return () => {
+    for (const dispose of disposers.reverse()) dispose();
+  };
 }

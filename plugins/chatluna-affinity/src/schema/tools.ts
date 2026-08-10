@@ -36,7 +36,7 @@ const EnabledNativeToolsSchema = Schema.array(
   .role("checkbox")
   // Koishi 前端只有看到原生 array + checkbox schema 才会渲染为复选框列表；不要用 transform 包裹。
   .extra("default", undefined)
-  .description("选择要注册到 ChatLuna 的原生工具");
+  .description("选择要注册到 ChatLuna 的原生工具。当当前环境只有一个`scopeId`时，已选工具会自动注入并绑定该`scopeId`，模型无需填写");
 
 export const NativeToolSettingsSchema = Schema.object({
   nativeToolSettings: Schema.object({
@@ -88,7 +88,7 @@ export const XmlToolSettingsSchema = Schema.object({
   injectXmlToolAsReplyTool: Schema.boolean()
     .default(false)
     .description(
-      "将 XML 工具改为注入实验性[工具调用回复](https://chatluna.chat/ecosystem/other/character.html#%E9%A2%84%E8%AE%BE)的参数中",
+      "将 XML 工具改为注入实验性[工具调用回复](https://chatluna.chat/ecosystem/other/character.html#%E9%A2%84%E8%AE%BE)的参数中。当前环境只有一个`scopeId`时，会自动注入并绑定该`scopeId`，模型无需填写",
     ),
   enableAffinityXmlToolCall: Schema.boolean()
     .default(true)
@@ -102,45 +102,70 @@ export const XmlToolSettingsSchema = Schema.object({
   enableUserAliasXmlToolCall: Schema.boolean()
     .default(true)
     .description("启用自定义昵称 XML 工具调用"),
+  autoInjectReferencePrompt: Schema.boolean()
+    .default(false)
+    .description(
+      "自动将下方 XML 参考提示词作为系统提示词注入模型。当前环境只有一个`scopeId`时，会将`{scopeId}`替换为当前作用域；存在多个`scopeId`时保留占位符，需自行修改。启用上方实验性工具调用回复后，此选项不生效",
+    ),
   characterPromptTemplate: Schema.string()
     .role("textarea")
     .default(
-      `## 动作指令
-你可以根据需要创建一个独立的 <actions> 元素。它用于执行非语言的系统指令。如果不需要执行任何动作，请省略此元素。
-1. 好感度更新: \`<affinity scopeId="" userId="" action="" delta=""/>\`
-  - scopeId: {scopeId}
-  - userId: 目标用户 ID
-  - action: increase 或 decrease
-  - delta: 必须填写正整数
-2. 黑名单管理: \`<blacklist scopeId="" userId="" action="" mode="" durationHours="" note=""/>\`
-  - scopeId: {scopeId}
-  - userId: 目标用户 ID
-  - action: add 或 remove
-  - mode: permanent 或 temporary
-  - durationHours: 仅在 action=add 且 mode=temporary 时填写
-  - note: 可选备注
-3. 关系调整: \`<relationship scopeId="" userId="" action="" relation=""/>\`
-  - scopeId: {scopeId}
-  - userId: 目标用户 ID
-  - action: set 或 clear
-  - relation: 仅在 action=set 时填写
-4. 自定义昵称设置: \`<userAlias scopeId="" userId="" name=""/>\`
-  - scopeId: {scopeId}
-  - userId: 目标用户 ID
-  - name: 用户自定义昵称
+      `<available_actions>
 
-格式示例:
+Use an independent \`<actions>\` element only when a non-verbal system action is needed. Omit it otherwise.
+
+Available actions:
+
+\`<affinity scopeId="{scopeId}" userId="user_id" action="action" delta="delta"/>\`
+Update a user's affinity.
+
+scopeId: \`{scopeId}\`
+userId: target user ID
+action: \`increase\` or \`decrease\`
+delta: required positive integer
+
+\`<blacklist scopeId="{scopeId}" userId="user_id" action="action" mode="mode" durationHours="hours" note="note"/>\`
+Manage a user's blacklist status.
+
+scopeId: \`{scopeId}\`
+userId: target user ID
+action: \`add\` or \`remove\`
+mode: \`permanent\` or \`temporary\`
+durationHours: only include when \`action="add"\` and \`mode="temporary"\`
+note: optional
+
+\`<relationship scopeId="{scopeId}" userId="user_id" action="action" relation="relation"/>\`
+Adjust a user's relationship.
+
+scopeId: \`{scopeId}\`
+userId: target user ID
+action: \`set\` or \`clear\`
+relation: only include when \`action="set"\`
+
+\`<userAlias scopeId="{scopeId}" userId="user_id" name="name"/>\`
+Set a custom nickname for a user.
+
+scopeId: \`{scopeId}\`
+userId: target user ID
+name: custom nickname
+
+Actions must be placed inside a single \`<actions>\` element:
+
 \`\`\`xml
-  <actions>
-    <affinity scopeId="{scopeId}" userId="123456" action="increase" delta="5"/>
-    <blacklist scopeId="{scopeId}" userId="123456" action="add" mode="permanent" note="violation"/>
-    <blacklist scopeId="{scopeId}" userId="123456" action="add" mode="temporary" durationHours="12" note="spam"/>
-    <relationship scopeId="{scopeId}" userId="123456" action="set" relation="小祥姐姐"/>
-    <userAlias scopeId="{scopeId}" userId="123456" name="小祥"/>
-  </actions>
-\`\`\``,
+<actions>
+  <affinity scopeId="{scopeId}" userId="123456" action="increase" delta="5"/>
+  <blacklist scopeId="{scopeId}" userId="123456" action="add" mode="permanent" note="violation"/>
+  <blacklist scopeId="{scopeId}" userId="123456" action="add" mode="temporary" durationHours="12" note="spam"/>
+  <relationship scopeId="{scopeId}" userId="123456" action="set" relation="小祥姐姐"/>
+  <userAlias scopeId="{scopeId}" userId="123456" name="小祥"/>
+</actions>
+\`\`\`
+
+Only include actions that should actually be executed. Omit fields that are not applicable. Do not describe or simulate actions inside \`<actions>\`.
+
+</available_actions>`,
     )
-    .description("模型回复 XML 参考提示词。此内容不会自动注入到角色提示词中；请先将 {scopeId} 替换为实际 scopeId，再手动复制到 ChatLuna Character 的角色提示词里。若开启“将 XML 工具改为注入实验性工具调用回复”，则只需在提示词中告知 AI 你的 scopeId")
+    .description("模型回复 XML 参考提示词，默认需手动替换`{scopeId}`并写入角色提示词；开启上方自动注入后无需手动写入，单一`scopeId`时还会自动替换占位符，多`scopeId`时需在模板中自行改为目标作用域。若开启实验性工具调用回复，则无需增加额外 XML 提示词")
     .collapse(),
 }).description("Character XML 工具设置");
 

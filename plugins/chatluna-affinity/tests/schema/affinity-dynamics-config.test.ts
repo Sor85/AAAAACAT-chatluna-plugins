@@ -41,6 +41,7 @@ function createConfig(overrides = {}) {
       enableAffinityXmlToolCall: true,
       enableRelationshipXmlToolCall: true,
       enableUserAliasXmlToolCall: true,
+      autoInjectReferencePrompt: false,
       characterPromptTemplate: "",
     },
     ...overrides,
@@ -96,6 +97,15 @@ test("NativeToolSettingsSchema 将工具选择和工具配置放在同一分组"
   assert.ok(nativeSettings.dict.userAlias);
   assert.equal(NativeToolSettingsSchema.meta.description, "原生工具设置");
   assert.equal(nativeSettings.meta.description, "");
+});
+
+test("XmlToolSettingsSchema 默认关闭参考提示词自动注入", () => {
+  const { XmlToolSettingsSchema } = loadPlugin();
+
+  assert.equal(
+    XmlToolSettingsSchema.dict.autoInjectReferencePrompt.meta.default,
+    false,
+  );
 });
 
 test("resolveShortTermConfig 在 affinityDynamics 缺失时返回稳定默认值", () => {

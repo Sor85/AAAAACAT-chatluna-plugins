@@ -58,6 +58,7 @@ function createConfig(overrides = {}) {
       enableBlacklistXmlToolCall: true,
       enableRelationshipXmlToolCall: true,
       enableUserAliasXmlToolCall: true,
+      autoInjectReferencePrompt: false,
       characterPromptTemplate: "",
     },
     ...overrides,

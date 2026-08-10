@@ -6,3 +6,4 @@
 export * from "./processor";
 export * from "./temp-runtime";
 export * from "./reply-tools";
+export * from "./reference-prompt";

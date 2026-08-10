@@ -46,6 +46,7 @@ function createConfig(overrides = {}) {
       enableAffinityXmlToolCall: true,
       enableRelationshipXmlToolCall: true,
       enableUserAliasXmlToolCall: true,
+      autoInjectReferencePrompt: false,
       characterPromptTemplate: "",
     },
     ...overrides,

@@ -84,7 +84,9 @@ yarn add koishi-plugin-chatluna-affinity
 - 模板里放 `{affinity("你的scopeId")}`
 - 提示词里允许模型输出 `<affinity .../>`、`<relationship .../>`、`<blacklist .../>`、`<userAlias .../>`
 
-如果开启 `injectXmlToolAsReplyTool`（界面显示为“将 XML 工具改为注入实验性‘工具调用回复’的参数中”），就不需要把完整 XML 参考提示词塞进角色提示词里；只需要告诉模型当前 `scopeId`，插件会把可用 XML 工具注入到 ChatLuna Character 的工具调用回复参数中。
+如果开启 `injectXmlToolAsReplyTool`（界面显示为“将 XML 工具改为注入实验性‘工具调用回复’的参数中”），并且当前环境只有一个不同的 Affinity `scopeId`，插件会把可用 XML 工具自动注入 ChatLuna Character 的工具调用回复参数中，不需要把完整 XML 参考提示词塞进角色提示词。
+
+如果继续使用传统 XML 回复，也可以开启 `autoInjectReferencePrompt`。该选项默认关闭，开启后会自动将 `characterPromptTemplate` 作为系统提示词注入。当前环境只有一个 `scopeId` 时，会把所有 `{scopeId}` 替换为当前作用域；存在多个 `scopeId` 时不会替换，需在模板中自行填写目标作用域。开启实验性工具调用回复后，此选项自动失效。
 
 ## 查看好感度数据
 
@@ -176,8 +178,10 @@ id:123456 name:xxx nickname:xxx姐姐 affinity:20 relationship:熟悉 chatcount:
 
 `injectXmlToolAsReplyTool` 对应控制台选项“将 XML 工具改为注入实验性‘工具调用回复’的参数中”，默认关闭。
 
-- 关闭时：插件按传统方式从模型原始输出中解析 XML 标签，角色提示词中需要包含 XML 格式说明。
-- 开启时：插件会把已启用的 XML 工具作为 ChatLuna Character 的工具调用回复参数注入，角色提示词中只需要提供当前 `scopeId`。
+- 关闭时：插件按传统方式从模型原始输出中解析 XML 标签；可以手动写入 XML 格式说明，也可以开启 `autoInjectReferencePrompt` 自动注入。
+- 开启时：当整个环境只有一个不同的 Affinity `scopeId` 时，插件会把已启用的 XML 工具自动注入 ChatLuna Character 的工具调用回复参数，并直接绑定该作用域。
+- 开启实验性工具调用回复后，`autoInjectReferencePrompt` 不生效，避免重复提示。
+- 多个不同 `scopeId` 同时运行时，不注册固定名称的 reply tool 字段，继续使用显式包含 `scopeId` 的传统 XML。
 - 这个模式仍然遵守 `enableAffinityXmlToolCall`、`enableBlacklistXmlToolCall`、`enableRelationshipXmlToolCall`、`enableUserAliasXmlToolCall` 等开关。
 - 这是实验性能力。如果模型无法稳定触发工具调用回复，保持关闭并继续使用原始 XML 输出方式。
 
@@ -281,13 +285,14 @@ scopeId.指令名
 - `debugLogging`
 - `nativeToolSettings.enabledNativeTools`
 - `injectXmlToolAsReplyTool`
+- `autoInjectReferencePrompt`
 - `characterPromptTemplate`
 
-如果你使用 ChatLuna 主插件，请在“原生工具设置”中勾选需要注册的工具。开启后，主插件可以直接调用好感度、黑名单、关系和自定义昵称工具，不需要让模型输出 XML。
+当整个环境只有一个 Affinity `scopeId`，且没有开启 `injectXmlToolAsReplyTool` 时，插件会把 `nativeToolSettings.enabledNativeTools` 中已选择的工具注入 ChatLuna，并自动绑定当前 `scopeId`，模型无需填写。多个不同 `scopeId` 同时运行时会注销这些固定名称工具，避免跨作用域覆盖；此时应使用显式带 `scopeId` 的传统 XML。
 
-`injectXmlToolAsReplyTool` 默认关闭。只有当你想让插件把 XML 工具注入到 ChatLuna Character 的实验性工具调用回复参数中时，才需要开启它。
+`injectXmlToolAsReplyTool` 默认关闭。开启后，在单一 `scopeId` 环境中会优先自动注入 ChatLuna Character 的实验性工具调用回复字段，不再自动注册原生工具。
 
-`characterPromptTemplate` 里出现的 `{scopeId}` 不会自动替换，它只是参考占位符，使用时需要手动替换成真实值。
+`autoInjectReferencePrompt` 默认关闭。开启后会自动注入 `characterPromptTemplate`；只有当前环境存在一个 `scopeId` 时，才会将其中所有 `{scopeId}` 替换成当前实例值。存在多个 `scopeId` 时会原样注入模板，需自行将占位符改为目标作用域。它与 `injectXmlToolAsReplyTool` 互斥，后者开启时自动注入提示词不生效。
 
 
 ## 调试建议

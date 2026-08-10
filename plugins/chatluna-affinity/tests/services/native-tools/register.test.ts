@@ -60,6 +60,7 @@ function createConfig(overrides = {}) {
       enableBlacklistXmlToolCall: true,
       enableRelationshipXmlToolCall: true,
       enableUserAliasXmlToolCall: true,
+      autoInjectReferencePrompt: false,
       characterPromptTemplate: "",
     },
     ...overrides,
@@ -179,6 +180,47 @@ test("registerNativeTools 默认不注册任何工具", () => {
   registerNativeTools(deps);
 
   assert.deepEqual(calls.tools, []);
+});
+
+test("registerNativeTools 不会因唯一 scope 自动启用未勾选工具", () => {
+  const { deps, calls } = createDeps();
+
+  registerNativeTools(deps);
+
+  assert.deepEqual(calls.tools, []);
+});
+
+test("registerNativeTools 返回 disposer 并注销所有已注册工具", () => {
+  const disposed = [];
+  const config = createConfig({
+    nativeToolSettings: {
+      ...createConfig().nativeToolSettings,
+      enabledNativeTools: [
+        "affinity",
+        "blacklist",
+        "relationship",
+        "userAlias",
+      ],
+    },
+  });
+  const { deps } = createDeps({
+    config,
+    plugin: {
+      registerTool(name) {
+        return () => disposed.push(name);
+      },
+    },
+  });
+
+  const dispose = registerNativeTools(deps);
+  dispose();
+
+  assert.deepEqual(disposed, [
+    "affinity_user_alias",
+    "affinity_relationship",
+    "affinity_blacklist",
+    "affinity_affinity",
+  ]);
 });
 
 test("registerNativeTools 按复选框列表和工具配置注册工具", () => {

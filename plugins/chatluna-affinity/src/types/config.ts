@@ -60,6 +60,7 @@ export interface XmlToolSettings {
   enableBlacklistXmlToolCall: boolean;
   enableRelationshipXmlToolCall: boolean;
   enableUserAliasXmlToolCall: boolean;
+  autoInjectReferencePrompt: boolean;
   characterPromptTemplate: string;
 }
 
