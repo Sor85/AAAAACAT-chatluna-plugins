@@ -16,6 +16,7 @@ import {
   registerCharacterReplyTools,
 } from "./features/reply-tools/register";
 import { registerXmlTools } from "./features/xml-tools/register";
+import { registerReferencePromptInjection } from "./features/xml-tools/reference-prompt";
 import { registerVariables } from "./features/variables/register";
 
 export function apply(ctx: Context, config: Config): void {
@@ -55,6 +56,7 @@ export function apply(ctx: Context, config: Config): void {
       config.enableBanXmlTool);
 
   let xmlRuntime: ReturnType<typeof registerXmlTools> | null = null;
+  let referencePromptDispose: (() => void) | null = null;
   let characterCtx: Context | null = null;
   let replyToolsDispose: (() => void) | null = null;
 
@@ -62,6 +64,12 @@ export function apply(ctx: Context, config: Config): void {
     log("info", "toolbox 初始化开始");
 
     registerVariables({ ctx, config, log });
+    referencePromptDispose?.();
+    referencePromptDispose = registerReferencePromptInjection({
+      ctx,
+      config,
+      log,
+    });
 
     const protocol = resolveOneBotProtocol(config, log);
     registerNativeTools({ ctx, config, plugin, protocol, log });
@@ -77,6 +85,8 @@ export function apply(ctx: Context, config: Config): void {
 
   const dispose = (): void => {
     characterCtx = null;
+    referencePromptDispose?.();
+    referencePromptDispose = null;
     replyToolsDispose?.();
     replyToolsDispose = null;
     xmlRuntime?.stop();

@@ -75,6 +75,7 @@ function createConfig(overrides: Partial<Config> = {}): Config {
     enableEmojiXmlTool: false,
     enableDeleteXmlTool: false,
     enableBanXmlTool: false,
+    autoInjectReferencePrompt: false,
     referencePrompt: "",
     userInfo: { variableName: "userInfo", items: [] },
     botInfo: { variableName: "botInfo", items: [] },

@@ -48,6 +48,7 @@ export interface XmlToolsConfig {
   enableEmojiXmlTool: boolean;
   enableDeleteXmlTool: boolean;
   enableBanXmlTool: boolean;
+  autoInjectReferencePrompt: boolean;
   referencePrompt: string;
 }
 

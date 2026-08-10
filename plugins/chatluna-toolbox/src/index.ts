@@ -27,6 +27,7 @@ export * from "./features/xml-tools/parser";
 export * from "./features/xml-tools/processor";
 export * from "./features/xml-tools/temp-runtime";
 export * from "./features/xml-tools/register";
+export * from "./features/xml-tools/reference-prompt";
 export * from "./features/reply-tools/register";
 export * from "./features/variables/register";
 export * from "./features/variables/providers/user-info";
