@@ -19,6 +19,7 @@ plugins/*/coverage
 plugins/*/package-lock.json
 plugins/*/.claude
 packages/*/lib
+packages/*/dist
 .vscode
 .claude/*
 !.claude/AGENTS.md
