@@ -198,7 +198,8 @@ export function createInspectRenderer(log?: LogFn) {
       html,
       {
         width: 480,
-        height: 600,
+        // 印象长度不可控，固定画布会把超出 600px 的详情直接裁掉。
+        // 省略高度让 Takumi 按根节点实际布局扩展完整图片。
       },
       log,
     );
