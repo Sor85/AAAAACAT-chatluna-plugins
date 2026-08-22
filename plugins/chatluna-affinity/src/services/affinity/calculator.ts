@@ -26,7 +26,8 @@ function normalizeAction(action: unknown): ActionType {
 export function resolveShortTermConfig(
   config: Config,
 ): ResolvedShortTermConfig {
-  const cfg = config?.affinityDynamics?.shortTerm || {};
+  const dynamics = config?.affinityDynamics || {};
+  const cfg = dynamics.shortTerm || {};
   const defaults = AFFINITY_DYNAMICS_DEFAULTS.shortTerm;
   const promoteRaw = Number(cfg.promoteThreshold);
   const demoteRaw = Number(cfg.demoteThreshold);
@@ -71,6 +72,7 @@ export function resolveShortTermConfig(
   );
 
   return {
+    disableShortTermAffinity: dynamics.disableShortTermAffinity === true,
     promoteThreshold,
     demoteThreshold,
     longTermPromoteStep,
@@ -122,7 +124,8 @@ export function resolveActionWindowConfig(
 export function resolveCoefficientConfig(
   config: Config,
 ): ResolvedCoefficientConfig {
-  const cfg = config?.affinityDynamics?.coefficient || {};
+  const dynamics = config?.affinityDynamics || {};
+  const cfg = dynamics.coefficient || {};
   const defaults = AFFINITY_DYNAMICS_DEFAULTS.coefficient;
   const base = Number.isFinite(cfg.base) ? cfg.base! : defaults.base;
   const maxDrop = Math.max(
@@ -144,7 +147,16 @@ export function resolveCoefficientConfig(
   const min = base - maxDrop;
   const max = base + maxBoost;
 
-  return { base, maxDrop, maxBoost, decayPerDay, boostPerDay, min, max };
+  return {
+    disableAffinityCoefficient: dynamics.disableAffinityCoefficient === true,
+    base,
+    maxDrop,
+    maxBoost,
+    decayPerDay,
+    boostPerDay,
+    min,
+    max,
+  };
 }
 
 export function summarizeActionEntries(

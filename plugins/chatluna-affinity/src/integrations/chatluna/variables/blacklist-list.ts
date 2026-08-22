@@ -4,6 +4,7 @@
  */
 
 import type { Session } from "koishi";
+import type { Config } from "../../../types";
 import type { AffinityStore } from "../../../services/affinity/store";
 import type { BlacklistService } from "../../../services/blacklist/repository";
 import {
@@ -18,6 +19,7 @@ interface ProviderConfigurable {
 
 export interface BlacklistListProviderDeps {
   scopeId: string;
+  config: Config;
   store: AffinityStore;
   blacklist: BlacklistService;
 }
@@ -31,7 +33,7 @@ type BlacklistItem = {
 };
 
 export function createBlacklistListProvider(deps: BlacklistListProviderDeps) {
-  const { scopeId, store, blacklist } = deps;
+  const { scopeId, config, store, blacklist } = deps;
 
   return async (
     args: unknown[] | undefined,
@@ -78,7 +80,10 @@ export function createBlacklistListProvider(deps: BlacklistListProviderDeps) {
 
       const record = await store.load(resolvedScopeId, entry.userId);
       const name = record?.nickname || entry.nickname || entry.userId;
-      const affinity = Number(record?.affinity ?? 0);
+      const affinity =
+        config.affinityDynamics?.disableAffinityCoefficient === true
+          ? Number(record?.longTermAffinity ?? record?.affinity ?? 0)
+          : Number(record?.affinity ?? 0);
 
       if (entry.mode === "temporary") {
         rows.push(

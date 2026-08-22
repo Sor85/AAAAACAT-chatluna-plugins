@@ -128,6 +128,10 @@ interface DashboardConsole {
 
 interface DashboardRuntimeConfig {
   scopeId: string;
+  affinityDynamics?: {
+    disableAffinityCoefficient?: boolean;
+    disableShortTermAffinity?: boolean;
+  };
   debugLogging?: boolean;
   enableDashboard?: boolean;
   relationshipAffinityLevels?: RelationshipLevel[];
@@ -141,6 +145,10 @@ interface DashboardOptions {
 
 interface DashboardDataOptions {
   scopeId: string;
+  affinityDynamics?: {
+    disableAffinityCoefficient?: boolean;
+    disableShortTermAffinity?: boolean;
+  };
   relationshipAffinityLevels?: RelationshipLevel[];
   now?: Date;
 }
@@ -456,6 +464,7 @@ export async function getDashboardData(
   const scopeId = options.scopeId;
   const now = options.now || new Date();
   const relationshipAffinityLevels = options.relationshipAffinityLevels || [];
+  const coefficientDisabled = options.affinityDynamics?.disableAffinityCoefficient === true;
   const affinityRows = await ctx.database.get(MODEL_NAME_V2, {
     scopeId,
   });
@@ -481,9 +490,14 @@ export async function getDashboardData(
 
   for (const row of affinityRows) {
     chatCount += toCount(row.chatCount);
-    affinityTotal += toCount(row.affinity);
+    const displayAffinity = coefficientDisabled
+      ? toCount(row.longTermAffinity ?? row.affinity)
+      : toCount(row.affinity);
+    affinityTotal += displayAffinity;
     longTermTotal += toCount(row.longTermAffinity ?? row.affinity);
-    shortTermTotal += toCount(row.shortTermAffinity);
+    shortTermTotal += options.affinityDynamics?.disableShortTermAffinity === true
+      ? 0
+      : toCount(row.shortTermAffinity);
 
     const relation = getDisplayRelation(row);
     const kind = getRelationKind(row);
@@ -495,7 +509,7 @@ export async function getDashboardData(
     };
     currentRelation.count += 1;
     relationCounts.set(relationKey, currentRelation);
-    affinityByUserId.set(row.userId, toCount(row.affinity));
+    affinityByUserId.set(row.userId, displayAffinity);
 
     const currentInteractionAt = toIsoString(row.lastInteractionAt);
     if (
@@ -507,12 +521,21 @@ export async function getDashboardData(
   }
 
   const topUsers = [...affinityRows]
-    .sort((left, right) => right.affinity - left.affinity)
+    .sort((left, right) =>
+      (coefficientDisabled
+        ? toCount(right.longTermAffinity ?? right.affinity)
+        : toCount(right.affinity)) -
+      (coefficientDisabled
+        ? toCount(left.longTermAffinity ?? left.affinity)
+        : toCount(left.affinity)),
+    )
     .map((row) => ({
       userId: row.userId,
       name: getDisplayName(row),
       avatarUrl: getOneBotAvatarUrl(row.userId),
-      affinity: toCount(row.affinity),
+      affinity: coefficientDisabled
+        ? toCount(row.longTermAffinity ?? row.affinity)
+        : toCount(row.affinity),
       longTermAffinity: toCount(row.longTermAffinity ?? row.affinity),
       relation: getDisplayRelation(row),
       relationTone: getRelationTone(row, relationshipAffinityLevels),
@@ -628,6 +651,7 @@ export function registerDashboardWebui(options: DashboardWebuiOptions): void {
       async () =>
         getDashboardData(ctx, {
           scopeId: config.scopeId,
+          affinityDynamics: config.affinityDynamics,
           relationshipAffinityLevels: config.relationshipAffinityLevels,
         }),
       { authority: 1 },

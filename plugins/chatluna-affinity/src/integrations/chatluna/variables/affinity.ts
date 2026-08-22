@@ -87,7 +87,8 @@ export function createAffinityProvider(deps: AffinityProviderDeps) {
     if (
       cached !== null &&
       (config.affinityDisplayRange ?? 1) <= 1 &&
-      !config.variableSettings.showChatCountInAffinityVariable
+      !config.variableSettings.showChatCountInAffinityVariable &&
+      config.affinityDynamics?.disableAffinityCoefficient !== true
     ) {
       const cachedNickname = await resolveNickname(
         scopeId,
@@ -105,7 +106,10 @@ export function createAffinityProvider(deps: AffinityProviderDeps) {
     }
 
     const currentRecord = await store.load(scopeId, targetUserId);
-    const currentAffinity = currentRecord?.affinity ?? store.defaultInitial();
+    const currentAffinity =
+      config.affinityDynamics?.disableAffinityCoefficient
+        ? currentRecord?.longTermAffinity ?? currentRecord?.affinity ?? store.defaultInitial()
+        : currentRecord?.affinity ?? store.defaultInitial();
     const currentRelation =
       currentRecord?.specialRelation ||
       currentRecord?.relation ||
@@ -176,7 +180,9 @@ export function createAffinityProvider(deps: AffinityProviderDeps) {
     const others = await Promise.all(
       orderedUsers.map(async ({ userId, username }) => {
         const record = await store.load(scopeId, userId);
-        const affinity = record?.affinity ?? store.defaultInitial();
+        const affinity = config.affinityDynamics?.disableAffinityCoefficient
+          ? record?.longTermAffinity ?? record?.affinity ?? store.defaultInitial()
+          : record?.affinity ?? store.defaultInitial();
         const relation =
           record?.specialRelation ||
           record?.relation ||

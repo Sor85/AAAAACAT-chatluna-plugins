@@ -42,12 +42,14 @@ export interface ApplyAffinityDeltaParams {
   };
   maxActionEntries: number;
   shortTermConfig: {
+    disableShortTermAffinity?: boolean;
     promoteThreshold: number;
     demoteThreshold: number;
     longTermPromoteStep: number;
     longTermDemoteStep: number;
   };
   coefficientConfig?: {
+    disableAffinityCoefficient: boolean;
     base: number;
     maxDrop: number;
     maxBoost: number;
@@ -110,7 +112,10 @@ export async function applyAffinityDelta(
     let newLongTerm = longTerm;
     let newShortTerm = rawShortTerm;
 
-    if (crossedPromoteThreshold) {
+    if (shortTermConfig.disableShortTermAffinity) {
+      newLongTerm = store.clamp(longTerm + actualDelta);
+      newShortTerm = 0;
+    } else if (crossedPromoteThreshold) {
       newLongTerm = store.clamp(longTerm + shortTermConfig.longTermPromoteStep);
       newShortTerm = 0;
     } else if (crossedDemoteThreshold) {
@@ -173,7 +178,12 @@ export async function applyAffinityDelta(
       nextCoefficientState.inactivityDays = result.inactivityDays;
     }
     const effectiveCoefficient =
-      nextCoefficientState.coefficient ?? current?.coefficientState?.coefficient ?? 1;
+      coefficientConfig?.disableAffinityCoefficient
+        ? 1
+        : nextCoefficientState.coefficient ??
+          current?.coefficientState?.coefficient ??
+          1;
+    nextCoefficientState.coefficient = effectiveCoefficient;
     const newCombined = store.clamp(Math.round(newLongTerm * effectiveCoefficient));
     await store.save({ ...seed, platform, userId }, newCombined, "", {
       shortTermAffinity: newShortTerm,

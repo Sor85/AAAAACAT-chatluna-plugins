@@ -24,6 +24,7 @@ import {
   createModelResponseProcessor,
   hasReplyToolsEnabled,
   registerCharacterPromptInjection,
+  registerAffinityMechanismPromptInjection,
   registerCharacterReplyTools,
 } from "./services/model-response";
 import {
@@ -170,6 +171,8 @@ export function apply(ctx: Context, config: Config): void {
   config.initialAffinity = Number.isFinite(config.initialAffinity)
     ? Number(config.initialAffinity)
     : BASE_AFFINITY_DEFAULTS.initialAffinity;
+  config.autoInjectAffinityMechanismPrompt =
+    config.autoInjectAffinityMechanismPrompt !== false;
   normalizeToolSettings(config);
   registerModels(ctx);
 
@@ -260,12 +263,14 @@ export function apply(ctx: Context, config: Config): void {
   let replyToolsDispose: (() => void) | null = null;
   let nativeToolsDispose: (() => void) | null = null;
   let referencePromptDispose: (() => void) | null = null;
+  let affinityMechanismPromptDispose: (() => void) | null = null;
   let isOnlyScope = false;
   let isScopeOwner = false;
   let servicesInitialized = false;
   let reconcileNativeTools: (() => void) | null = null;
   let reconcileCharacterTools: (() => void) | null = null;
   let reconcileReferencePrompt: (() => void) | null = null;
+  let reconcileAffinityMechanismPrompt: (() => void) | null = null;
 
   const scopeDispose = registerActiveScope(ctx, config.scopeId, (state) => {
     isOnlyScope = state.isOnlyScope;
@@ -273,6 +278,7 @@ export function apply(ctx: Context, config: Config): void {
     reconcileNativeTools?.();
     if (servicesInitialized) reconcileCharacterTools?.();
     reconcileReferencePrompt?.();
+    reconcileAffinityMechanismPrompt?.();
   });
 
   const processModelResponse = createModelResponseProcessor({
@@ -360,6 +366,17 @@ export function apply(ctx: Context, config: Config): void {
     });
   };
 
+  reconcileAffinityMechanismPrompt = () => {
+    affinityMechanismPromptDispose?.();
+    affinityMechanismPromptDispose = null;
+    if (!isScopeOwner && isOnlyScope) return;
+    affinityMechanismPromptDispose = registerAffinityMechanismPromptInjection({
+      ctx,
+      config,
+      log,
+    });
+  };
+
   ctx.inject(["chatluna_character"], (innerCtx) => {
     characterCtx = innerCtx;
     reconcileCharacterTools?.();
@@ -393,6 +410,8 @@ export function apply(ctx: Context, config: Config): void {
     nativeToolsDispose = null;
     referencePromptDispose?.();
     referencePromptDispose = null;
+    affinityMechanismPromptDispose?.();
+    affinityMechanismPromptDispose = null;
     scopeDispose();
     xmlActionExecutionEnabled = true;
     modelResponseRuntime.stop();
@@ -439,6 +458,7 @@ export function apply(ctx: Context, config: Config): void {
     servicesInitialized = true;
     reconcileCharacterTools?.();
     reconcileReferencePrompt?.();
+    reconcileAffinityMechanismPrompt?.();
 
     await migration.run();
 
@@ -541,6 +561,7 @@ export function apply(ctx: Context, config: Config): void {
     if (blacklistListName) {
       const blacklistListProvider = createBlacklistListProvider({
         scopeId: config.scopeId,
+        config,
         store,
         blacklist,
       });

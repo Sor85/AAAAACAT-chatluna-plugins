@@ -158,9 +158,13 @@ export function createAffinityStore(options: AffinityStoreOptions) {
     }
 
     return {
-      affinity: record.affinity,
+      affinity: config.affinityDynamics?.disableAffinityCoefficient
+        ? (record.longTermAffinity ?? record.affinity)
+        : record.affinity,
       longTermAffinity: record.longTermAffinity ?? record.affinity,
-      shortTermAffinity: record.shortTermAffinity ?? 0,
+      shortTermAffinity: config.affinityDynamics?.disableShortTermAffinity
+        ? 0
+        : record.shortTermAffinity ?? 0,
       chatCount: record.chatCount || 0,
       actionStats,
       lastInteractionAt: record.lastInteractionAt || null,
@@ -271,7 +275,9 @@ export function createAffinityStore(options: AffinityStoreOptions) {
       }
     }
 
-    const compositeAffinity = clampValue(Math.round(longTerm * coefficient));
+    const compositeAffinity = config.affinityDynamics?.disableAffinityCoefficient
+      ? clampValue(longTerm)
+      : clampValue(Math.round(longTerm * coefficient));
     const autoRelation: string | null =
       resolveRelationByAffinity(compositeAffinity) || null;
     const specialRelationText: string | null =
@@ -283,7 +289,9 @@ export function createAffinityStore(options: AffinityStoreOptions) {
       nickname,
       affinity: compositeAffinity,
       longTermAffinity: clampValue(longTerm),
-      shortTermAffinity: Math.round(shortTerm),
+      shortTermAffinity: config.affinityDynamics?.disableShortTermAffinity
+        ? 0
+        : Math.round(shortTerm),
       relation: autoRelation,
       specialRelation: specialRelationText,
     };
@@ -401,6 +409,11 @@ export function createAffinityStore(options: AffinityStoreOptions) {
     );
   };
 
+  const displayAffinity = (record: Pick<AffinityRecord, "affinity" | "longTermAffinity">): number =>
+    config.affinityDynamics?.disableAffinityCoefficient
+      ? clampValue(record.longTermAffinity ?? record.affinity)
+      : clampValue(record.affinity);
+
   return {
     clamp: clampValue,
     save,
@@ -415,6 +428,7 @@ export function createAffinityStore(options: AffinityStoreOptions) {
     composeState,
     createInitialState,
     extractState,
+    displayAffinity,
   };
 }
 

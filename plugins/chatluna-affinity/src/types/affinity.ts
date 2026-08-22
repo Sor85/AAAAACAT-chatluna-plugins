@@ -82,6 +82,7 @@ export interface SaveExtra {
 }
 
 export interface ResolvedShortTermConfig {
+  disableShortTermAffinity: boolean;
   promoteThreshold: number;
   demoteThreshold: number;
   longTermPromoteStep: number;
@@ -98,6 +99,7 @@ export interface ResolvedActionWindowConfig {
 }
 
 export interface ResolvedCoefficientConfig {
+  disableAffinityCoefficient: boolean;
   base: number;
   maxDrop: number;
   maxBoost: number;

@@ -1,6 +1,6 @@
 /**
- * Character XML 参考提示词注入
- * 在 ChatLuna 系统提示词阶段追加当前作用域对应的动作说明
+ * Character 系统提示词注入
+ * 分别注册 XML 参考提示词与好感度机制说明，两者互不依赖
  */
 
 import { SystemMessage } from "@langchain/core/messages";
@@ -28,17 +28,75 @@ interface ChatLunaServiceLike {
   contextManager?: ContextManagerLike;
 }
 
-export interface RegisterCharacterPromptInjectionDeps {
+export function buildAffinityMechanismPrompt(config: Config): string {
+  const dynamics = config.affinityDynamics || {};
+  const shortTermDisabled = dynamics.disableShortTermAffinity === true;
+  const coefficientDisabled = dynamics.disableAffinityCoefficient === true;
+  const shortTerm = dynamics.shortTerm || {};
+  const coefficient = dynamics.coefficient || {};
+  const rules = shortTermDisabled
+    ? [
+        "Affinity changes are applied directly to long-term affinity; short-term affinity is not used.",
+      ]
+    : [
+        `Affinity changes first accumulate in short-term affinity. When it reaches the threshold (increase: ${shortTerm.promoteThreshold ?? 15}, decrease: ${Math.abs(shortTerm.demoteThreshold ?? -10)}), it is converted into long-term affinity by the configured step.`,
+      ];
+  if (!coefficientDisabled) {
+    rules.push(
+      `Long-term affinity is multiplied by the current coefficient (base coefficient: ${coefficient.base ?? 1}) to produce the displayed affinity.`,
+    );
+  }
+  const content =
+    shortTermDisabled && coefficientDisabled
+      ? "Affinity changes are applied directly to long-term affinity, and the displayed affinity is the long-term affinity."
+      : rules.join(" ");
+  return `<available_affinity_mechanism>\n${content}\n</available_affinity_mechanism>`;
+}
+
+interface RegisterPromptDeps {
   ctx: Context;
   config: Config;
-  replaceScopeId?: boolean;
   log?: LogFn;
+}
+
+function registerSystemPrompt(
+  deps: RegisterPromptDeps,
+  prompt: string,
+  failureMessage: string,
+  successMessage: string,
+): (() => void) | null {
+  if (!prompt) return null;
+
+  const chatlunaService = (deps.ctx as unknown as {
+    chatluna?: ChatLunaServiceLike;
+  }).chatluna;
+  const contextManager = chatlunaService?.contextManager;
+  if (!contextManager?.pipeline) {
+    deps.log?.("warn", failureMessage);
+    return null;
+  }
+
+  const dispose = contextManager.pipeline(
+    "after_system_prompts",
+    async (runtime, next) => {
+      runtime.result.push(new SystemMessage(prompt));
+      runtime.usedTokens += await runtime.tokenCounter(prompt);
+      await next();
+    },
+    0,
+  );
+  deps.log?.("info", successMessage);
+  return dispose;
+}
+
+export interface RegisterCharacterPromptInjectionDeps extends RegisterPromptDeps {
+  replaceScopeId?: boolean;
 }
 
 export function registerCharacterPromptInjection(
   deps: RegisterCharacterPromptInjectionDeps,
 ): (() => void) | null {
-  const { ctx, config, replaceScopeId = false, log } = deps;
+  const { config, replaceScopeId = false, log } = deps;
   const settings = config.xmlToolSettings;
   if (!settings.autoInjectReferencePrompt) return null;
   if (settings.injectXmlToolAsReplyTool) {
@@ -53,29 +111,24 @@ export function registerCharacterPromptInjection(
   const prompt = replaceScopeId
     ? template.replaceAll("{scopeId}", config.scopeId)
     : template;
-  if (!prompt) return null;
 
-  const chatlunaService = (ctx as unknown as { chatluna?: ChatLunaServiceLike })
-    .chatluna;
-  const contextManager = chatlunaService?.contextManager;
-  if (!contextManager?.pipeline) {
-    log?.(
-      "warn",
-      "Character XML 参考提示词自动注入失败：ChatLuna 上下文管理器不可用",
-    );
-    return null;
-  }
-
-  const dispose = contextManager.pipeline(
-    "after_system_prompts",
-    async (runtime, next) => {
-      // 必须作为系统消息注入，避免参考 XML 被 Character 的模型响应处理器误认为待执行动作。
-      runtime.result.push(new SystemMessage(prompt));
-      runtime.usedTokens += await runtime.tokenCounter(prompt);
-      await next();
-    },
-    0,
+  return registerSystemPrompt(
+    deps,
+    prompt,
+    "Character XML 参考提示词自动注入失败：ChatLuna 上下文管理器不可用",
+    `Character XML 参考提示词自动注入已启用: ${config.scopeId}`,
   );
-  log?.("info", `Character XML 参考提示词自动注入已启用: ${config.scopeId}`);
-  return dispose;
+}
+
+export function registerAffinityMechanismPromptInjection(
+  deps: RegisterPromptDeps,
+): (() => void) | null {
+  if (deps.config.autoInjectAffinityMechanismPrompt === false) return null;
+
+  return registerSystemPrompt(
+    deps,
+    buildAffinityMechanismPrompt(deps.config),
+    "好感度机制提示词自动注入失败：ChatLuna 上下文管理器不可用",
+    `好感度机制提示词自动注入已启用: ${deps.config.scopeId}`,
+  );
 }

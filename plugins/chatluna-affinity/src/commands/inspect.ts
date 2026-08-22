@@ -34,9 +34,13 @@ export function registerInspectCommand(deps: CommandDependencies) {
         state.coefficientState?.coefficient ??
         config.affinityDynamics?.coefficient?.base ??
         1.0;
-      const currentCompositeAffinity = Math.round(
-        coefficient * state.longTermAffinity,
-      );
+      const coefficientDisabled =
+        config.affinityDynamics?.disableAffinityCoefficient === true;
+      const shortTermDisabled =
+        config.affinityDynamics?.disableShortTermAffinity === true;
+      const currentCompositeAffinity = coefficientDisabled
+        ? state.longTermAffinity
+        : Math.round(coefficient * state.longTermAffinity);
 
       const showImpression = config.inspectShowImpression !== false;
       const shouldRenderImage =
@@ -97,8 +101,8 @@ export function registerInspectCommand(deps: CommandDependencies) {
         `关系：${displayRelation}`,
         `好感度：${currentCompositeAffinity}`,
         `长期好感度：${state.longTermAffinity}`,
-        `短期好感度：${state.shortTermAffinity}`,
-        `好感度系数：${coefficient.toFixed(2)}（连续互动 ${state.coefficientState?.streak ?? 0} 天）`,
+        `短期好感度：${shortTermDisabled ? 0 : state.shortTermAffinity}`,
+        `好感度系数：${coefficientDisabled ? "已关闭" : `${coefficient.toFixed(2)}（连续互动 ${state.coefficientState?.streak ?? 0} 天）`}`,
         `互动统计：总计 ${state.chatCount} 次`,
         `最后互动：${formatTimestamp(state.lastInteractionAt)}`,
         ...(showImpression && impression ? [`印象：${impression}`] : []),

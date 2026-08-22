@@ -73,6 +73,7 @@ export interface ModelResponseProcessorParams {
     ) => Promise<unknown>;
   };
   shortTermConfig: {
+    disableShortTermAffinity?: boolean;
     promoteThreshold: number;
     demoteThreshold: number;
     longTermPromoteStep: number;
@@ -82,6 +83,7 @@ export interface ModelResponseProcessorParams {
     maxEntries: number;
   };
   coefficientConfig?: {
+    disableAffinityCoefficient: boolean;
     base: number;
     maxDrop: number;
     maxBoost: number;

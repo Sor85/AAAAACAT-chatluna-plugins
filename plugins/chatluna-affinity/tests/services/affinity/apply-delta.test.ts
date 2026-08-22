@@ -123,6 +123,53 @@ test("applyAffinityDelta 负向大幅减少跨阈值时长期只减少一次且�
   assert.equal(calls.save[0].extra.shortTermAffinity, 0);
 });
 
+test("关闭短期好感时增减值直接作用于长期好感", async () => {
+  const { params, calls } = createHarness({
+    currentState: { longTermAffinity: 30, shortTermAffinity: 8 },
+    params: {
+      delta: 4,
+      action: "increase",
+      shortTermConfig: {
+        disableShortTermAffinity: true,
+        promoteThreshold: 10,
+        demoteThreshold: -10,
+        longTermPromoteStep: 3,
+        longTermDemoteStep: 5,
+      },
+    },
+  });
+
+  const result = await applyAffinityDelta(params);
+
+  assert.equal(result.longTermAffinity, 34);
+  assert.equal(result.shortTermAffinity, 0);
+  assert.equal(calls.save[0].value, 34);
+});
+
+test("关闭好感度变化系数时最终好感度等于长期好感度", async () => {
+  const { params, calls } = createHarness({
+    currentState: { longTermAffinity: 30, shortTermAffinity: 0 },
+    params: {
+      delta: 1,
+      coefficientConfig: {
+        disableAffinityCoefficient: true,
+        base: 1,
+        maxDrop: 0.3,
+        maxBoost: 0.3,
+        decayPerDay: 0.05,
+        boostPerDay: 0.05,
+        min: 0.7,
+        max: 1.3,
+      },
+    },
+  });
+
+  const result = await applyAffinityDelta(params);
+
+  assert.equal(result.combinedAffinity, result.longTermAffinity);
+  assert.equal(calls.save[0].value, result.longTermAffinity);
+});
+
 test("applyAffinityDelta 不再负责累加互动次数或更新时间", async () => {
   const { params, calls } = createHarness({
     currentState: { chatCount: 7 },

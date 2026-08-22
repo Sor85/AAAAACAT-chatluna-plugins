@@ -10,6 +10,12 @@ import {
 } from "../constants";
 
 const AffinityDynamicsSchema = Schema.object({
+  disableShortTermAffinity: Schema.boolean()
+    .default(false)
+    .description("关闭短期好感，所有增减值直接作用于长期好感"),
+  disableAffinityCoefficient: Schema.boolean()
+    .default(false)
+    .description("关闭好感度变化系数，最终好感度直接显示长期好感度"),
   shortTerm: Schema.object({
     promoteThreshold: Schema.number()
       .default(AFFINITY_DYNAMICS_DEFAULTS.shortTerm.promoteThreshold)
@@ -83,6 +89,9 @@ const AffinityDynamicsSchema = Schema.object({
 
 export const AffinitySchema = Schema.object({
   affinityEnabled: Schema.boolean().default(true).description("启用好感度系统"),
+  autoInjectAffinityMechanismPrompt: Schema.boolean()
+    .default(true)
+    .description("将当前好感度运作机制作为系统提示词注入模型"),
   initialAffinity: Schema.number()
     .default(BASE_AFFINITY_DEFAULTS.initialAffinity)
     .description("初始长期好感度默认值"),

@@ -10,7 +10,7 @@
 
 插件当前包含四类核心能力：
 
-- 好感度：支持长期 / 短期好感与动态系数
+- 好感度：支持长期 / 短期好感与动态系数，可分别关闭短期好感和变化系数
 - 关系：支持按好感区间映射关系，也支持手动指定特殊关系
 - 黑名单：支持永久拉黑、临时拉黑与拦截
 - 用户昵称：支持为用户保存自定义昵称，并在 `affinity` 变量中输出
@@ -87,6 +87,19 @@ yarn add koishi-plugin-chatluna-affinity
 如果开启 `injectXmlToolAsReplyTool`（界面显示为“将 XML 工具改为注入实验性‘工具调用回复’的参数中”），并且当前环境只有一个不同的 Affinity `scopeId`，插件会把可用 XML 工具自动注入 ChatLuna Character 的工具调用回复参数中，不需要把完整 XML 参考提示词塞进角色提示词。
 
 如果继续使用传统 XML 回复，也可以开启 `autoInjectReferencePrompt`。该选项默认关闭，开启后会自动将 `characterPromptTemplate` 作为系统提示词注入。当前环境只有一个 `scopeId` 时，会把所有 `{scopeId}` 替换为当前作用域；存在多个 `scopeId` 时不会替换，需在模板中自行填写目标作用域。开启实验性工具调用回复后，此选项自动失效。
+
+### 好感度动态开关
+
+`affinityDynamics` 中提供两个默认关闭的选项：
+
+- `disableShortTermAffinity`：关闭短期好感，增减值直接作用于长期好感；已有短期好感不折算，显示时按 0 处理。
+- `disableAffinityCoefficient`：关闭好感度变化系数，最终显示值直接使用长期好感。
+
+两个选项同时关闭时，增减值直接作用于长期好感，变量、排行和详情中的好感度直接显示长期好感。
+
+`autoInjectAffinityMechanismPrompt` 默认开启，会把当前生效的好感度机制作为一段独立的 Character 系统提示词注入，帮助模型理解“用户要求增加的数值”和最终显示值之间的差异。它不依赖 XML 模式，也不会与 `characterPromptTemplate` 混合；不需要时可以单独关闭。
+
+`autoInjectReferencePrompt` 仍只负责 XML 参考提示词，默认关闭。
 
 ## 查看好感度数据
 

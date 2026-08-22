@@ -52,6 +52,7 @@ export function registerRankCommand(deps: CommandDependencies) {
         relation: string | null;
         specialRelation: string | null;
         affinity: number;
+        longTermAffinity?: number | null;
       };
 
       let scopedRows: AffinityRow[] = [];
@@ -99,7 +100,10 @@ export function registerRankCommand(deps: CommandDependencies) {
           return {
             name,
             relation: row.specialRelation || row.relation || "——",
-            affinity: row.affinity,
+            affinity:
+              config.affinityDynamics?.disableAffinityCoefficient === true
+                ? row.longTermAffinity ?? row.affinity
+                : row.affinity,
             userId: row.userId,
           };
         }),

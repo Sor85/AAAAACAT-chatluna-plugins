@@ -29,6 +29,8 @@ export interface CoefficientConfig {
 }
 
 export interface AffinityDynamicsConfig {
+  disableShortTermAffinity?: boolean;
+  disableAffinityCoefficient?: boolean;
   shortTerm?: Partial<ShortTermConfig>;
   actionWindow?: Partial<ActionWindowConfig>;
   coefficient?: Partial<CoefficientConfig>;
@@ -87,6 +89,7 @@ export interface Config {
   scopeId: string;
   botSelfIds: string[];
   affinityEnabled: boolean;
+  autoInjectAffinityMechanismPrompt: boolean;
   affinityDisplayRange: number;
   initialAffinity: number;
   affinityDynamics?: AffinityDynamicsConfig;

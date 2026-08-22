@@ -50,6 +50,10 @@ function createConfig(overrides = {}) {
 
 test("AffinitySchema 不为 affinityDynamics 写入完整对象级默认值", () => {
   const { AffinitySchema } = loadPlugin();
+  assert.equal(
+    AffinitySchema.dict.autoInjectAffinityMechanismPrompt.meta.default,
+    true,
+  );
   const dynamicsSchema = AffinitySchema.dict.affinityDynamics;
 
   assert.deepEqual(dynamicsSchema.meta.default, {});
@@ -114,6 +118,7 @@ test("resolveShortTermConfig 在 affinityDynamics 缺失时返回稳定默认值
   const resolved = resolveShortTermConfig(createConfig());
 
   assert.deepEqual(resolved, {
+    disableShortTermAffinity: false,
     promoteThreshold: 15,
     demoteThreshold: -10,
     longTermPromoteStep: 3,
@@ -142,6 +147,7 @@ test("resolveCoefficientConfig 在 affinityDynamics 缺失时返回稳定默认�
   const resolved = resolveCoefficientConfig(createConfig());
 
   assert.deepEqual(resolved, {
+    disableAffinityCoefficient: false,
     base: 1,
     maxDrop: 0.3,
     maxBoost: 0.3,
