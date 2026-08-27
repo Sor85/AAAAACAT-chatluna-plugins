@@ -119,7 +119,8 @@ export function createRankListRenderer(log?: LogFn) {
             html,
             {
                 width: 600,
-                height: 100 + items.length * 120
+                // 固定高度会在列表内容下方留下未被根节点背景覆盖的透明画布，
+                // 发送后透明区域会显示为黑块。省略高度让 Takumi 按实际布局收缩。
             },
             log
         )
