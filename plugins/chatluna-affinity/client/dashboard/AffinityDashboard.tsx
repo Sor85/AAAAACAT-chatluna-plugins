@@ -372,7 +372,8 @@ function OverflowTooltip({
       >
         {children}
       </Tooltip.Trigger>
-      <Tooltip.Content showArrow>{content}</Tooltip.Content>
+      {/* HeroUI Tooltip 走 react-aria Overlay，内容 portal 到 body，脱离 .affinity-dashboard 子树，必须自带作用域类 */}
+      <Tooltip.Content showArrow className="affinity-tw-scope">{content}</Tooltip.Content>
     </Tooltip>
   );
 }
@@ -1224,7 +1225,7 @@ export function AffinityDashboard() {
   }, [load]);
 
   return (
-    <section className="affinity-dashboard">
+    <section className="affinity-dashboard affinity-tw-scope">
       <Toaster position="bottom-center" richColors />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="grid min-w-0 gap-1">

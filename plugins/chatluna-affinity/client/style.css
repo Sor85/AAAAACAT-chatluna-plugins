@@ -1,34 +1,47 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "@heroui/styles/base";
-@import "@heroui/styles/themes/default";
-@import "@heroui/styles/utilities";
-@import "@heroui/styles/components/tabs.css";
-@import "@heroui/styles/components/tooltip.css";
+/* tailwind.generated.css 由 yarn build:css 从 styles/tailwind.source.css 预编译，
+   并在产物上把 preflight 限定到本插件渲染根内。
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
+   不要改回 `@import "tailwindcss"`：控制台 devMode 用宿主 vite（没有 Tailwind 插件）
+   加载本文件，那样既生成不出工具类（卡片丢白底、页签竖排），又会把上游 preflight 的
+   裸选择器灌进整个控制台（抹平所有插件配置页标题的粗体）。
+   含 @apply / @utility / @theme 的样式包一律放进 tailwind.source.css。 */
+@import "./styles/tailwind.generated.css";
+
+/* 纯 CSS，不需要 Tailwind 编译（HeroUI 的 themes/default 含 @theme，已移入
+   styles/tailwind.source.css） */
+@import "@heroui/styles/base";
+
+/* preflight 的 html,:host 那条被作用域改写丢弃（见 scripts/scope-preflight.mjs），
+   其中仍需保留的可继承声明在这里显式补回渲染根。font-family 刻意不补：
+   仪表盘应当继续沿用 Koishi 的控制台主题字体。 */
+.affinity-tw-scope {
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  tab-size: 4;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 同页其他插件打包了 UnoCSS 产物（Koishi 控制台自身就在用），它的 .shadow-* 是
+   `box-shadow: var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow)`
+   且**不在任何 cascade layer 里**。按级联规则「无 layer 永远压过有 layer」，它会压过
+   本插件 @layer utilities 里的同名类；而 --un-* 变量在本插件元素上从未定义，整条
+   box-shadow 在计算值阶段失效（IACVT），回退为初始值 none——症状是卡片完全没有阴影，
+   而不是错误的阴影。这里用同样无 layer 的规则在本插件范围内重申 Tailwind v4 的合成
+   声明，各 --tw-* 分量仍由 @layer utilities 的真实工具类与 @property 默认值提供，
+   不复刻任何具体阴影数值。 */
+.affinity-tw-scope
+  :is(.shadow-2xs, .shadow-xs, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl),
+.affinity-tw-scope:is(
+    .shadow-2xs,
+    .shadow-xs,
+    .shadow-sm,
+    .shadow-md,
+    .shadow-lg,
+    .shadow-xl,
+    .shadow-2xl
+  ) {
+  box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow),
+    var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
 }
 
 .page-affinity-dashboard-shell,

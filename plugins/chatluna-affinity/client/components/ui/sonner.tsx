@@ -4,7 +4,9 @@ import { Toaster as Sonner, type ToasterProps } from "sonner";
 function Toaster(props: ToasterProps) {
   return (
     <Sonner
-      className="toaster group"
+      // 当前 sonner 不 portal，容器留在 .affinity-dashboard 子树内，本来就在作用域里；
+      // 显式带上 affinity-tw-scope 是为了将来 sonner 改成挂到 body 时不丢作用域化的 preflight
+      className="toaster group affinity-tw-scope"
       toastOptions={{
         classNames: {
           toast:

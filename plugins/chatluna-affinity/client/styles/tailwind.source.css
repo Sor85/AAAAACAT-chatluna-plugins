@@ -1,0 +1,54 @@
+/* Tailwind 编译入口——只被 @tailwindcss/cli 消费（yarn build:css），输出
+   client/styles/tailwind.generated.css 供 client/style.css 以普通 CSS 方式引入。
+
+   为什么要预编译、以及为什么产物还要再过一遍 preflight 作用域改写，见
+   scripts/build-css.mjs 与 scripts/scope-preflight.mjs 顶部注释。
+
+   凡是含 @apply / @utility / @theme 的样式包都必须在这里引入（它们需要 Tailwind
+   编译），只有纯 CSS 的包才留在 client/style.css 里。 */
+
+/* source(none) + @source：只扫描 client/ 目录，避免 CLI 按 cwd 扫到 src/、docs/ 等
+   无关文件。 */
+@import "tailwindcss" source(none);
+@source "../";
+
+/* tw-animate-css 用 @theme / @utility 定义动画工具类，必须走编译。 */
+@import "tw-animate-css";
+
+/* HeroUI：themes/default 传递引入 shared/theme.css，里面的 @theme 定义了
+   --color-focus 等令牌；utilities / tabs.css / tooltip.css 里的 @apply 依赖这些令牌
+   （例如 `@apply ring-focus`），所以主题必须排在它们之前，且整条链都要走编译。
+   base 与 themes/default/variables.css 之外的纯 CSS 留在 client/style.css。
+   未编译时最直观的症状是页签失去 flex 布局，"周 月 总"竖排成三行。 */
+@import "@heroui/styles/themes/default";
+@import "@heroui/styles/utilities";
+@import "@heroui/styles/components/tabs.css";
+@import "@heroui/styles/components/tooltip.css";
+
+/* shadcn 语义色映射。没有这份 @theme inline，Tailwind 不会生成 bg-card、
+   text-muted-foreground、border-border 等语义工具类——卡片就会没有白底。
+   变量默认值定义在 client/style.css 的 .affinity-dashboard 上。 */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+}

@@ -15,6 +15,8 @@ coverage
 plugins/*/node_modules
 plugins/*/dist
 plugins/*/lib
+# Tailwind 预编译产物，由各插件的 yarn build:css 生成
+plugins/*/client/styles/tailwind.generated.css
 plugins/*/coverage
 plugins/*/package-lock.json
 plugins/*/.claude
