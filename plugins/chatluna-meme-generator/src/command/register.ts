@@ -469,13 +469,6 @@ export function registerCommands(ctx: Context, config: Config): void {
       }
 
       const messages = await buildListImageMessages(sections, lines, logger);
-      // 多页图片逐条发送，避免整份列表塞进一条消息导致体积过大、发送超时
-      if (session && messages.length > 1) {
-        for (const message of messages) {
-          await session.send(message);
-        }
-        return;
-      }
       return messages.join("");
     } catch (error) {
       return handleRuntimeError("meme.list", error);

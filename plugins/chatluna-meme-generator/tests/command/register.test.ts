@@ -4220,7 +4220,7 @@ describe("registerCommands", () => {
     expect(request).not.toHaveBeenCalled();
   });
 
-  it("图片列表分成多页时 meme.list 应逐张发送", async () => {
+  it("图片列表分成多页时 meme.list 应在同一条消息里返回全部图片", async () => {
     const commandActions = new Map<
       string,
       (...args: any[]) => Promise<unknown>
@@ -4266,11 +4266,10 @@ describe("registerCommands", () => {
     const session = createSession("meme.list");
     const result = await listAction!({ session });
 
-    expect(result).toBeUndefined();
-    expect(session.send.mock.calls.length).toBeGreaterThan(1);
-    for (const [message] of session.send.mock.calls as unknown as [string][]) {
-      expect(message).toMatch(/^<img src="data:image\/png;base64,[^"]+"\/>$/);
-    }
+    expect(session.send).not.toHaveBeenCalled();
+    expect(result).toMatch(
+      /^(<img src="data:image\/png;base64,[^"]+"\/>){2,}$/,
+    );
   });
 
   it("OneBot 专用合并转发接口失败时应回退 send_forward_msg", async () => {
