@@ -15,7 +15,7 @@ import {
   buildCategoryExcludedMemeKeySet,
   buildMemeListEntries,
   buildMemeListSections,
-  buildListMessage,
+  buildListImageMessages,
   fetchMemeListInfos,
   formatMemeSearchResultMessage,
   formatMemeListLines,
@@ -449,12 +449,6 @@ export function registerCommands(ctx: Context, config: Config): void {
           "当前后端没有可用模板。",
         );
 
-      const message = await buildListMessage(
-        sections,
-        lines,
-        config.renderMemeListAsImage,
-        logger,
-      );
       if (!config.renderMemeListAsImage) {
         const chunks = splitMemeListMessages(sections);
         if (config.sendMemeListAsForward) {
@@ -473,7 +467,16 @@ export function registerCommands(ctx: Context, config: Config): void {
         }
         return chunks.join("\n");
       }
-      return message;
+
+      const messages = await buildListImageMessages(sections, lines, logger);
+      // 多页图片逐条发送，避免整份列表塞进一条消息导致体积过大、发送超时
+      if (session && messages.length > 1) {
+        for (const message of messages) {
+          await session.send(message);
+        }
+        return;
+      }
+      return messages.join("");
     } catch (error) {
       return handleRuntimeError("meme.list", error);
     }

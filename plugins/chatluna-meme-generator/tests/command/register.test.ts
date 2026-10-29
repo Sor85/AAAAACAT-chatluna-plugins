@@ -4220,6 +4220,59 @@ describe("registerCommands", () => {
     expect(request).not.toHaveBeenCalled();
   });
 
+  it("图片列表分成多页时 meme.list 应逐张发送", async () => {
+    const commandActions = new Map<
+      string,
+      (...args: any[]) => Promise<unknown>
+    >();
+    const { ctx, readyHandlers } = createMockContext();
+    ctx.command = vi.fn((name: string) => ({
+      action: vi.fn((handler: (...args: any[]) => Promise<unknown>) => {
+        commandActions.set(name, handler);
+        return { action: vi.fn() };
+      }),
+    }));
+
+    const keys = Array.from({ length: 240 }, (_, index) => `meme${index}`);
+    getKeysMock.mockResolvedValue(keys);
+    getInfoMock.mockImplementation(async (key: string) => ({
+      key,
+      params_type: {
+        min_images: 0,
+        max_images: 0,
+        min_texts: 0,
+        max_texts: 0,
+        default_texts: [],
+      },
+      keywords: [`模板${key}`],
+      shortcuts: [],
+      tags: [],
+      date_created: "2026-01-01T00:00:00",
+      date_modified: "2026-01-01T00:00:00",
+    }));
+
+    registerCommands(
+      ctx,
+      createBaseConfig({
+        enableDirectAliasWithoutPrefix: false,
+        renderMemeListAsImage: true,
+      }),
+    );
+    await flushReadyHandlers(readyHandlers);
+
+    const listAction = commandActions.get("meme.list");
+    expect(listAction).toBeDefined();
+
+    const session = createSession("meme.list");
+    const result = await listAction!({ session });
+
+    expect(result).toBeUndefined();
+    expect(session.send.mock.calls.length).toBeGreaterThan(1);
+    for (const [message] of session.send.mock.calls as unknown as [string][]) {
+      expect(message).toMatch(/^<img src="data:image\/png;base64,[^"]+"\/>$/);
+    }
+  });
+
   it("OneBot 专用合并转发接口失败时应回退 send_forward_msg", async () => {
     const commandActions = new Map<
       string,
