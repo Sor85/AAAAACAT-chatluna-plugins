@@ -95,3 +95,22 @@ jobs:
           else
             npm publish --access public
           fi
+
+      # Koishi 插件市场默认从 npmmirror 安装依赖。npmmirror 被动同步 npmjs 有延迟，
+      # 刚发布的版本在镜像上不存在时，市场安装会报 "No candidates found" 并整体回滚。
+      # 发布后主动触发一次同步，并等待镜像出现新版本；失败只告警，不影响已完成的发布。
+      - name: Sync npmmirror
+        continue-on-error: true
+        run: |
+          PACKAGE_NAME="${{ steps.parse.outputs.package_name }}"
+          TAG_VERSION="${{ steps.parse.outputs.version }}"
+          curl -fsS -X PUT "https://registry-direct.npmmirror.com/-/package/${PACKAGE_NAME}/syncs"
+          echo
+          for i in $(seq 1 30); do
+            if curl -fsS "https://registry.npmmirror.com/${PACKAGE_NAME}/${TAG_VERSION}" > /dev/null 2>&1; then
+              echo "npmmirror 已同步 ${PACKAGE_NAME}@${TAG_VERSION}"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::warning::npmmirror 在 5 分钟内仍未同步 ${PACKAGE_NAME}@${TAG_VERSION}，可稍后手动执行：curl -X PUT https://registry-direct.npmmirror.com/-/package/${PACKAGE_NAME}/syncs"
