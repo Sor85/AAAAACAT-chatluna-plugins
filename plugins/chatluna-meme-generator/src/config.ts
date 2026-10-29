@@ -324,14 +324,10 @@ const runtimeSchema = Schema.object({
     Schema.const("multiple").description("按页拆成多张图片"),
   ])
     .default(defaultConfig.memeListImageMode)
-    .description(
-      "`meme.list`图片模式；多张图片在开启合并转发时以 OneBot 合并转发发送",
-    ),
+    .description("`meme.list`图片模式"),
   sendMemeListAsForward: Schema.boolean()
     .default(defaultConfig.sendMemeListAsForward)
-    .description(
-      "`meme.list`是否以 OneBot 合并转发发送（适用于文字列表与多张图片）",
-    ),
+    .description("`meme.list`是否以 OneBot 合并转发发送"),
   sendMemeSearchAsForward: Schema.boolean()
     .default(defaultConfig.sendMemeSearchAsForward)
     .description("`meme.search`是否以 OneBot 合并转发发送"),
