@@ -7,10 +7,6 @@
    含 @apply / @utility / @theme 的样式包一律放进 tailwind.source.css。 */
 @import "./styles/tailwind.generated.css";
 
-/* 纯 CSS，不需要 Tailwind 编译（HeroUI 的 themes/default 含 @theme，已移入
-   styles/tailwind.source.css） */
-@import "@heroui/styles/base";
-
 /* preflight 的 html,:host 那条被作用域改写丢弃（见 scripts/scope-preflight.mjs），
    其中仍需保留的可继承声明在这里显式补回渲染根。font-family 刻意不补：
    仪表盘应当继续沿用 Koishi 的控制台主题字体。 */
@@ -21,27 +17,44 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* 同页其他插件打包了 UnoCSS 产物（Koishi 控制台自身就在用），它的 .shadow-* 是
-   `box-shadow: var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow)`
-   且**不在任何 cascade layer 里**。按级联规则「无 layer 永远压过有 layer」，它会压过
-   本插件 @layer utilities 里的同名类；而 --un-* 变量在本插件元素上从未定义，整条
-   box-shadow 在计算值阶段失效（IACVT），回退为初始值 none——症状是卡片完全没有阴影，
-   而不是错误的阴影。这里用同样无 layer 的规则在本插件范围内重申 Tailwind v4 的合成
-   声明，各 --tw-* 分量仍由 @layer utilities 的真实工具类与 @property 默认值提供，
-   不复刻任何具体阴影数值。 */
-.affinity-tw-scope
-  :is(.shadow-2xs, .shadow-xs, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl),
-.affinity-tw-scope:is(
-    .shadow-2xs,
-    .shadow-xs,
-    .shadow-sm,
-    .shadow-md,
-    .shadow-lg,
-    .shadow-xl,
-    .shadow-2xl
-  ) {
-  box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow),
-    var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+/* 边框默认色。HeroUI 的 @heroui/styles/base 提供的是同一条规则，但它是无作用域、
+   无 layer 的 `*`，会把整个控制台和同页其他插件的边框色都改成 var(--border)——
+   Koishi 在 :root 上也定义了 --border，于是别的插件装没装本插件长得不一样。
+   所以不再引入那个文件，只在本插件渲染根内声明：类选择器的特异性压过宿主或其他插件
+   无 layer 的 `*` / `table tr`，又低于本插件 layer 内的 important 工具类，
+   border-input、border-amber-200 等显式颜色照常生效。 */
+.affinity-tw-scope,
+.affinity-tw-scope *,
+.affinity-tw-scope ::before,
+.affinity-tw-scope ::after {
+  border-color: var(--border, currentColor);
+}
+
+/* Koishi 控制台核心（@koishijs/client/app/index.scss）有几条不带类名、也不在任何
+   layer 里的全局元素规则：table 居中对齐、td/th 内边距、tr 上下分隔线、p/ul 外边距。
+   它们压过本插件 layer 里的 preflight，在仪表盘表格里画出多余的分隔线、撑开段落间距。
+   （p/ul 的 line-height: 1.7 不在这里还原：仪表盘的段落都由 text-* 工具类或
+   .affinity-dashboard__empty 显式指定行高。）这里在作用域内用 !important 还原成 preflight 的值：无 layer 的 important
+   压过宿主的普通声明，又低于本插件 layer 内的 important 工具类，所以 border-b、px-4、
+   text-sm 等显式写下的样式照常生效。 */
+.affinity-tw-scope table {
+  text-align: inherit !important;
+}
+
+/* 颜色也要还原：宿主的 `table tr:last-child` 用简写同时带了颜色，特异性高于上面的
+   边框默认色规则。 */
+.affinity-tw-scope tr {
+  border-top-width: 0 !important;
+  border-bottom-width: 0 !important;
+  border-color: var(--border, currentColor) !important;
+}
+
+.affinity-tw-scope :is(td, th) {
+  padding: 0 !important;
+}
+
+.affinity-tw-scope :is(p, ul) {
+  margin: 0 !important;
 }
 
 .page-affinity-dashboard-shell,
@@ -53,6 +66,18 @@
 .page-affinity-dashboard .el-scrollbar__view,
 .page-affinity-dashboard .k-content {
   background: #f8fafc;
+}
+
+/* 深色模式跟随 Koishi 控制台主题：Koishi 把 dark 类挂在 html 上。 */
+html.dark .page-affinity-dashboard-shell,
+html.dark .page-affinity-dashboard-shell .main-container,
+html.dark .page-affinity-dashboard-shell .layout-header,
+html.dark .page-affinity-dashboard,
+html.dark .page-affinity-dashboard .el-scrollbar,
+html.dark .page-affinity-dashboard .el-scrollbar__wrap,
+html.dark .page-affinity-dashboard .el-scrollbar__view,
+html.dark .page-affinity-dashboard .k-content {
+  background: #18181a;
 }
 
 .page-affinity-dashboard .k-content {
@@ -89,6 +114,7 @@
   --chart-3: #d97706;
   --chart-4: #dc2626;
 
+  color-scheme: light;
   box-sizing: border-box;
   display: grid;
   gap: 16px;
@@ -98,6 +124,35 @@
   min-height: calc(100vh - 6rem);
   padding: 0;
   color: var(--foreground);
+}
+
+/* 深色配色取中性灰，与 Koishi 深色主题的 #252529 卡片底色协调。 */
+html.dark .affinity-dashboard {
+  --background: #1c1c1f;
+  --foreground: #f4f4f5;
+  --card: #232327;
+  --card-foreground: #f4f4f5;
+  --popover: #232327;
+  --popover-foreground: #f4f4f5;
+  --primary: #f4f4f5;
+  --primary-foreground: #18181b;
+  --secondary: #2e2e33;
+  --secondary-foreground: #f4f4f5;
+  --muted: #2e2e33;
+  --muted-foreground: #a1a1aa;
+  --accent: #3a3a40;
+  --accent-foreground: #f4f4f5;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #3a3a40;
+  --input: #4a4a52;
+  --ring: #71717a;
+  --chart-1: #60a5fa;
+  --chart-2: #4ade80;
+  --chart-3: #fbbf24;
+  --chart-4: #f87171;
+
+  color-scheme: dark;
 }
 
 .affinity-dashboard > * {

@@ -65,6 +65,45 @@ describe("Tailwind 预编译与 preflight 作用域", () => {
     assert.match(sourceCss, /@theme inline/);
   });
 
+  it("style.css 的每条规则都限定在本插件渲染根内", () => {
+    // 无作用域的规则（例如 @heroui/styles/base 的 `*{border-color}`）会改动整个控制台
+    // 和同页其他插件的观感，装没装本插件长得不一样
+    assert.ok(
+      !styleCss.includes("@heroui/styles/base"),
+      "@heroui/styles/base 是无作用域的全局规则，不能引入",
+    );
+
+    const offenders: string[] = [];
+    postcss.parse(styleCss).walkRules((rule) => {
+      for (const selector of rule.selectors) {
+        if (!/\.(affinity-|page-affinity-)/.test(selector)) offenders.push(selector);
+      }
+    });
+    assert.deepEqual(offenders, [], `style.css 出现未作用域的选择器：${offenders.join(" | ")}`);
+  });
+
+  it("工具类以 important 输出，dark 变体跟随 Koishi 的 html.dark", () => {
+    // 宿主与其他插件的无 layer 样式（devMode 的 /__uno.css、Koishi 的 table tr）会压过
+    // layer 内的普通声明，只有 important 能让显式工具类在任何环境下生效
+    assert.match(sourceCss, /@import\s+["']tailwindcss["']\s+source\(none\)\s+important\s*;/);
+    assert.match(sourceCss, /@custom-variant\s+dark\s+\(&:where\(html\.dark \*\)\)/);
+  });
+
+  it("scopePreflight 把 HeroUI 深色变量块映射到 html.dark 下的作用域根", () => {
+    const input = [
+      "@layer base {",
+      "  :root, .light { --border: white }",
+      '  .dark, [data-theme="dark"] { --border: black }',
+      "}",
+    ].join("\n");
+
+    const { css } = scopePreflight(input);
+
+    assert.ok(css.includes(`:where(html.dark) ${SCOPE} {`), css);
+    // 两个深色选择器映射到同一处，去重后只保留一份
+    assert.equal(css.split(`:where(html.dark) ${SCOPE}`).length - 1, 1);
+  });
+
   it("vite 配置不再挂 @tailwindcss/vite", () => {
     assert.ok(
       !/@tailwindcss\/vite/.test(viteConfig.replace(/\/\/.*$/gm, "")),
@@ -138,6 +177,20 @@ describe("Tailwind 预编译与 preflight 作用域", () => {
       offenders,
       [],
       `产物 @layer base 出现未作用域的选择器：${offenders.join(" | ")}`,
+    );
+  });
+
+  it("预编译产物的工具类带 important，dark 变体不依赖系统配色", (t) => {
+    if (!existsSync(generatedPath)) {
+      t.skip("tailwind.generated.css 尚未生成，先运行 yarn build:css");
+      return;
+    }
+
+    const generated = readFileSync(generatedPath, "utf8");
+    assert.match(generated, /\.border-b \{[^}]*border-bottom-width: 1px !important;/);
+    assert.ok(
+      !/prefers-color-scheme:\s*dark/.test(generated),
+      "dark: 变体应跟随 Koishi 的 html.dark，而不是系统 prefers-color-scheme",
     );
   });
 });

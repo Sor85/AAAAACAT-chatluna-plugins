@@ -8,9 +8,20 @@
    编译），只有纯 CSS 的包才留在 client/style.css 里。 */
 
 /* source(none) + @source：只扫描 client/ 目录，避免 CLI 按 cwd 扫到 src/、docs/ 等
-   无关文件。 */
-@import "tailwindcss" source(none);
+   无关文件。
+
+   important：Tailwind 产物全部在 cascade layer 里，而 Koishi 控制台和同页其他插件的
+   样式不在任何 layer 里——按级联规则「无 layer 永远压过有 layer」，它们的同名类会
+   覆盖本插件的工具类。最典型的是控制台 devMode 的 /__uno.css：UnoCSS 会扫描插件源码，
+   给 border-b、border-0、shadow-sm、text-sm 等类名生成无 layer 的同名规则，于是同一份
+   仪表盘在开发环境和生产环境长得不一样。给工具类加 !important 后，层内 important
+   反过来压过所有无 layer 的普通声明，显式写下的工具类在任何宿主环境都生效。 */
+@import "tailwindcss" source(none) important;
 @source "../";
+
+/* dark: 跟随 Koishi 控制台主题（html.dark），而不是默认的 prefers-color-scheme——
+   系统主题与控制台主题不一致时，仪表盘会和控制台一深一浅。 */
+@custom-variant dark (&:where(html.dark *));
 
 /* tw-animate-css 用 @theme / @utility 定义动画工具类，必须走编译。 */
 @import "tw-animate-css";

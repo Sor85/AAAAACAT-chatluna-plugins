@@ -313,13 +313,13 @@ function getRelationBadgeClassName(
 ): string {
   switch (tone) {
     case "low":
-      return "border-slate-200 bg-slate-100 text-slate-900 hover:bg-slate-100";
+      return "border-slate-200 bg-slate-100 text-slate-900 hover:bg-slate-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-800";
     case "medium":
-      return "border-sky-200 bg-sky-100 text-sky-900 hover:bg-sky-100";
+      return "border-sky-200 bg-sky-100 text-sky-900 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100 dark:hover:bg-sky-950";
     case "high":
-      return "border-emerald-200 bg-emerald-100 text-emerald-900 hover:bg-emerald-100";
+      return "border-emerald-200 bg-emerald-100 text-emerald-900 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100 dark:hover:bg-emerald-950";
     case "custom":
-      return "border-amber-200 bg-amber-100 text-amber-900 hover:bg-amber-100";
+      return "border-amber-200 bg-amber-100 text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100 dark:hover:bg-amber-950";
     case "unknown":
       return "border-muted bg-muted text-muted-foreground hover:bg-muted";
   }

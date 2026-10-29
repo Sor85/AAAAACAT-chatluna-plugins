@@ -54,6 +54,10 @@ function scopeSelectorPart(part, scope) {
   // [data-theme=...]`）。若按后代改写成 `:where(根) :root`，选择器永远匹配不到任何元素，
   // --default 等 HeroUI 令牌会静默变空，页签胶囊因此失去底色。
   if (part === ':root') return [scope]
+  // HeroUI 的深色变量块（`.dark, [data-theme="dark"]`）同理不能当作后代：Koishi 把深色
+  // 标记挂在 html 上，所以映射成「html.dark 下的作用域根」。:where() 保持特异性为 0，
+  // 与上面的浅色块持平，靠源码顺序（深色块在后）覆盖。
+  if (part === '.dark' || part === '[data-theme="dark"]') return [`:where(html.dark) ${scope}`]
   // html / :host 整条丢弃。它把 font-family 设成 Tailwind 的 --font-sans；改写前这条
   // 落在 html 上，被 Koishi 的 body { font-family: var(--font-family) } 以无 layer
   // 规则压住，所以仪表盘用的一直是控制台主题字体。一旦改写到渲染根上，两条规则匹配的
@@ -79,7 +83,9 @@ export function scopePreflight(css, roots = AFFINITY_STYLE_ROOTS) {
     layer.walkRules((rule) => {
       // 原生嵌套里的子规则由父选择器带上作用域，不能重复前缀。
       if (rule.parent.type === 'rule') return
-      const scoped = splitSelectorList(rule.selector).flatMap((part) => scopeSelectorPart(part, scope))
+      const scoped = [
+        ...new Set(splitSelectorList(rule.selector).flatMap((part) => scopeSelectorPart(part, scope))),
+      ]
       if (!scoped.length) {
         rule.remove()
         droppedRules++
