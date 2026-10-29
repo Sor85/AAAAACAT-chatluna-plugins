@@ -50,6 +50,37 @@ function parseHtml(html: string) {
   };
 }
 
+interface RemoteImageCacheEntry {
+  promise: Promise<ImageSource | null>;
+}
+
+const REMOTE_IMAGE_CACHE_LIMIT = 256;
+const remoteImageCache = new Map<string, RemoteImageCacheEntry>();
+
+function loadRemoteImage(src: string): Promise<ImageSource | null> {
+  const cached = remoteImageCache.get(src);
+  if (cached) return cached.promise;
+
+  const promise = (async (): Promise<ImageSource | null> => {
+    try {
+      const response = await fetch(src);
+      if (!response.ok) return null;
+      return { src, data: await response.arrayBuffer() };
+    } catch {
+      return null;
+    }
+  })();
+
+  // 表情等资源会在测量与渲染中被反复用到，缓存起来避免重复下载
+  if (remoteImageCache.size >= REMOTE_IMAGE_CACHE_LIMIT) {
+    const oldest = remoteImageCache.keys().next().value;
+    if (oldest !== undefined) remoteImageCache.delete(oldest);
+  }
+  remoteImageCache.set(src, { promise });
+
+  return promise;
+}
+
 async function fetchRemoteImages(node: Node): Promise<ImageSource[]> {
   const urls = new Set<string>();
 
@@ -72,31 +103,64 @@ async function fetchRemoteImages(node: Node): Promise<ImageSource[]> {
 
   collect(node);
   const images = await Promise.all(
-    [...urls].map(async (src): Promise<ImageSource | null> => {
-      try {
-        const response = await fetch(src);
-        if (!response.ok) return null;
-        return { src, data: await response.arrayBuffer() };
-      } catch {
-        return null;
-      }
-    }),
+    [...urls].map(async (src) => await loadRemoteImage(src)),
   );
   return images.filter((image): image is ImageSource => image !== null);
+}
+
+export interface TakumiRenderOptions {
+  /**
+   * 渲染倍率。1 表示按 CSS 像素直接出图（默认），2 表示两倍密度的视网膜渲染。
+   */
+  deviceScaleFactor?: number;
+}
+
+function normalizeDeviceScaleFactor(value: number | undefined): number {
+  if (!Number.isFinite(value) || (value ?? 0) <= 0) return 1;
+  return value as number;
+}
+
+function prepare(html: string) {
+  const parsed = parseHtml(html);
+  const node = extractEmojis(parsed.node, "twemoji");
+  return { node, stylesheets: parsed.stylesheets };
+}
+
+/**
+ * 按 CSS 宽度测量渲染结果高度（单位：CSS 像素）。
+ * 用于长列表分页，避免一次性渲染出超高图片。
+ */
+export async function measureTakumiHtml(
+  html: string,
+  width: number,
+): Promise<number> {
+  const prepared = prepare(html);
+  const images = await fetchRemoteImages(prepared.node);
+
+  const measured = await renderer.measure(prepared.node, {
+    width,
+    stylesheets: prepared.stylesheets,
+    fetchedResources: images,
+  });
+
+  return Math.ceil(measured.height);
 }
 
 export async function renderTakumiHtml(
   html: string,
   width: number,
+  options: TakumiRenderOptions = {},
 ): Promise<Buffer> {
-  const parsed = parseHtml(html);
-  const node = extractEmojis(parsed.node, "twemoji");
-  const images = await fetchRemoteImages(node);
+  const deviceScaleFactor = normalizeDeviceScaleFactor(options.deviceScaleFactor);
+  const prepared = prepare(html);
+  const images = await fetchRemoteImages(prepared.node);
 
-  return renderer.render(node, {
-    width,
+  return renderer.render(prepared.node, {
+    // width 是物理像素宽度，布局宽度 = width / devicePixelRatio
+    width: Math.round(width * deviceScaleFactor),
+    devicePixelRatio: deviceScaleFactor,
     format: "png",
-    stylesheets: parsed.stylesheets,
+    stylesheets: prepared.stylesheets,
     fetchedResources: images,
   });
 }

@@ -7,7 +7,7 @@ import { h, type Context } from "koishi";
 import type { Config } from "../../config";
 import { MemeBackendClient } from "../../infra/client";
 import type { MemeInfoResponse } from "../../types";
-import { renderTakumiHtml } from "../../render/takumi";
+import { measureTakumiHtml, renderTakumiHtml } from "../../render/takumi";
 import { normalizeMemeKey, resolveSessionGroupId } from "./exclusion";
 import {
   MEME_LIST_CATEGORY_LABEL,
@@ -684,6 +684,187 @@ export function stringifyImageSegment(
   return `<img src="data:${mimeType};base64,${base64}"/>`;
 }
 
+export const MEME_LIST_IMAGE_LAYOUT_WIDTH = 1200;
+export const MEME_LIST_IMAGE_DEVICE_SCALE_FACTOR = 2;
+export const MEME_LIST_IMAGE_PAGE_MAX_HEIGHT = 1600;
+
+const MEME_LIST_IMAGE_TITLE_FONT_SIZE = 22;
+const MEME_LIST_IMAGE_ALIAS_FONT_SIZE = 18;
+const MEME_LIST_IMAGE_PADDING = 36;
+const MEME_LIST_IMAGE_COLUMN_MIN_WIDTH = 220;
+
+export interface MemeListImageBlock {
+  title: string;
+  aliases: string[];
+}
+
+export function resolveMemeListImageColumns(): number {
+  const contentWidth =
+    MEME_LIST_IMAGE_LAYOUT_WIDTH - MEME_LIST_IMAGE_PADDING * 2;
+  return Math.max(
+    1,
+    Math.floor(contentWidth / MEME_LIST_IMAGE_COLUMN_MIN_WIDTH),
+  );
+}
+
+function buildMemeListImageDocument(body: string): string {
+  const columns = resolveMemeListImageColumns();
+  return `<!doctype html><html><head><meta charset="utf-8"/><style>body{margin:0;padding:0;background:#f5f7fb;}#list{width:${MEME_LIST_IMAGE_LAYOUT_WIDTH}px;padding:${MEME_LIST_IMAGE_PADDING}px;box-sizing:border-box;color:#0f172a;font-family:"Noto Sans SC",sans-serif;}.section{margin:0 0 22px 0;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden;background:#ffffff;}.section-title{padding:12px 16px;background:#e2e8f0;border-bottom:1px solid #cbd5e1;font-size:${MEME_LIST_IMAGE_TITLE_FONT_SIZE}px;line-height:1.4;font-weight:700;}.alias-grid{display:grid;grid-template-columns:repeat(${columns},minmax(0,1fr));}.alias-cell{padding:10px 12px;font-size:${MEME_LIST_IMAGE_ALIAS_FONT_SIZE}px;line-height:1.5;border-right:1px solid #dbe3ee;border-bottom:1px solid #dbe3ee;word-break:break-word;overflow-wrap:anywhere;background:#ffffff;}.alias-cell:nth-child(2n){background:#f8fafc;}.line{font-size:${MEME_LIST_IMAGE_ALIAS_FONT_SIZE}px;line-height:1.6;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;}</style></head><body><div id="list">${body}</div></body></html>`;
+}
+
+export function buildMemeListImageHtml(blocks: MemeListImageBlock[]): string {
+  const body = blocks
+    .map((block) => {
+      const aliasCells = block.aliases
+        .map((alias) => `<div class="alias-cell">${escapeXml(alias)}</div>`)
+        .join("");
+      return `<section class="section"><div class="section-title">${escapeXml(block.title)}</div><div class="alias-grid">${aliasCells}</div></section>`;
+    })
+    .join("");
+
+  return buildMemeListImageDocument(body);
+}
+
+function buildMemeListImageLinesHtml(lines: string[]): string {
+  const body = lines
+    .map((line) => `<div class="line">${escapeXml(line)}</div>`)
+    .join("");
+
+  return buildMemeListImageDocument(body);
+}
+
+async function measureMemeListImageBlocks(
+  blocks: MemeListImageBlock[],
+): Promise<number> {
+  return await measureTakumiHtml(
+    buildMemeListImageHtml(blocks),
+    MEME_LIST_IMAGE_LAYOUT_WIDTH,
+  );
+}
+
+/**
+ * 二分查找当前页还能放下多少条别名。
+ * 返回 0 表示连一条都放不下。
+ */
+async function resolveAliasCountThatFits(
+  pageBlocks: MemeListImageBlock[],
+  title: string,
+  aliases: string[],
+  maxHeight: number,
+): Promise<number> {
+  const fits = async (count: number) =>
+    (await measureMemeListImageBlocks([
+      ...pageBlocks,
+      { title, aliases: aliases.slice(0, count) },
+    ])) <= maxHeight;
+
+  let low = 1;
+  let high = aliases.length;
+  let best = 0;
+
+  while (low <= high) {
+    const count = Math.floor((low + high) / 2);
+
+    if (await fits(count)) {
+      best = count;
+      low = count + 1;
+    } else {
+      high = count - 1;
+    }
+  }
+
+  return best;
+}
+
+/**
+ * 把模板列表切成若干页，保证每页渲染高度不超过 maxHeight（CSS 像素）。
+ * 分类跨页时标题追加「（续）」。
+ */
+export async function paginateMemeListImageSections(
+  sections: MemeListSection[],
+  maxHeight = MEME_LIST_IMAGE_PAGE_MAX_HEIGHT,
+): Promise<MemeListImageBlock[][]> {
+  const pages: MemeListImageBlock[][] = [];
+  let currentPage: MemeListImageBlock[] = [];
+
+  const flush = () => {
+    if (currentPage.length > 0) {
+      pages.push(currentPage);
+      currentPage = [];
+    }
+  };
+
+  for (const section of sections) {
+    let offset = 0;
+
+    while (offset < section.aliases.length) {
+      const remaining = section.aliases.slice(offset);
+      const title = offset === 0 ? section.title : `${section.title}（续）`;
+      const fit = await resolveAliasCountThatFits(
+        currentPage,
+        title,
+        remaining,
+        maxHeight,
+      );
+
+      if (fit > 0) {
+        currentPage.push({ title, aliases: remaining.slice(0, fit) });
+        offset += fit;
+        // 本条分类还没放完，说明本页已满
+        if (offset < section.aliases.length) flush();
+        continue;
+      }
+
+      if (currentPage.length > 0) {
+        flush();
+        continue;
+      }
+
+      // 单条别名也超出页高（页高配置过小），强制放一条避免死循环
+      currentPage.push({ title, aliases: remaining.slice(0, 1) });
+      offset += 1;
+    }
+  }
+
+  flush();
+  return pages;
+}
+
+async function renderMemeListImageSegments(
+  pages: MemeListImageBlock[][],
+  lines: string[],
+): Promise<string[]> {
+  const documents =
+    pages.length > 0
+      ? pages.map((blocks) => buildMemeListImageHtml(blocks))
+      : [buildMemeListImageLinesHtml(lines)];
+
+  const segments: string[] = [];
+  for (const html of documents) {
+    const buffer = await renderTakumiHtml(html, MEME_LIST_IMAGE_LAYOUT_WIDTH, {
+      deviceScaleFactor: MEME_LIST_IMAGE_DEVICE_SCALE_FACTOR,
+    });
+    segments.push(stringifyImageSegment(h.image(buffer, "image/png")));
+  }
+
+  return segments;
+}
+
+interface MemeListImageCacheEntry {
+  key: string;
+  segments: string[];
+}
+
+// 模板列表基本不变，缓存上一次的渲染结果，避免重复执行分页测量
+let memeListImageCache: MemeListImageCacheEntry | undefined;
+
+function createMemeListImageCacheKey(
+  sections: MemeListSection[],
+  lines: string[],
+): string {
+  return JSON.stringify(sections.length > 0 ? sections : lines);
+}
+
 export async function buildListMessage(
   sections: MemeListSection[],
   lines: string[],
@@ -693,29 +874,18 @@ export async function buildListMessage(
   const content = lines.join("\n");
   if (!renderAsImage) return content;
 
-  const width = 2400;
-  const titleFontSize = 22;
-  const aliasFontSize = 16;
-  const paddingX = 72;
-  const paddingY = 72;
-
   try {
-    const sectionContent = sections
-      .map((section) => {
-        const aliasCells = section.aliases
-          .map((alias) => `<div class="alias-cell">${escapeXml(alias)}</div>`)
-          .join("");
-        return `<section class="section"><div class="section-title">${escapeXml(section.title)}</div><div class="alias-grid">${aliasCells}</div></section>`;
-      })
-      .join("");
+    const cacheKey = createMemeListImageCacheKey(sections, lines);
+    if (memeListImageCache?.key === cacheKey) {
+      return memeListImageCache.segments.join("");
+    }
 
-    const fallbackContent = lines
-      .map((line) => `<div class="line">${escapeXml(line)}</div>`)
-      .join("");
-
-    const html = `<!doctype html><html><head><meta charset="utf-8"/><style>body{margin:0;padding:0;background:#f5f7fb;}#list{width:${width}px;padding:${paddingY}px ${paddingX}px;box-sizing:border-box;color:#0f172a;font-family:"Noto Sans SC",sans-serif;}.section{margin:0 0 22px 0;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden;background:#ffffff;}.section-title{padding:12px 16px;background:#e2e8f0;border-bottom:1px solid #cbd5e1;font-size:${titleFontSize}px;line-height:1.4;font-weight:700;}.alias-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));}.alias-cell{padding:10px 12px;font-size:${aliasFontSize}px;line-height:1.5;border-right:1px solid #dbe3ee;border-bottom:1px solid #dbe3ee;word-break:break-word;overflow-wrap:anywhere;background:#ffffff;}.alias-cell:nth-child(2n){background:#f8fafc;}.line{font-size:${aliasFontSize}px;line-height:1.6;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;}</style></head><body><div id="list">${sections.length > 0 ? sectionContent : fallbackContent}</div></body></html>`;
-    const buffer = await renderTakumiHtml(html, width);
-    return stringifyImageSegment(h.image(buffer, "image/png"));
+    // 高密度分页渲染：布局宽度按 CSS 像素算，再按 deviceScaleFactor 放大出图，
+    // 否则 2400px 宽的图里字号只占 0.67%，QQ 等客户端按屏幕宽度缩放后就会糊成一团。
+    const pages = await paginateMemeListImageSections(sections);
+    const segments = await renderMemeListImageSegments(pages, lines);
+    memeListImageCache = { key: cacheKey, segments };
+    return segments.join("");
   } catch (error) {
     logger.warn(
       "meme.list image render failed, fallback to text: %s",
