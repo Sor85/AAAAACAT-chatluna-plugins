@@ -1,6 +1,6 @@
 /**
  * meme.list 图片模式单元测试
- * 覆盖高密度出图与长列表分页
+ * 覆盖高密度出图、单张/多张出图模式与长列表分页
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -16,7 +16,8 @@ import {
   MEME_LIST_IMAGE_DEVICE_SCALE_FACTOR,
   MEME_LIST_IMAGE_LAYOUT_WIDTH,
   MEME_LIST_IMAGE_PAGE_MAX_HEIGHT,
-  buildListImageMessages,
+  buildListImages,
+  formatMemeListImageMessage,
   buildMemeListImageHtml,
   paginateMemeListImageSections,
   resolveMemeListImageColumns,
@@ -41,10 +42,7 @@ function flattenAliases(pages: MemeListImageBlock[][]): string[] {
   return pages.flatMap((page) => page.flatMap((block) => block.aliases));
 }
 
-function decodePngSize(segment: string): { width: number; height: number } {
-  const match = /^<img src="data:image\/png;base64,([^"]+)"\/>$/.exec(segment);
-  if (!match) throw new Error(`not a png image segment: ${segment}`);
-  const buffer = Buffer.from(match[1], "base64");
+function decodePngSize(buffer: Buffer): { width: number; height: number } {
   return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
 }
 
@@ -110,33 +108,60 @@ describe("meme.list 图片渲染", () => {
   });
 
   it("应按设备像素比出图，宽度等于布局宽度乘以倍率", async () => {
-    const messages = await buildListImageMessages(
+    const images = await buildListImages(
       createSections(20),
       ["图片+文字", "模板0 模板1"],
+      "single",
       logger,
     );
 
-    expect(messages).toHaveLength(1);
-    const { width, height } = decodePngSize(messages[0]);
+    expect(images).toHaveLength(1);
+    const { width, height } = decodePngSize(images![0]);
     expect(width).toBe(
       MEME_LIST_IMAGE_LAYOUT_WIDTH * MEME_LIST_IMAGE_DEVICE_SCALE_FACTOR,
     );
     expect(height).toBeGreaterThan(0);
   });
 
-  it("长列表应按页输出多条图片消息，且每张不超过页高", async () => {
-    const messages = await buildListImageMessages(
+  it("单张模式下长列表应合成一张超过页高的长图", async () => {
+    const images = await buildListImages(
       createSections(240),
       [],
+      "single",
       logger,
     );
 
-    expect(messages.length).toBeGreaterThan(1);
-    for (const message of messages) {
-      const { height } = decodePngSize(message);
-      expect(height).toBeLessThanOrEqual(
+    expect(images).toHaveLength(1);
+    expect(decodePngSize(images![0]).height).toBeGreaterThan(
+      MEME_LIST_IMAGE_PAGE_MAX_HEIGHT * MEME_LIST_IMAGE_DEVICE_SCALE_FACTOR,
+    );
+  });
+
+  it("多张模式下长列表应按页输出多张图片，且每张不超过页高", async () => {
+    const images = await buildListImages(
+      createSections(240),
+      [],
+      "multiple",
+      logger,
+    );
+
+    expect(images!.length).toBeGreaterThan(1);
+    for (const image of images!) {
+      expect(decodePngSize(image).height).toBeLessThanOrEqual(
         MEME_LIST_IMAGE_PAGE_MAX_HEIGHT * MEME_LIST_IMAGE_DEVICE_SCALE_FACTOR,
       );
     }
+  });
+
+  it("图片消息应把每张图片拼成 data URL 图片段", () => {
+    const message = formatMemeListImageMessage([
+      Buffer.from("a"),
+      Buffer.from("b"),
+    ]);
+
+    expect(message).toBe(
+      `<img src="data:image/png;base64,${Buffer.from("a").toString("base64")}"/>` +
+        `<img src="data:image/png;base64,${Buffer.from("b").toString("base64")}"/>`,
+    );
   });
 });

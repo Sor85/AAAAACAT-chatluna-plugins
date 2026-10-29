@@ -31,6 +31,8 @@ export interface GroupExcludedMemeKeyRule {
   excludedMemeKeys: string[];
 }
 
+export type MemeListImageMode = "single" | "multiple";
+
 export interface Config {
   baseUrl: string;
   timeoutMs: number;
@@ -42,6 +44,7 @@ export interface Config {
   enableQuotedImageTrigger: boolean;
   enableQuotedTextTrigger: boolean;
   renderMemeListAsImage: boolean;
+  memeListImageMode: MemeListImageMode;
   sendMemeListAsForward: boolean;
   sendMemeSearchAsForward: boolean;
   enableMemeCommandTrigger: boolean;
@@ -93,6 +96,7 @@ export const defaultConfig: Config = {
   enableQuotedImageTrigger: true,
   enableQuotedTextTrigger: false,
   renderMemeListAsImage: true,
+  memeListImageMode: "single",
   sendMemeListAsForward: true,
   sendMemeSearchAsForward: true,
   enableMemeCommandTrigger: true,
@@ -315,9 +319,19 @@ const runtimeSchema = Schema.object({
   renderMemeListAsImage: Schema.boolean()
     .default(defaultConfig.renderMemeListAsImage)
     .description("`meme.list`是否以图片形式输出"),
+  memeListImageMode: Schema.union([
+    Schema.const("single").description("合成单张长图"),
+    Schema.const("multiple").description("按页拆成多张图片"),
+  ])
+    .default(defaultConfig.memeListImageMode)
+    .description(
+      "`meme.list`图片模式；多张图片在开启合并转发时以 OneBot 合并转发发送",
+    ),
   sendMemeListAsForward: Schema.boolean()
     .default(defaultConfig.sendMemeListAsForward)
-    .description("`meme.list`是否以 OneBot 合并转发发送"),
+    .description(
+      "`meme.list`是否以 OneBot 合并转发发送（适用于文字列表与多张图片）",
+    ),
   sendMemeSearchAsForward: Schema.boolean()
     .default(defaultConfig.sendMemeSearchAsForward)
     .description("`meme.search`是否以 OneBot 合并转发发送"),

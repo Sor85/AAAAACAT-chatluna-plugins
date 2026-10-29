@@ -324,6 +324,7 @@ function createBaseConfig(overrides: Partial<Config> = {}): Config {
     enableQuotedImageTrigger: true,
     enableQuotedTextTrigger: false,
     renderMemeListAsImage: false,
+    memeListImageMode: "single",
     sendMemeListAsForward: true,
     sendMemeSearchAsForward: true,
     enableDirectAliasWithoutPrefix: true,
@@ -4220,7 +4221,7 @@ describe("registerCommands", () => {
     expect(request).not.toHaveBeenCalled();
   });
 
-  it("图片列表分成多页时 meme.list 应在同一条消息里返回全部图片", async () => {
+  async function registerLongImageList(overrides: Partial<Config>) {
     const commandActions = new Map<
       string,
       (...args: any[]) => Promise<unknown>
@@ -4256,16 +4257,97 @@ describe("registerCommands", () => {
       createBaseConfig({
         enableDirectAliasWithoutPrefix: false,
         renderMemeListAsImage: true,
+        ...overrides,
       }),
     );
     await flushReadyHandlers(readyHandlers);
 
     const listAction = commandActions.get("meme.list");
     expect(listAction).toBeDefined();
+    return listAction!;
+  }
 
-    const session = createSession("meme.list");
-    const result = await listAction!({ session });
+  it("单张图片模式下长列表 meme.list 应只返回一张图片且不合并转发", async () => {
+    const listAction = await registerLongImageList({
+      memeListImageMode: "single",
+    });
+    const request = vi.fn<
+      (action: string, params: Record<string, unknown>) => Promise<unknown>
+    >(async () => undefined);
 
+    const result = await listAction({
+      session: createOneBotListSession(request),
+    });
+
+    expect(request).not.toHaveBeenCalled();
+    expect(result).toMatch(/^<img src="data:image\/png;base64,[^"]+"\/>$/);
+  });
+
+  it("多张图片模式下 meme.list 应以 OneBot 合并转发发送每张图片", async () => {
+    const listAction = await registerLongImageList({
+      memeListImageMode: "multiple",
+    });
+    const request = vi.fn<
+      (action: string, params: Record<string, unknown>) => Promise<unknown>
+    >(async () => undefined);
+
+    const result = await listAction({
+      session: createOneBotListSession(request),
+    });
+
+    expect(result).toBeUndefined();
+    expect(request).toHaveBeenCalledTimes(1);
+    const [action, params] = request.mock.calls[0]!;
+    expect(action).toBe("send_group_forward_msg");
+    const messages = (
+      params as {
+        messages: Array<{
+          data: { uin: unknown; content: Array<{ type: string; data: { file: string } }> };
+        }>;
+      }
+    ).messages;
+    expect(messages.length).toBeGreaterThan(1);
+    for (const message of messages) {
+      expect(message.data.uin).toBe("bot");
+      expect(message.data.content).toHaveLength(1);
+      expect(message.data.content[0]!.type).toBe("image");
+      expect(message.data.content[0]!.data.file).toMatch(/^base64:\/\/.+/);
+    }
+  });
+
+  it("多张图片模式下合并转发失败时 meme.list 应在同一条消息里返回全部图片", async () => {
+    const listAction = await registerLongImageList({
+      memeListImageMode: "multiple",
+    });
+    const request = vi.fn<
+      (action: string, params: Record<string, unknown>) => Promise<unknown>
+    >(async () => {
+      throw new Error("unsupported action");
+    });
+
+    const session = createOneBotListSession(request);
+    const result = await listAction({ session });
+
+    expect(request).toHaveBeenCalled();
+    expect(session.send).not.toHaveBeenCalled();
+    expect(result).toMatch(
+      /^(<img src="data:image\/png;base64,[^"]+"\/>){2,}$/,
+    );
+  });
+
+  it("多张图片模式下关闭合并转发时 meme.list 应在同一条消息里返回全部图片", async () => {
+    const listAction = await registerLongImageList({
+      memeListImageMode: "multiple",
+      sendMemeListAsForward: false,
+    });
+    const request = vi.fn<
+      (action: string, params: Record<string, unknown>) => Promise<unknown>
+    >(async () => undefined);
+
+    const session = createOneBotListSession(request);
+    const result = await listAction({ session });
+
+    expect(request).not.toHaveBeenCalled();
     expect(session.send).not.toHaveBeenCalled();
     expect(result).toMatch(
       /^(<img src="data:image\/png;base64,[^"]+"\/>){2,}$/,

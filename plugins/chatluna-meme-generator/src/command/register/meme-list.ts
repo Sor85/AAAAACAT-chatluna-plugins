@@ -4,7 +4,7 @@
  */
 
 import { h, type Context } from "koishi";
-import type { Config } from "../../config";
+import type { Config, MemeListImageMode } from "../../config";
 import { MemeBackendClient } from "../../infra/client";
 import type { MemeInfoResponse } from "../../types";
 import { measureTakumiLayout, renderTakumiHtml } from "../../render/takumi";
@@ -215,17 +215,20 @@ export function splitMemeListMessages(sections: MemeListSection[]): string[] {
   return chunks;
 }
 
+type OneBotMessageSegment = { type: string; data: Record<string, unknown> };
+type ForwardNodeContent = string | OneBotMessageSegment[];
+
 function createForwardMessages(
   session: OneBotForwardSession,
-  sections: MemeListSection[],
+  contents: ForwardNodeContent[],
 ) {
   const sender = resolveForwardSender(session);
-  return splitMemeListMessages(sections).map((chunk) => ({
+  return contents.map((content) => ({
     type: "node",
     data: {
       name: sender.name,
       uin: sender.id,
-      content: chunk,
+      content,
     },
   }));
 }
@@ -306,10 +309,12 @@ function createOneBotForwardAttempts(
       ];
 }
 
-export async function sendMemeListForwardMessage(
+async function sendOneBotForwardMessage(
   session: unknown,
-  sections: MemeListSection[],
+  contents: ForwardNodeContent[],
+  metadata: Record<string, unknown>,
   logger: ReturnType<Context["logger"]>,
+  failureLog: string,
 ): Promise<boolean> {
   const oneBotSession = session as OneBotForwardSession | undefined;
   if (oneBotSession?.platform !== "onebot") return false;
@@ -320,21 +325,53 @@ export async function sendMemeListForwardMessage(
   const target = resolveOneBotForwardTarget(oneBotSession);
   if (!target) return false;
 
-  const messages = createForwardMessages(oneBotSession, sections);
-  const baseParams = { messages };
-  const attempts = createOneBotForwardAttempts(target, baseParams);
+  const messages = createForwardMessages(oneBotSession, contents);
+  const attempts = createOneBotForwardAttempts(target, {
+    messages,
+    ...metadata,
+  });
 
   try {
     // NapCat 与 LLBOT 的转发接口命名不完全一致，这里先试群/私聊专用 action，再回退到通用 forward API。
     await tryOneBotActions(internal, attempts);
     return true;
   } catch (error) {
-    logger.warn(
-      "meme.list forward send failed, fallback to text: %s",
-      String(error),
-    );
+    logger.warn(failureLog, String(error));
     return false;
   }
+}
+
+export async function sendMemeListForwardMessage(
+  session: unknown,
+  sections: MemeListSection[],
+  logger: ReturnType<Context["logger"]>,
+): Promise<boolean> {
+  return await sendOneBotForwardMessage(
+    session,
+    splitMemeListMessages(sections),
+    {},
+    logger,
+    "meme.list forward send failed, fallback to text: %s",
+  );
+}
+
+/**
+ * 多张列表图片每张作为一个转发节点；图片用 base64 段直接内联，不依赖适配器解析 data URL。
+ */
+export async function sendMemeListImageForwardMessage(
+  session: unknown,
+  images: Buffer[],
+  logger: ReturnType<Context["logger"]>,
+): Promise<boolean> {
+  return await sendOneBotForwardMessage(
+    session,
+    images.map((image) => [
+      { type: "image", data: { file: `base64://${image.toString("base64")}` } },
+    ]),
+    {},
+    logger,
+    "meme.list image forward send failed, fallback to direct images: %s",
+  );
 }
 
 export async function sendMemeSearchForwardMessage(
@@ -343,48 +380,20 @@ export async function sendMemeSearchForwardMessage(
   count: number,
   logger: ReturnType<Context["logger"]>,
 ): Promise<boolean> {
-  const oneBotSession = session as OneBotForwardSession | undefined;
-  if (oneBotSession?.platform !== "onebot") return false;
   if (!content) return false;
 
-  const internal = oneBotSession.bot?.internal;
-  if (!internal) return false;
-
-  const target = resolveOneBotForwardTarget(oneBotSession);
-  if (!target) return false;
-
-  const sender = resolveForwardSender(oneBotSession);
-  const messages = [
+  // 搜索结果也沿用 OneBot forward，避免长结果直接撞平台文本长度限制。
+  return await sendOneBotForwardMessage(
+    session,
+    [content],
     {
-      type: "node",
-      data: {
-        name: sender.name,
-        uin: sender.id,
-        content,
-      },
+      prompt: "表情搜索结果",
+      summary: `查看 ${count} 条搜索结果`,
+      source: "meme.search",
     },
-  ];
-  const metadata = {
-    prompt: "表情搜索结果",
-    summary: `查看 ${count} 条搜索结果`,
-    source: "meme.search",
-  };
-  const attempts = createOneBotForwardAttempts(target, {
-    messages,
-    ...metadata,
-  });
-
-  try {
-    // 搜索结果也沿用 OneBot forward，避免长结果直接撞平台文本长度限制。
-    await tryOneBotActions(internal, attempts);
-    return true;
-  } catch (error) {
-    logger.warn(
-      "meme.search forward send failed, fallback to text: %s",
-      String(error),
-    );
-    return false;
-  }
+    logger,
+    "meme.search forward send failed, fallback to text: %s",
+  );
 }
 
 function resolveMemeListCategory(
@@ -845,66 +854,75 @@ export async function paginateMemeListImageSections(
   return pages;
 }
 
-async function renderMemeListImageSegments(
-  pages: MemeListImageBlock[][],
+async function buildMemeListImageDocuments(
+  sections: MemeListSection[],
   lines: string[],
+  mode: MemeListImageMode,
 ): Promise<string[]> {
-  const documents =
-    pages.length > 0
-      ? pages.map((blocks) => buildMemeListImageHtml(blocks))
-      : [buildMemeListImageLinesHtml(lines)];
+  if (sections.length === 0) return [buildMemeListImageLinesHtml(lines)];
+  if (mode !== "multiple") return [buildMemeListImageHtml(sections)];
 
-  const segments: string[] = [];
-  for (const html of documents) {
-    const buffer = await renderTakumiHtml(html, MEME_LIST_IMAGE_LAYOUT_WIDTH, {
-      deviceScaleFactor: MEME_LIST_IMAGE_DEVICE_SCALE_FACTOR,
-    });
-    segments.push(stringifyImageSegment(h.image(buffer, "image/png")));
-  }
-
-  return segments;
+  const pages = await paginateMemeListImageSections(sections);
+  return pages.map((blocks) => buildMemeListImageHtml(blocks));
 }
 
 interface MemeListImageCacheEntry {
   key: string;
-  segments: string[];
+  images: Buffer[];
 }
 
-// 模板列表基本不变，缓存上一次的渲染结果，避免重复执行分页测量
+// 模板列表基本不变，缓存上一次的渲染结果，避免重复执行分页测量与出图
 let memeListImageCache: MemeListImageCacheEntry | undefined;
 
 function createMemeListImageCacheKey(
   sections: MemeListSection[],
   lines: string[],
+  mode: MemeListImageMode,
 ): string {
-  return JSON.stringify(sections.length > 0 ? sections : lines);
+  return JSON.stringify([mode, sections.length > 0 ? sections : lines]);
 }
 
 /**
- * 把模板列表渲染成图片消息，每页一条；渲染失败时退回整段文本。
+ * 把模板列表渲染成 PNG：single 合成一张长图，multiple 按页高拆成多张。
+ * 渲染失败时返回 undefined，由调用方退回文本。
  */
-export async function buildListImageMessages(
+export async function buildListImages(
   sections: MemeListSection[],
   lines: string[],
+  mode: MemeListImageMode,
   logger: ReturnType<Context["logger"]>,
-): Promise<string[]> {
+): Promise<Buffer[] | undefined> {
   try {
-    const cacheKey = createMemeListImageCacheKey(sections, lines);
+    const cacheKey = createMemeListImageCacheKey(sections, lines, mode);
     if (memeListImageCache?.key === cacheKey) {
-      return memeListImageCache.segments;
+      return memeListImageCache.images;
     }
 
-    // 高密度分页渲染：布局宽度按 CSS 像素算，再按 deviceScaleFactor 放大出图，
+    // 高密度出图：布局宽度按 CSS 像素算，再按 deviceScaleFactor 放大出图，
     // 否则 2400px 宽的图里字号只占 0.67%，QQ 等客户端按屏幕宽度缩放后就会糊成一团。
-    const pages = await paginateMemeListImageSections(sections);
-    const segments = await renderMemeListImageSegments(pages, lines);
-    memeListImageCache = { key: cacheKey, segments };
-    return segments;
+    const documents = await buildMemeListImageDocuments(sections, lines, mode);
+    const images: Buffer[] = [];
+    for (const html of documents) {
+      images.push(
+        await renderTakumiHtml(html, MEME_LIST_IMAGE_LAYOUT_WIDTH, {
+          deviceScaleFactor: MEME_LIST_IMAGE_DEVICE_SCALE_FACTOR,
+        }),
+      );
+    }
+    memeListImageCache = { key: cacheKey, images };
+    return images;
   } catch (error) {
     logger.warn(
       "meme.list image render failed, fallback to text: %s",
       String(error),
     );
-    return [lines.join("\n")];
+    return undefined;
   }
+}
+
+/** 把列表图片拼成同一条消息里的图片段。 */
+export function formatMemeListImageMessage(images: Buffer[]): string {
+  return images
+    .map((image) => stringifyImageSegment(h.image(image, "image/png")))
+    .join("");
 }

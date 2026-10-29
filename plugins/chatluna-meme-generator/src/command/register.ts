@@ -15,12 +15,14 @@ import {
   buildCategoryExcludedMemeKeySet,
   buildMemeListEntries,
   buildMemeListSections,
-  buildListImageMessages,
+  buildListImages,
+  formatMemeListImageMessage,
   fetchMemeListInfos,
   formatMemeSearchResultMessage,
   formatMemeListLines,
   searchMemeInfos,
   sendMemeListForwardMessage,
+  sendMemeListImageForwardMessage,
   sendMemeSearchForwardMessage,
   splitMemeListMessages,
 } from "./register/meme-list";
@@ -468,8 +470,22 @@ export function registerCommands(ctx: Context, config: Config): void {
         return chunks.join("\n");
       }
 
-      const messages = await buildListImageMessages(sections, lines, logger);
-      return messages.join("");
+      const images = await buildListImages(
+        sections,
+        lines,
+        config.memeListImageMode,
+        logger,
+      );
+      if (!images) return lines.join("\n");
+      if (images.length > 1 && config.sendMemeListAsForward) {
+        const sent = await sendMemeListImageForwardMessage(
+          session,
+          images,
+          logger,
+        );
+        if (sent) return;
+      }
+      return formatMemeListImageMessage(images);
     } catch (error) {
       return handleRuntimeError("meme.list", error);
     }

@@ -122,6 +122,7 @@ function createBaseConfig(): Config {
     enableQuotedImageTrigger: true,
     enableQuotedTextTrigger: false,
     renderMemeListAsImage: false,
+    memeListImageMode: "single",
     sendMemeListAsForward: true,
     sendMemeSearchAsForward: true,
     enableMemeCommandTrigger: true,
